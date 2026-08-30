@@ -7,8 +7,6 @@ import com.google.gson.JsonParser;
 import com.shyblack.cryptosignals.config.MarketProperties;
 import com.shyblack.cryptosignals.dto.market.KlineResponse;
 import com.shyblack.cryptosignals.exception.MarketUpstreamException;
-import java.math.BigDecimal;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -20,24 +18,24 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
 @Component
-public class BinanceRestClient {
+public class BinanceFuturesRestClient {
 
-	private static final Logger log = LoggerFactory.getLogger(BinanceRestClient.class);
+	private static final Logger log = LoggerFactory.getLogger(BinanceFuturesRestClient.class);
 
 	private final RestClient rest;
 	private final String quoteAsset;
 
-	public BinanceRestClient(MarketProperties properties) {
+	public BinanceFuturesRestClient(MarketProperties properties) {
 		this.rest = RestClient.builder()
-				.baseUrl(properties.restBaseUrl())
+				.baseUrl(properties.futuresRestBaseUrl())
 				.build();
 		this.quoteAsset = properties.quoteAssetOrUsdt();
 	}
 
-	public Map<String, String> loadTradableUsdtSpotNames() {
+	public Map<String, String> loadTradableUsdtMFuturesNames() {
 		try {
 			String body = rest.get()
-					.uri("/api/v3/exchangeInfo")
+					.uri("/fapi/v1/exchangeInfo")
 					.accept(MediaType.APPLICATION_JSON)
 					.retrieve()
 					.body(String.class);
@@ -58,82 +56,47 @@ public class BinanceRestClient {
 				if (!quoteAsset.equalsIgnoreCase(item.get("quoteAsset").getAsString())) {
 					continue;
 				}
-				if (item.has("isSpotTradingAllowed") && !item.get("isSpotTradingAllowed").getAsBoolean()) {
+				if (item.has("contractType") && !"PERPETUAL".equalsIgnoreCase(item.get("contractType").getAsString())) {
 					continue;
 				}
 				String symbol = item.get("symbol").getAsString();
 				String base = item.get("baseAsset").getAsString();
 				names.put(symbol, base);
 			}
-			log.info("Loaded {} Spot {} pairs from exchangeInfo", names.size(), quoteAsset);
+			log.info("Loaded {} USDT-M Futures {} pairs from exchangeInfo", names.size(), quoteAsset);
 			return names;
 		} catch (RestClientException ex) {
-			throw new MarketUpstreamException("Unable to load Spot exchangeInfo from Binance", ex);
+			throw new MarketUpstreamException("Unable to load Futures exchangeInfo from Binance", ex);
 		}
 	}
 
-	public List<MarketTicker> loadSpot24hTickers(UsdtSymbolDirectory directory) {
+	public List<MarketTicker> loadFutures24hTickers(UsdtSymbolDirectory directory) {
 		try {
 			String body = rest.get()
-					.uri("/api/v3/ticker/24hr")
+					.uri("/fapi/v1/ticker/24hr")
 					.accept(MediaType.APPLICATION_JSON)
 					.retrieve()
 					.body(String.class);
-			return parseRestTickers(body, directory);
+			return BinanceRestClient.parseRestTickers(body, directory);
 		} catch (RestClientException ex) {
-			throw new MarketUpstreamException("Unable to load Spot 24h tickers from Binance", ex);
+			throw new MarketUpstreamException("Unable to load Futures 24h tickers from Binance", ex);
 		}
 	}
 
 	public List<KlineResponse> klines(String symbol, String interval, int limit) {
 		try {
 			String body = rest.get()
-					.uri("/api/v3/klines?symbol={symbol}&interval={interval}&limit={limit}",
+					.uri("/fapi/v1/klines?symbol={symbol}&interval={interval}&limit={limit}",
 							MarketTickerStore.normalize(symbol), interval, limit)
 					.accept(MediaType.APPLICATION_JSON)
 					.retrieve()
 					.body(String.class);
 			if (body == null || body.isBlank()) {
-				throw new MarketUpstreamException("Empty kline response from Binance");
+				throw new MarketUpstreamException("Empty Futures kline response from Binance");
 			}
-			return toKlines(body);
+			return BinanceRestClient.toKlines(body);
 		} catch (RestClientException ex) {
-			throw new MarketUpstreamException("Unable to load candlesticks from Binance", ex);
+			throw new MarketUpstreamException("Unable to load Futures candlesticks from Binance", ex);
 		}
-	}
-
-	static List<MarketTicker> parseRestTickers(String body, UsdtSymbolDirectory directory) {
-		if (body == null || body.isBlank()) {
-			return List.of();
-		}
-		JsonArray rows = BinanceTickerParser.parseArray(body);
-		List<MarketTicker> tickers = new ArrayList<>();
-		for (JsonElement element : rows) {
-			JsonObject item = element.getAsJsonObject();
-			String symbol = item.get("symbol").getAsString();
-			if (!directory.contains(symbol)) {
-				continue;
-			}
-			tickers.add(BinanceTickerParser.parseRest24h(item, directory.name(symbol)));
-		}
-		return tickers;
-	}
-
-	static List<KlineResponse> toKlines(String body) {
-		JsonArray rows = BinanceTickerParser.parseArray(body);
-		List<KlineResponse> candles = new ArrayList<>();
-		for (JsonElement row : rows) {
-			JsonArray item = row.getAsJsonArray();
-			candles.add(new KlineResponse(
-					item.get(0).getAsLong(),
-					new BigDecimal(item.get(1).getAsString()),
-					new BigDecimal(item.get(2).getAsString()),
-					new BigDecimal(item.get(3).getAsString()),
-					new BigDecimal(item.get(4).getAsString()),
-					new BigDecimal(item.get(5).getAsString()),
-					item.get(6).getAsLong()
-			));
-		}
-		return candles;
 	}
 }

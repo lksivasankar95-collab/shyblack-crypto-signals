@@ -1,12 +1,16 @@
 package com.shyblack.cryptosignals.service;
 
 import com.shyblack.cryptosignals.dto.market.KlineResponse;
+import com.shyblack.cryptosignals.dto.market.MarketListResponse;
 import com.shyblack.cryptosignals.dto.market.MarketTickerResponse;
+import com.shyblack.cryptosignals.entity.enums.TradingMode;
+import com.shyblack.cryptosignals.exception.BadRequestException;
 import com.shyblack.cryptosignals.exception.ResourceNotFoundException;
 import com.shyblack.cryptosignals.market.BinanceRestClient;
+import com.shyblack.cryptosignals.market.MarketBook;
 import com.shyblack.cryptosignals.market.MarketTicker;
-import com.shyblack.cryptosignals.market.MarketTickerStore;
 import java.util.List;
+import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -16,29 +20,67 @@ public class MarketService {
 
 	private static final int LEADERBOARD_LIMIT = 10;
 
-	private final MarketTickerStore store;
+	private final MarketBook book;
 	private final BinanceRestClient binanceRestClient;
+	private final BinanceFuturesMarketService futuresMarketService;
+	private final BinanceOptionsMarketService optionsMarketService;
 
-	public List<MarketTickerResponse> list() {
-		return store.snapshot().stream().map(this::toDto).toList();
+	public MarketListResponse list(String modeParam) {
+		TradingMode mode = parseMode(modeParam);
+		if (mode == TradingMode.OPTIONS) {
+			optionsMarketService.list();
+			return MarketListResponse.optionsUnavailable();
+		}
+		return MarketListResponse.of(mode, book.tickers(mode).snapshot().stream().map(this::toDto).toList());
 	}
 
-	public MarketTickerResponse get(String symbol) {
-		return store.get(symbol)
+	public MarketTickerResponse get(String symbol, String modeParam) {
+		TradingMode mode = parseMode(modeParam);
+		if (mode == TradingMode.OPTIONS) {
+			throw new ResourceNotFoundException(BinanceOptionsMarketService.UNAVAILABLE_MESSAGE);
+		}
+		return book.tickers(mode).get(symbol)
 				.map(this::toDto)
-				.orElseThrow(() -> new ResourceNotFoundException("No live ticker for " + symbol));
+				.orElseThrow(() -> new ResourceNotFoundException("No live ticker for " + symbol + " (" + mode + ")"));
 	}
 
-	public List<MarketTickerResponse> gainers() {
-		return store.gainers(LEADERBOARD_LIMIT).stream().map(this::toDto).toList();
+	public MarketListResponse gainers(String modeParam) {
+		TradingMode mode = parseMode(modeParam);
+		if (mode == TradingMode.OPTIONS) {
+			optionsMarketService.list();
+			return MarketListResponse.optionsUnavailable();
+		}
+		return MarketListResponse.of(mode, book.tickers(mode).gainers(LEADERBOARD_LIMIT).stream().map(this::toDto).toList());
 	}
 
-	public List<MarketTickerResponse> losers() {
-		return store.losers(LEADERBOARD_LIMIT).stream().map(this::toDto).toList();
+	public MarketListResponse losers(String modeParam) {
+		TradingMode mode = parseMode(modeParam);
+		if (mode == TradingMode.OPTIONS) {
+			optionsMarketService.list();
+			return MarketListResponse.optionsUnavailable();
+		}
+		return MarketListResponse.of(mode, book.tickers(mode).losers(LEADERBOARD_LIMIT).stream().map(this::toDto).toList());
 	}
 
-	public List<KlineResponse> klines(String symbol, String interval, int limit) {
-		return binanceRestClient.klines(symbol, interval, Math.min(Math.max(limit, 1), 1000));
+	public List<KlineResponse> klines(String symbol, String interval, int limit, String modeParam) {
+		TradingMode mode = parseMode(modeParam);
+		int capped = Math.min(Math.max(limit, 1), 1000);
+		return switch (mode) {
+			case SPOT -> binanceRestClient.klines(symbol, interval, capped);
+			case FUTURES -> futuresMarketService.klines(symbol, interval, capped);
+			case OPTIONS -> throw new BadRequestException(BinanceOptionsMarketService.UNAVAILABLE_MESSAGE);
+		};
+	}
+
+	public static TradingMode parseMode(String raw) {
+		if (raw == null || raw.isBlank()) {
+			return TradingMode.SPOT;
+		}
+		try {
+			return TradingMode.valueOf(raw.trim().toUpperCase(Locale.ROOT));
+		} catch (IllegalArgumentException ex) {
+			throw new BadRequestException("Invalid mode '" + raw + "'. Use SPOT, FUTURES, or OPTIONS.");
+		}
 	}
 
 	private MarketTickerResponse toDto(MarketTicker ticker) {

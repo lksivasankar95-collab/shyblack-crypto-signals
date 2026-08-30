@@ -31,13 +31,10 @@ app:
     success-redirect-uri: ${OAUTH2_SUCCESS_REDIRECT_URI:http://localhost:8080/api/auth/oauth2/success}
   markets:
     websocket-enabled: ${MARKETS_WS_ENABLED:true}
+    catalog-enabled: ${MARKETS_CATALOG_ENABLED:true}
     rest-base-url: ${BINANCE_REST_BASE_URL:https://api.binance.com}
-    stream-url: ${BINANCE_STREAM_URL:wss://stream.binance.com:9443/stream?streams=btcusdt@ticker/ethusdt@ticker/bnbusdt@ticker/solusdt@ticker/xrpusdt@ticker/adausdt@ticker/dogeusdt@ticker}
-    symbols:
-      - BTCUSDT
-      - ETHUSDT
-      - BNBUSDT
-      - SOLUSDT
-      - XRPUSDT
-      - ADAUSDT
-      - DOGEUSDT
+    stream-url: ${BINANCE_STREAM_URL:wss://stream.binance.com:9443/ws/!ticker@arr}
+    futures-rest-base-url: ${BINANCE_FUTURES_REST_BASE_URL:https://fapi.binance.com}
+    futures-stream-url: ${BINANCE_FUTURES_STREAM_URL:wss://fstream.binance.com/ws/!ticker@arr}
+    quote-asset: ${BINANCE_QUOTE_ASSET:USDT}
+    exchange-info-refresh-ms: ${BINANCE_EXCHANGE_INFO_REFRESH_MS:3600000}

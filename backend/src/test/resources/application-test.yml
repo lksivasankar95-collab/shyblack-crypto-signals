@@ -28,3 +28,10 @@ app:
     client-id: test-google-client-id
   markets:
     websocket-enabled: false
+    catalog-enabled: false
+    rest-base-url: https://api.binance.com
+    stream-url: wss://stream.binance.com:9443/ws/!ticker@arr
+    futures-rest-base-url: https://fapi.binance.com
+    futures-stream-url: wss://fstream.binance.com/ws/!ticker@arr
+    quote-asset: USDT
+    exchange-info-refresh-ms: 3600000

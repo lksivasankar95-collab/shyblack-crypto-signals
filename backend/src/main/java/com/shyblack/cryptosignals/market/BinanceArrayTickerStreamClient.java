@@ -1,8 +1,8 @@
 package com.shyblack.cryptosignals.market;
 
-import com.shyblack.cryptosignals.config.MarketProperties;
 import java.net.URI;
 import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -12,37 +12,44 @@ import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.stereotype.Component;
-import jakarta.annotation.PreDestroy;
 
-@Component
-@ConditionalOnProperty(name = "app.markets.websocket-enabled", havingValue = "true", matchIfMissing = true)
-public class BinanceMarketWebSocketClient implements AutoCloseable {
+/**
+ * Subscribes to Binance {@code !ticker@arr} (all-symbol 24h ticker array) and
+ * writes accepted USDT pairs into an in-memory store. Listeners are notified
+ * only for symbols whose quotes actually changed.
+ */
+public class BinanceArrayTickerStreamClient implements AutoCloseable {
 
-	private static final Logger log = LoggerFactory.getLogger(BinanceMarketWebSocketClient.class);
+	private static final Logger log = LoggerFactory.getLogger(BinanceArrayTickerStreamClient.class);
 	private static final long MAX_BACKOFF_MS = 30_000;
 
-	private final MarketProperties properties;
+	private final String label;
+	private final URI uri;
 	private final MarketTickerStore store;
-	private final BinanceRestClient restClient;
-	private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
-		Thread thread = new Thread(r, "binance-ws-reconnect");
-		thread.setDaemon(true);
-		return thread;
-	});
+	private final UsdtSymbolDirectory directory;
+	private final ScheduledExecutorService scheduler;
 	private final AtomicBoolean running = new AtomicBoolean(true);
 	private final AtomicInteger attempt = new AtomicInteger(0);
 	private volatile WebSocketClient client;
 
-	public BinanceMarketWebSocketClient(
-			MarketProperties properties,
+	public BinanceArrayTickerStreamClient(
+			String label,
+			String streamUrl,
 			MarketTickerStore store,
-			BinanceRestClient restClient
+			UsdtSymbolDirectory directory
 	) {
-		this.properties = properties;
+		this.label = label;
+		this.uri = URI.create(streamUrl);
 		this.store = store;
-		this.restClient = restClient;
+		this.directory = directory;
+		this.scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+			Thread thread = new Thread(r, label + "-ws-reconnect");
+			thread.setDaemon(true);
+			return thread;
+		});
+	}
+
+	public void start() {
 		connect();
 	}
 
@@ -51,41 +58,37 @@ public class BinanceMarketWebSocketClient implements AutoCloseable {
 			return;
 		}
 		closeQuietly();
-		URI uri = URI.create(properties.streamUrl());
-		log.info("Connecting to Binance combined ticker stream {}", uri);
+		log.info("Connecting to Binance {} !ticker@arr stream {}", label, uri);
 		WebSocketClient next = new WebSocketClient(uri) {
 			@Override
 			public void onOpen(ServerHandshake handshake) {
 				attempt.set(0);
-				log.info("Binance market WebSocket connected");
+				log.info("Binance {} ticker array WebSocket connected", label);
 			}
 
 			@Override
 			public void onMessage(String message) {
 				try {
-					String symbolGuess = "";
-					if (message.contains("\"s\":\"")) {
-						int start = message.indexOf("\"s\":\"") + 5;
-						int end = message.indexOf('"', start);
-						if (end > start) {
-							symbolGuess = message.substring(start, end);
-						}
-					}
-					store.upsert(BinanceTickerParser.parseCombined(message, restClient.displayName(symbolGuess)));
+					List<MarketTicker> tickers = BinanceTickerParser.parseTickerArray(
+							message,
+							directory::contains,
+							directory::name
+					);
+					store.upsertAll(tickers);
 				} catch (Exception ex) {
-					log.debug("Ignoring unparseable Binance payload: {}", ex.getMessage());
+					log.debug("Ignoring unparseable Binance {} payload: {}", label, ex.getMessage());
 				}
 			}
 
 			@Override
 			public void onClose(int code, String reason, boolean remote) {
-				log.warn("Binance market WebSocket closed code={} reason={}", code, reason);
+				log.warn("Binance {} WebSocket closed code={} reason={}", label, code, reason);
 				scheduleReconnect();
 			}
 
 			@Override
 			public void onError(Exception ex) {
-				log.warn("Binance market WebSocket error: {}", ex.getMessage());
+				log.warn("Binance {} WebSocket error: {}", label, ex.getMessage());
 			}
 		};
 		client = next;
@@ -99,7 +102,7 @@ public class BinanceMarketWebSocketClient implements AutoCloseable {
 		}
 		int n = attempt.incrementAndGet();
 		long delay = Math.min(MAX_BACKOFF_MS, Duration.ofSeconds(1).multipliedBy(1L << Math.min(n, 5)).toMillis());
-		log.info("Reconnecting to Binance in {} ms (attempt {})", delay, n);
+		log.info("Reconnecting to Binance {} in {} ms (attempt {})", label, delay, n);
 		scheduler.schedule(this::connect, delay, TimeUnit.MILLISECONDS);
 	}
 
@@ -114,7 +117,6 @@ public class BinanceMarketWebSocketClient implements AutoCloseable {
 		}
 	}
 
-	@PreDestroy
 	@Override
 	public void close() {
 		running.set(false);

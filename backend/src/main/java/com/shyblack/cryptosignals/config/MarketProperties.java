@@ -1,13 +1,19 @@
 package com.shyblack.cryptosignals.config;
 
-import java.util.List;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "app.markets")
 public record MarketProperties(
 		boolean websocketEnabled,
+		boolean catalogEnabled,
 		String restBaseUrl,
 		String streamUrl,
-		List<String> symbols
+		String futuresRestBaseUrl,
+		String futuresStreamUrl,
+		String quoteAsset,
+		long exchangeInfoRefreshMs
 ) {
+	public String quoteAssetOrUsdt() {
+		return quoteAsset == null || quoteAsset.isBlank() ? "USDT" : quoteAsset.trim().toUpperCase();
+	}
 }
