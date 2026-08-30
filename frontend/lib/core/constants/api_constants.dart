@@ -10,6 +10,9 @@ abstract final class ApiConstants {
   static const String signals = '/v1/signals';
   static const String watchlist = '/v1/watchlist';
   static const String notifications = '/v1/notifications';
+  static const String markets = '/markets';
+  static const String marketsGainers = '/markets/gainers';
+  static const String marketsLosers = '/markets/losers';
   static const String auth = '/auth';
   static const String authLogin = '/auth/login';
   static const String authSignup = '/auth/signup';

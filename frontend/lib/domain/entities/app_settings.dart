@@ -10,6 +10,9 @@ extension TradingModeLabel on TradingMode {
         TradingMode.futures => 'Futures',
         TradingMode.options => 'Options',
       };
+
+  /// Query value for GET /api/markets?mode=
+  String get apiParam => name.toUpperCase();
 }
 
 extension TradingAccountLabel on TradingAccount {

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../network/api_client.dart';
 import '../../data/datasources/auth_remote_data_source.dart';
+import '../../data/datasources/market_remote_data_source.dart';
 import '../../data/datasources/notification_remote_data_source.dart';
 import '../../data/datasources/portfolio_remote_data_source.dart';
 import '../../data/datasources/position_remote_data_source.dart';
@@ -11,6 +12,7 @@ import '../../data/datasources/user_remote_data_source.dart';
 import '../../data/datasources/watchlist_remote_data_source.dart';
 import '../../data/datasources/token_local_data_source.dart';
 import '../../data/repositories/auth_repository_impl.dart';
+import '../../data/repositories/market_repository_impl.dart';
 import '../../data/repositories/notification_repository_impl.dart';
 import '../../data/repositories/portfolio_repository_impl.dart';
 import '../../data/repositories/position_repository_impl.dart';
@@ -19,6 +21,7 @@ import '../../data/repositories/transaction_repository_impl.dart';
 import '../../data/repositories/user_repository_impl.dart';
 import '../../data/repositories/watchlist_repository_impl.dart';
 import '../../domain/repositories/auth_repository.dart';
+import '../../domain/repositories/market_repository.dart';
 import '../../domain/repositories/notification_repository.dart';
 import '../../domain/repositories/portfolio_repository.dart';
 import '../../domain/repositories/position_repository.dart';
@@ -29,6 +32,7 @@ import '../../domain/repositories/watchlist_repository.dart';
 import '../../domain/usecases/get_current_user.dart';
 import '../../domain/usecases/login_user.dart';
 import '../../domain/usecases/signup_user.dart';
+import '../../domain/usecases/get_markets.dart';
 import '../../domain/usecases/get_notifications.dart';
 import '../../domain/usecases/get_portfolios.dart';
 import '../../domain/usecases/get_positions.dart';
@@ -107,6 +111,10 @@ final signalRemoteDataSourceProvider = Provider<SignalRemoteDataSource>(
   (ref) => SignalRemoteDataSource(ref.watch(apiClientProvider)),
 );
 
+final marketRemoteDataSourceProvider = Provider<MarketRemoteDataSource>(
+  (ref) => MarketRemoteDataSource(ref.watch(apiClientProvider)),
+);
+
 final watchlistRemoteDataSourceProvider = Provider<WatchlistRemoteDataSource>(
   (ref) => WatchlistRemoteDataSource(ref.watch(apiClientProvider)),
 );
@@ -135,6 +143,10 @@ final signalRepositoryProvider = Provider<SignalRepository>(
   (ref) => SignalRepositoryImpl(ref.watch(signalRemoteDataSourceProvider)),
 );
 
+final marketRepositoryProvider = Provider<MarketRepository>(
+  (ref) => MarketRepositoryImpl(ref.watch(marketRemoteDataSourceProvider)),
+);
+
 final watchlistRepositoryProvider = Provider<WatchlistRepository>(
   (ref) => WatchlistRepositoryImpl(ref.watch(watchlistRemoteDataSourceProvider)),
 );
@@ -161,6 +173,18 @@ final getTransactionsProvider = Provider<GetTransactions>(
 
 final getSignalsProvider = Provider<GetSignals>(
   (ref) => GetSignals(ref.watch(signalRepositoryProvider)),
+);
+
+final getMarketsProvider = Provider<GetMarkets>(
+  (ref) => GetMarkets(ref.watch(marketRepositoryProvider)),
+);
+
+final getMarketGainersProvider = Provider<GetMarketGainers>(
+  (ref) => GetMarketGainers(ref.watch(marketRepositoryProvider)),
+);
+
+final getMarketLosersProvider = Provider<GetMarketLosers>(
+  (ref) => GetMarketLosers(ref.watch(marketRepositoryProvider)),
 );
 
 final getWatchlistProvider = Provider<GetWatchlist>(
