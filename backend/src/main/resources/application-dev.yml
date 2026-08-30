@@ -1,0 +1,28 @@
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/shyblack}
+    username: ${DB_USERNAME:shyblack}
+    password: ${DB_PASSWORD:shyblack}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID:replace-me}
+            client-secret: ${GOOGLE_CLIENT_SECRET:replace-me}
+            scope:
+              - openid
+              - email
+              - profile
+        provider:
+          google:
+            issuer-uri: https://accounts.google.com
+
+logging:
+  level:
+    org.springframework.security: DEBUG
+    com.shyblack.cryptosignals: DEBUG
