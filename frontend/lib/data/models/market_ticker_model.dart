@@ -1,4 +1,5 @@
 import '../../domain/entities/app_settings.dart';
+import '../../domain/entities/kline_candle.dart';
 import '../../domain/entities/market_ticker.dart';
 
 class MarketTickerModel {
@@ -54,6 +55,58 @@ class MarketTickerModel {
       return value.toDouble();
     }
     return double.tryParse(value.toString()) ?? 0;
+  }
+}
+
+class KlineCandleModel {
+  const KlineCandleModel({
+    required this.openTime,
+    required this.open,
+    required this.high,
+    required this.low,
+    required this.close,
+    required this.volume,
+    required this.closeTime,
+  });
+
+  final int openTime;
+  final double open;
+  final double high;
+  final double low;
+  final double close;
+  final double volume;
+  final int closeTime;
+
+  factory KlineCandleModel.fromJson(Map<String, dynamic> json) {
+    return KlineCandleModel(
+      openTime: _int(json['openTime']),
+      open: MarketTickerModel._num(json['open']),
+      high: MarketTickerModel._num(json['high']),
+      low: MarketTickerModel._num(json['low']),
+      close: MarketTickerModel._num(json['close']),
+      volume: MarketTickerModel._num(json['volume']),
+      closeTime: _int(json['closeTime']),
+    );
+  }
+
+  KlineCandle toEntity() => KlineCandle(
+        openTime: openTime,
+        open: open,
+        high: high,
+        low: low,
+        close: close,
+        volume: volume,
+        closeTime: closeTime,
+      );
+
+  static int _int(dynamic value) {
+    if (value is int) {
+      return value;
+    }
+    if (value is num) {
+      return value.toInt();
+    }
+    return int.tryParse(value?.toString() ?? '') ?? 0;
   }
 }
 

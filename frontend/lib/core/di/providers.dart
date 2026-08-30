@@ -187,6 +187,14 @@ final getMarketLosersProvider = Provider<GetMarketLosers>(
   (ref) => GetMarketLosers(ref.watch(marketRepositoryProvider)),
 );
 
+final getMarketTickerProvider = Provider<GetMarketTicker>(
+  (ref) => GetMarketTicker(ref.watch(marketRepositoryProvider)),
+);
+
+final getKlinesProvider = Provider<GetKlines>(
+  (ref) => GetKlines(ref.watch(marketRepositoryProvider)),
+);
+
 final getWatchlistProvider = Provider<GetWatchlist>(
   (ref) => GetWatchlist(ref.watch(watchlistRepositoryProvider)),
 );

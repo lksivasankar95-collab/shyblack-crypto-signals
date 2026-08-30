@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../domain/entities/market_ticker.dart';
 import '../../providers/markets_controller.dart';
+import '../../widgets/coin_letter_avatar.dart';
+import 'coin_detail_screen.dart';
 
 class MarketsScreen extends ConsumerStatefulWidget {
   const MarketsScreen({super.key});
@@ -175,7 +177,10 @@ class _MarketsBody extends StatelessWidget {
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
               itemCount: tickers.length,
-              itemBuilder: (context, index) => _MarketTile(ticker: tickers[index]),
+              itemBuilder: (context, index) => _MarketTile(
+                ticker: tickers[index],
+                onTap: () => CoinDetailScreen.open(context, tickers[index]),
+              ),
             ),
     );
   }
@@ -197,41 +202,56 @@ class _MarketsBody extends StatelessWidget {
 }
 
 class _MarketTile extends StatelessWidget {
-  const _MarketTile({required this.ticker});
+  const _MarketTile({required this.ticker, required this.onTap});
 
   final MarketTicker ticker;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final up = ticker.isPositive;
-    final changeColor = up ? AppColors.accent : AppColors.loss;
-    final raw = ticker.name.isNotEmpty ? ticker.name : ticker.baseSymbol;
-    final letter = raw.isEmpty ? '?' : raw.characters.first.toUpperCase();
+    final changeColor = ticker.isPositive ? AppColors.accent : AppColors.loss;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Material(
         color: AppColors.card,
         borderRadius: BorderRadius.circular(14),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-          child: Row(
-            children: [
-              CircleAvatar(
-                radius: 20,
-                backgroundColor: _avatarColor(ticker.symbol),
-                child: Text(
-                  letter,
-                  style: const TextStyle(color: AppColors.onBackground, fontWeight: FontWeight.w800),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            child: Row(
+              children: [
+                CoinLetterAvatar(symbol: ticker.symbol, name: ticker.name),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        ticker.baseSymbol,
+                        style: const TextStyle(
+                          color: AppColors.onBackground,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        ticker.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: AppColors.muted, fontSize: 12),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      ticker.baseSymbol,
+                      MarketFormat.price(ticker.price),
                       style: const TextStyle(
                         color: AppColors.onBackground,
                         fontWeight: FontWeight.w800,
@@ -240,52 +260,17 @@ class _MarketTile extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      ticker.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: AppColors.muted, fontSize: 12),
+                      MarketFormat.signedPercent(ticker.changePercent24h),
+                      style: TextStyle(color: changeColor, fontWeight: FontWeight.w700, fontSize: 12),
                     ),
                   ],
                 ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    _price(ticker.price),
-                    style: const TextStyle(
-                      color: AppColors.onBackground,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 15,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${up ? '+' : ''}${ticker.changePercent24h.toStringAsFixed(2)}%',
-                    style: TextStyle(color: changeColor, fontWeight: FontWeight.w700, fontSize: 12),
-                  ),
-                ],
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
     );
-  }
-
-  static Color _avatarColor(String symbol) {
-    final hue = (symbol.hashCode.abs() % 360).toDouble();
-    return HSVColor.fromAHSV(1, hue, 0.42, 0.28).toColor();
-  }
-
-  static String _price(double value) {
-    if (value >= 1000) {
-      return value.toStringAsFixed(2);
-    }
-    if (value >= 1) {
-      return value.toStringAsFixed(4);
-    }
-    return value.toStringAsFixed(6);
   }
 }
 

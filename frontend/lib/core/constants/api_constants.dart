@@ -13,6 +13,10 @@ abstract final class ApiConstants {
   static const String markets = '/markets';
   static const String marketsGainers = '/markets/gainers';
   static const String marketsLosers = '/markets/losers';
+
+  static String marketSymbol(String symbol) => '/markets/$symbol';
+
+  static String marketKlines(String symbol) => '/markets/$symbol/klines';
   static const String auth = '/auth';
   static const String authLogin = '/auth/login';
   static const String authSignup = '/auth/signup';

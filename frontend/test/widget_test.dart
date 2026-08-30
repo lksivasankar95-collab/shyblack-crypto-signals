@@ -8,8 +8,10 @@ import 'package:cryptosignals/main.dart';
 import 'package:cryptosignals/presentation/screens/auth/login_screen.dart';
 import 'package:cryptosignals/core/di/providers.dart';
 import 'package:cryptosignals/domain/entities/app_settings.dart';
+import 'package:cryptosignals/domain/entities/kline_candle.dart';
 import 'package:cryptosignals/domain/entities/market_ticker.dart';
 import 'package:cryptosignals/domain/repositories/market_repository.dart';
+import 'package:cryptosignals/presentation/providers/coin_detail_providers.dart';
 import 'package:cryptosignals/presentation/providers/markets_controller.dart';
 import 'package:cryptosignals/presentation/providers/settings_controller.dart';
 import 'package:cryptosignals/presentation/screens/markets/markets_screen.dart';
@@ -96,6 +98,7 @@ void main() {
       overrides: [
         marketRepositoryProvider.overrideWith((ref) => _FakeMarketRepository()),
         marketsPollIntervalProvider.overrideWith((ref) => null),
+        coinTickerPollIntervalProvider.overrideWith((ref) => null),
       ],
     );
     addTearDown(container.dispose);
@@ -137,6 +140,40 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
     expect(find.text("Options trading data isn't available yet"), findsOneWidget);
   });
+
+  testWidgets('tapping a market opens coin detail', (WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final container = ProviderContainer(
+      overrides: [
+        marketRepositoryProvider.overrideWith((ref) => _FakeMarketRepository()),
+        marketsPollIntervalProvider.overrideWith((ref) => null),
+        coinTickerPollIntervalProvider.overrideWith((ref) => null),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: AppTheme.dark(),
+          darkTheme: AppTheme.dark(),
+          themeMode: ThemeMode.dark,
+          home: const Scaffold(body: MarketsScreen()),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    await tester.tap(find.text('BTC'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(find.text('Trade BTC'), findsOneWidget);
+    expect(find.text('Bitcoin / Tether'), findsOneWidget);
+    expect(find.text('1D'), findsOneWidget);
+  });
 }
 
 MarketTicker _ticker(String symbol, String name, double price, double changePct) {
@@ -161,6 +198,35 @@ class _FakeMarketRepository implements MarketRepository {
 
   @override
   Future<MarketSnapshot> getLosers(TradingMode mode) async => _snapshot(mode);
+
+  @override
+  Future<MarketTicker> getTicker(String symbol, TradingMode mode) async {
+    return _snapshot(mode).tickers.firstWhere(
+          (item) => item.symbol == symbol,
+          orElse: () => _ticker(symbol, symbol, 1, 0),
+        );
+  }
+
+  @override
+  Future<List<KlineCandle>> getKlines({
+    required String symbol,
+    required String interval,
+    required int limit,
+    required TradingMode mode,
+  }) async {
+    return [
+      for (var i = 0; i < 8; i++)
+        KlineCandle(
+          openTime: 1700000000000 + i * 86400000,
+          open: 100 + i.toDouble(),
+          high: 102 + i.toDouble(),
+          low: 99 + i.toDouble(),
+          close: 101 + i.toDouble(),
+          volume: 50,
+          closeTime: 1700000000000 + (i + 1) * 86400000,
+        ),
+    ];
+  }
 
   MarketSnapshot _snapshot(TradingMode mode) {
     if (mode == TradingMode.options) {
