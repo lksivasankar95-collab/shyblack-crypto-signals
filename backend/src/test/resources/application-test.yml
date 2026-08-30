@@ -26,3 +26,5 @@ jwt:
 app:
   google:
     client-id: test-google-client-id
+  markets:
+    websocket-enabled: false

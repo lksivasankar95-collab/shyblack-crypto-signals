@@ -1,0 +1,10 @@
+---
+description: After each completed task, commit on main and push to origin. Never spawn extra Flutter Chrome tabs.
+alwaysApply: true
+---
+
+# Automation (see docs/PROJECT_RULES.md §9)
+
+After finishing a task, stage relevant files, commit on `main` with a descriptive message, and `git push origin main`. Do not wait to be asked. Never commit secrets.
+
+For Flutter web: use hot reload `r` / hot restart `R` on the managed `web-server` process (`frontend/tool/run_chrome.ps1`). Do not run `flutter run -d chrome` — that always opens a new tab. Keep a single tab at http://localhost:5555.

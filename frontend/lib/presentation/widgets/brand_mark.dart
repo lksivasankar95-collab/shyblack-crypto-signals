@@ -27,11 +27,12 @@ class BrandMark extends StatelessWidget {
         SizedBox(height: compact ? 12 : 20),
         Text(
           AppConstants.appName,
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                color: AppColors.accent,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.6,
-              ),
+          style: const TextStyle(
+            color: AppColors.accent,
+            fontSize: 28,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.6,
+          ),
         ),
       ],
     );

@@ -27,4 +27,7 @@ class AuthRepositoryImpl implements AuthRepository {
   }) {
     return _remote.signup(fullName: fullName, email: email, password: password);
   }
+
+  @override
+  Future<void> logout() => _tokens.clear();
 }

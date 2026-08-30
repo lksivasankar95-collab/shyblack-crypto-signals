@@ -29,3 +29,15 @@ app:
     client-id: ${GOOGLE_CLIENT_ID:}
   oauth2:
     success-redirect-uri: ${OAUTH2_SUCCESS_REDIRECT_URI:http://localhost:8080/api/auth/oauth2/success}
+  markets:
+    websocket-enabled: ${MARKETS_WS_ENABLED:true}
+    rest-base-url: ${BINANCE_REST_BASE_URL:https://api.binance.com}
+    stream-url: ${BINANCE_STREAM_URL:wss://stream.binance.com:9443/stream?streams=btcusdt@ticker/ethusdt@ticker/bnbusdt@ticker/solusdt@ticker/xrpusdt@ticker/adausdt@ticker/dogeusdt@ticker}
+    symbols:
+      - BTCUSDT
+      - ETHUSDT
+      - BNBUSDT
+      - SOLUSDT
+      - XRPUSDT
+      - ADAUSDT
+      - DOGEUSDT

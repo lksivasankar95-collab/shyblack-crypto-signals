@@ -33,6 +33,10 @@ migrate_working_dir/
 /build/
 /coverage/
 
+# Agent hot-reload signal (must not be committed)
+/tool/.reload_cmd
+
+
 # Symbolication related
 app.*.symbols
 

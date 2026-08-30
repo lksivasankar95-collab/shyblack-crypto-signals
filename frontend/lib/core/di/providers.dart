@@ -35,6 +35,12 @@ import '../../domain/usecases/get_positions.dart';
 import '../../domain/usecases/get_signals.dart';
 import '../../domain/usecases/get_transactions.dart';
 import '../../domain/usecases/get_watchlist.dart';
+import '../../domain/usecases/get_settings.dart';
+import '../../domain/usecases/logout_user.dart';
+import '../../domain/usecases/save_settings.dart';
+import '../../data/datasources/settings_local_data_source.dart';
+import '../../data/repositories/settings_repository_impl.dart';
+import '../../domain/repositories/settings_repository.dart';
 
 final apiClientProvider = Provider<ApiClient>((ref) => ApiClient());
 
@@ -59,6 +65,26 @@ final loginUserProvider = Provider<LoginUser>(
 
 final signupUserProvider = Provider<SignupUser>(
   (ref) => SignupUser(ref.watch(authRepositoryProvider)),
+);
+
+final logoutUserProvider = Provider<LogoutUser>(
+  (ref) => LogoutUser(ref.watch(authRepositoryProvider)),
+);
+
+final settingsLocalDataSourceProvider = Provider<SettingsLocalDataSource>(
+  (ref) => SettingsLocalDataSource(),
+);
+
+final settingsRepositoryProvider = Provider<SettingsRepository>(
+  (ref) => SettingsRepositoryImpl(ref.watch(settingsLocalDataSourceProvider)),
+);
+
+final getSettingsProvider = Provider<GetSettings>(
+  (ref) => GetSettings(ref.watch(settingsRepositoryProvider)),
+);
+
+final saveSettingsProvider = Provider<SaveSettings>(
+  (ref) => SaveSettings(ref.watch(settingsRepositoryProvider)),
 );
 
 final userRemoteDataSourceProvider = Provider<UserRemoteDataSource>(

@@ -1,0 +1,25 @@
+---
+description: After Flutter frontend edits, trigger hot reload or hot restart on the managed web run.
+globs: frontend/**/*.dart
+alwaysApply: true
+---
+
+# Flutter web hot reload after edits
+
+The Flutter Chrome app is started by the agent via `frontend/tool/run_chrome.ps1` (stdin is redirected). Do not ask the user to restart `flutter run`.
+
+After any Dart/UI/theme/asset change under `frontend/`:
+
+1. Finish the file edits.
+2. Run `frontend/tool/reload.ps1 -Key r` for widget/logic/text changes (hot reload).
+3. Run `frontend/tool/reload.ps1 -Key R` for `main.dart`, `app_theme.dart`, `pubspec.yaml` assets, or other app-structure changes (hot restart).
+4. If that script is not running, start it yourself:
+
+```powershell
+# from frontend/
+powershell -File tool/run_chrome.ps1
+```
+
+Use `--web-port 5555` (the script default). App URL: http://localhost:5555 — keep **one** tab open; do not run `-d chrome` (it always opens a new tab on process start).
+
+Do not tell the user to stop/start Flutter unless the managed process has died. If you must start it, use `tool/run_chrome.ps1` (`web-server`) and refresh the existing tab.

@@ -25,7 +25,7 @@ class MainShell extends ConsumerWidget {
     final index = ref.watch(selectedTabProvider);
 
     return Scaffold(
-      appBar: AppBar(title: Text('${AppConstants.appName} · ${_titles[index]}')),
+      appBar: index == 4 ? null : AppBar(title: Text('${AppConstants.appName} · ${_titles[index]}')),
       body: IndexedStack(
         index: index,
         children: const [
