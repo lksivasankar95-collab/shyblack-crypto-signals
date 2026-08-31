@@ -21,3 +21,13 @@ class AuthTokensModel {
         refreshToken: refreshToken,
       );
 }
+
+class AccessTokenModel {
+  const AccessTokenModel({required this.accessToken});
+
+  final String accessToken;
+
+  factory AccessTokenModel.fromJson(Map<String, dynamic> json) {
+    return AccessTokenModel(accessToken: json['accessToken'] as String);
+  }
+}

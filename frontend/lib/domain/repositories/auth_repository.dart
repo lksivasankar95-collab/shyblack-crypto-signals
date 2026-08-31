@@ -9,5 +9,7 @@ abstract class AuthRepository {
     required String password,
   });
 
+  Future<bool> restoreSession();
+
   Future<void> logout();
 }

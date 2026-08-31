@@ -1,3 +1,4 @@
+import '../../core/error/auth_exception.dart';
 import '../../domain/entities/auth_tokens.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../datasources/auth_remote_data_source.dart';
@@ -26,6 +27,54 @@ class AuthRepositoryImpl implements AuthRepository {
     required String password,
   }) {
     return _remote.signup(fullName: fullName, email: email, password: password);
+  }
+
+  @override
+  Future<bool> restoreSession() async {
+    final access = await _tokens.readAccessToken();
+    final refresh = await _tokens.readRefreshToken();
+    if (access == null && refresh == null) {
+      return false;
+    }
+
+    if (access != null) {
+      final ok = await _probeCurrentUser(allowOffline: true);
+      if (ok) {
+        return true;
+      }
+    }
+
+    if (refresh != null) {
+      try {
+        final next = await _remote.refresh(refreshToken: refresh);
+        await _tokens.saveAccessToken(next.accessToken);
+        final ok = await _probeCurrentUser(allowOffline: true);
+        if (ok) {
+          return true;
+        }
+      } on AuthException {
+        await _tokens.clear();
+        return false;
+      }
+    }
+
+    await _tokens.clear();
+    return false;
+  }
+
+  Future<bool> _probeCurrentUser({required bool allowOffline}) async {
+    try {
+      await _remote.getCurrentUser();
+      return true;
+    } on AuthException catch (error) {
+      if (error.unreachable && allowOffline) {
+        return true;
+      }
+      if (error.unauthorized) {
+        return false;
+      }
+      return false;
+    }
   }
 
   @override

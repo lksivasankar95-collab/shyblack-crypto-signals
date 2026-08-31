@@ -46,4 +46,24 @@ class AuthRemoteDataSource {
       rethrow;
     }
   }
+
+  Future<AccessTokenModel> refresh({required String refreshToken}) async {
+    try {
+      final response = await _apiClient.dio.post<Map<String, dynamic>>(
+        ApiConstants.authRefresh,
+        data: {'refreshToken': refreshToken},
+      );
+      return AccessTokenModel.fromJson(response.data!);
+    } on DioException catch (error) {
+      throw ApiExceptionMapper.fromDio(error);
+    }
+  }
+
+  Future<void> getCurrentUser() async {
+    try {
+      await _apiClient.dio.get<Map<String, dynamic>>(ApiConstants.usersMe);
+    } on DioException catch (error) {
+      throw ApiExceptionMapper.fromDio(error);
+    }
+  }
 }

@@ -7,12 +7,12 @@ abstract final class ApiExceptionMapper {
     if (error.type == DioExceptionType.connectionTimeout ||
         error.type == DioExceptionType.receiveTimeout ||
         error.type == DioExceptionType.connectionError) {
-      return const AuthException('Unable to reach the server');
+      return const AuthException('Unable to reach the server', unreachable: true);
     }
 
     final status = error.response?.statusCode;
-    if (status == 401) {
-      return const AuthException('Invalid credentials');
+    if (status == 401 || status == 403) {
+      return const AuthException('Invalid credentials', unauthorized: true);
     }
     if (status == 409) {
       return const AuthException('Email already exists');
@@ -26,7 +26,7 @@ abstract final class ApiExceptionMapper {
       }
       final message = data['message']?.toString();
       if (message != null && message.isNotEmpty) {
-        return AuthException(message);
+        return AuthException(message, unauthorized: status == 401);
       }
     }
 

@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../providers/login_controller.dart';
-import '../../shell/main_shell.dart';
 import '../../widgets/login_brand_header.dart';
 import '../../widgets/login_hero_graphic.dart';
 import 'sign_up_screen.dart';
@@ -59,10 +58,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (!mounted || !ok) {
       return;
     }
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute<void>(builder: (_) => const MainShell()),
-      (route) => false,
-    );
   }
 
   InputDecoration _fieldDecoration({

@@ -3,9 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../domain/entities/app_settings.dart';
+import '../../providers/auth_session.dart';
 import '../../providers/settings_controller.dart';
 import '../../widgets/settings_widgets.dart';
-import '../auth/login_screen.dart';
 import 'coming_soon_screen.dart';
 import 'profile_screen.dart';
 
@@ -270,14 +270,7 @@ class SettingsScreen extends ConsumerWidget {
     if (confirmed != true || !context.mounted) {
       return;
     }
-    await ref.read(settingsControllerProvider.notifier).logout();
-    if (!context.mounted) {
-      return;
-    }
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute<void>(builder: (_) => const LoginScreen()),
-      (route) => false,
-    );
+    await ref.read(authSessionProvider.notifier).signOut();
   }
 }
 

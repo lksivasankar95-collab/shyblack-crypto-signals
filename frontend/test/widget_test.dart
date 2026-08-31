@@ -7,9 +7,11 @@ import 'package:cryptosignals/core/theme/app_theme.dart';
 import 'package:cryptosignals/main.dart';
 import 'package:cryptosignals/presentation/screens/auth/login_screen.dart';
 import 'package:cryptosignals/core/di/providers.dart';
+import 'package:cryptosignals/domain/entities/auth_tokens.dart';
 import 'package:cryptosignals/domain/entities/app_settings.dart';
 import 'package:cryptosignals/domain/entities/kline_candle.dart';
 import 'package:cryptosignals/domain/entities/market_ticker.dart';
+import 'package:cryptosignals/domain/repositories/auth_repository.dart';
 import 'package:cryptosignals/domain/repositories/market_repository.dart';
 import 'package:cryptosignals/presentation/providers/coin_detail_providers.dart';
 import 'package:cryptosignals/presentation/providers/markets_controller.dart';
@@ -20,17 +22,43 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   testWidgets('splash shows branding then opens login', (WidgetTester tester) async {
-    await tester.pumpWidget(const ProviderScope(child: ShyBlackApp()));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authRepositoryProvider.overrideWith((ref) => _SessionAuthRepository(restored: false)),
+        ],
+        child: const ShyBlackApp(),
+      ),
+    );
 
     expect(find.text(AppConstants.appName), findsOneWidget);
     expect(find.text(AppConstants.tagline), findsOneWidget);
 
-    await tester.pump(const Duration(seconds: 2));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
 
     expect(find.text('LOGIN'), findsOneWidget);
     expect(find.text('Continue with Google'), findsOneWidget);
     expect(find.text('Welcome Back!'), findsOneWidget);
+  });
+
+  testWidgets('restored session opens the main shell without login', (WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({});
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authRepositoryProvider.overrideWith((ref) => _SessionAuthRepository(restored: true)),
+          marketRepositoryProvider.overrideWith((ref) => _FakeMarketRepository()),
+          marketsPollIntervalProvider.overrideWith((ref) => null),
+        ],
+        child: const ShyBlackApp(),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(find.text('LOGIN'), findsNothing);
+    expect(find.text('Markets'), findsWidgets);
   });
 
   testWidgets('login fits iPhone SE height without scrolling', (WidgetTester tester) async {
@@ -247,4 +275,28 @@ class _FakeMarketRepository implements MarketRepository {
       ],
     );
   }
+}
+
+class _SessionAuthRepository implements AuthRepository {
+  _SessionAuthRepository({required this.restored});
+
+  final bool restored;
+
+  @override
+  Future<AuthTokens> login({required String email, required String password}) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> signup({
+    required String fullName,
+    required String email,
+    required String password,
+  }) async {}
+
+  @override
+  Future<bool> restoreSession() async => restored;
+
+  @override
+  Future<void> logout() async {}
 }

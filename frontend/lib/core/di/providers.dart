@@ -41,12 +41,15 @@ import '../../domain/usecases/get_transactions.dart';
 import '../../domain/usecases/get_watchlist.dart';
 import '../../domain/usecases/get_settings.dart';
 import '../../domain/usecases/logout_user.dart';
+import '../../domain/usecases/restore_session.dart';
 import '../../domain/usecases/save_settings.dart';
 import '../../data/datasources/settings_local_data_source.dart';
 import '../../data/repositories/settings_repository_impl.dart';
 import '../../domain/repositories/settings_repository.dart';
 
-final apiClientProvider = Provider<ApiClient>((ref) => ApiClient());
+final apiClientProvider = Provider<ApiClient>(
+  (ref) => ApiClient(tokens: ref.watch(tokenLocalDataSourceProvider)),
+);
 
 final tokenLocalDataSourceProvider = Provider<TokenLocalDataSource>(
   (ref) => TokenLocalDataSource(),
@@ -73,6 +76,10 @@ final signupUserProvider = Provider<SignupUser>(
 
 final logoutUserProvider = Provider<LogoutUser>(
   (ref) => LogoutUser(ref.watch(authRepositoryProvider)),
+);
+
+final restoreSessionProvider = Provider<RestoreSession>(
+  (ref) => RestoreSession(ref.watch(authRepositoryProvider)),
 );
 
 final settingsLocalDataSourceProvider = Provider<SettingsLocalDataSource>(

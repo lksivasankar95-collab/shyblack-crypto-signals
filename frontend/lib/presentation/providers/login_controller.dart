@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/di/providers.dart';
 import '../../core/error/auth_exception.dart';
 import 'auth_form_state.dart';
+import 'auth_session.dart';
 
 class LoginController extends Notifier<AuthFormState> {
   @override
@@ -12,6 +13,7 @@ class LoginController extends Notifier<AuthFormState> {
     state = const AuthFormState(loading: true);
     try {
       await ref.read(loginUserProvider).call(email: email, password: password);
+      ref.read(authSessionProvider.notifier).setAuthenticated();
       state = const AuthFormState();
       return true;
     } on AuthException catch (error) {
