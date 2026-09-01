@@ -106,11 +106,11 @@ public class AuthService {
 			user.setRiskProfile(RiskProfile.MODERATE);
 			user.setTimezone("UTC");
 			user.setEnabled(true);
+		} else if (googleUser.fullName() != null && !googleUser.fullName().isBlank()
+				&& (user.getFullName() == null || user.getFullName().isBlank())) {
+			user.setFullName(googleUser.fullName());
 		}
 		user.setGoogleSub(googleUser.subject());
-		if (user.getAuthProvider() == AuthProvider.LOCAL) {
-			user.setAuthProvider(AuthProvider.GOOGLE);
-		}
 		userRepository.save(user);
 		return issueTokens(user);
 	}

@@ -5,6 +5,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../providers/signup_controller.dart';
 import '../../widgets/auth_text_field.dart';
 import '../../widgets/brand_mark.dart';
+import '../../widgets/continue_with_google_button.dart';
 import 'login_screen.dart';
 
 class SignUpScreen extends ConsumerStatefulWidget {
@@ -144,6 +145,27 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Text('Sign Up'),
+                    ),
+                    const SizedBox(height: 16),
+                    const Row(
+                      children: [
+                        Expanded(child: Divider(color: AppColors.muted)),
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 12),
+                          child: Text('OR', style: TextStyle(color: AppColors.muted, fontWeight: FontWeight.w700)),
+                        ),
+                        Expanded(child: Divider(color: AppColors.muted)),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    ContinueWithGoogleButton(
+                      loading: state.loading,
+                      onPressed: () {
+                        ref.read(signupControllerProvider.notifier).signInWithGoogle();
+                      },
+                      onWebIdToken: (idToken) {
+                        ref.read(signupControllerProvider.notifier).signInWithGoogle(idToken: idToken);
+                      },
                     ),
                     const SizedBox(height: 16),
                     Wrap(

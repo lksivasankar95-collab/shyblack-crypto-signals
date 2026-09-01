@@ -373,6 +373,11 @@ class _SessionAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<AuthTokens> loginWithGoogle({String? idToken}) {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<void> signup({
     required String fullName,
     required String email,

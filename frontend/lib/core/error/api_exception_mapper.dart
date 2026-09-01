@@ -12,6 +12,13 @@ abstract final class ApiExceptionMapper {
 
     final status = error.response?.statusCode;
     if (status == 401 || status == 403) {
+      final data = error.response?.data;
+      if (data is Map<String, dynamic>) {
+        final message = data['message']?.toString();
+        if (message != null && message.isNotEmpty) {
+          return AuthException(message, unauthorized: true);
+        }
+      }
       return const AuthException('Invalid credentials', unauthorized: true);
     }
     if (status == 409) {

@@ -6,6 +6,7 @@ import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
 import com.shyblack.cryptosignals.exception.InvalidTokenException;
 import java.util.Collections;
+import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -29,6 +30,7 @@ public class GoogleTokenVerifier {
 					GsonFactory.getDefaultInstance()
 			)
 					.setAudience(Collections.singletonList(clientId))
+					.setIssuers(List.of("https://accounts.google.com", "accounts.google.com"))
 					.build();
 			GoogleIdToken token = verifier.verify(idToken);
 			if (token == null) {
@@ -38,6 +40,9 @@ public class GoogleTokenVerifier {
 			String email = payload.getEmail();
 			if (!StringUtils.hasText(email)) {
 				throw new InvalidTokenException("Google account has no email");
+			}
+			if (Boolean.FALSE.equals(payload.getEmailVerified())) {
+				throw new InvalidTokenException("Google email is not verified");
 			}
 			String name = (String) payload.get("name");
 			if (!StringUtils.hasText(name)) {

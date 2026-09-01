@@ -109,6 +109,28 @@ class AuthFlowIntegrationTest {
 	}
 
 	@Test
+	void googleLoginExistingEmailIssuesTokens() throws Exception {
+		mockMvc.perform(post("/api/auth/signup")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{"email":"linked.google@example.com","password":"secret123","fullName":"Linked User"}
+								"""))
+				.andExpect(status().isCreated());
+
+		when(googleTokenVerifier.verify(anyString()))
+				.thenReturn(new GoogleUserInfo("google-sub-2", "linked.google@example.com", "Linked User"));
+
+		mockMvc.perform(post("/api/auth/google")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{"idToken":"fake-google-id-token"}
+								"""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.accessToken").isNotEmpty())
+				.andExpect(jsonPath("$.refreshToken").isNotEmpty());
+	}
+
+	@Test
 	void corsPreflightAllowsLocalhostFlutterWeb() throws Exception {
 		mockMvc.perform(options("/api/auth/login")
 						.header(HttpHeaders.ORIGIN, "http://localhost:5555")

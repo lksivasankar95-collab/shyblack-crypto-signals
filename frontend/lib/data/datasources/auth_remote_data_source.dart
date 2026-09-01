@@ -26,6 +26,18 @@ class AuthRemoteDataSource {
     }
   }
 
+  Future<AuthTokensModel> loginWithGoogle({required String idToken}) async {
+    try {
+      final response = await _apiClient.dio.post<Map<String, dynamic>>(
+        ApiConstants.authGoogle,
+        data: {'idToken': idToken},
+      );
+      return AuthTokensModel.fromJson(response.data!);
+    } on DioException catch (error) {
+      throw ApiExceptionMapper.fromDio(error);
+    }
+  }
+
   Future<void> signup({
     required String fullName,
     required String email,

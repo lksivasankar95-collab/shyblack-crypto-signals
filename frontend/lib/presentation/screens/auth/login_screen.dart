@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../providers/login_controller.dart';
+import '../../widgets/continue_with_google_button.dart';
 import '../../widgets/login_brand_header.dart';
 import '../../widgets/login_hero_graphic.dart';
 import 'sign_up_screen.dart';
@@ -291,30 +292,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             ],
                           ),
                           const SizedBox(height: 6),
-                          OutlinedButton(
-                            onPressed: state.loading
-                                ? null
-                                : () {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Google Sign-In will be connected later')),
-                                    );
-                                  },
-                            style: OutlinedButton.styleFrom(
-                              minimumSize: const Size.fromHeight(40),
-                              padding: const EdgeInsets.symmetric(horizontal: 12),
-                            ),
-                            child: FittedBox(
-                              fit: BoxFit.scaleDown,
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  _GoogleMark(),
-                                  const SizedBox(width: 8),
-                                  const Text('Continue with Google'),
-                                ],
-                              ),
-                            ),
+                          ContinueWithGoogleButton(
+                            loading: state.loading,
+                            onPressed: () {
+                              ref.read(loginControllerProvider.notifier).signInWithGoogle();
+                            },
+                            onWebIdToken: (idToken) {
+                              ref.read(loginControllerProvider.notifier).signInWithGoogle(idToken: idToken);
+                            },
                           ),
                           const SizedBox(height: 6),
                           Wrap(
@@ -353,45 +338,4 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       ),
     );
   }
-}
-
-class _GoogleMark extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 22,
-      height: 22,
-      child: CustomPaint(painter: _GoogleGPainter()),
-    );
-  }
-}
-
-class _GoogleGPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final stroke = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = size.width * 0.18
-      ..strokeCap = StrokeCap.round;
-    final rect = Rect.fromCircle(center: Offset(size.width / 2, size.height / 2), radius: size.width * 0.36);
-    stroke.color = const Color(0xFF4285F4);
-    canvas.drawArc(rect, -0.2, 1.6, false, stroke);
-    stroke.color = const Color(0xFF34A853);
-    canvas.drawArc(rect, 1.4, 1.0, false, stroke);
-    stroke.color = const Color(0xFFFBBC05);
-    canvas.drawArc(rect, 2.4, 0.8, false, stroke);
-    stroke.color = const Color(0xFFEA4335);
-    canvas.drawArc(rect, 3.2, 1.1, false, stroke);
-    canvas.drawLine(
-      Offset(size.width * 0.5, size.height * 0.5),
-      Offset(size.width * 0.86, size.height * 0.5),
-      Paint()
-        ..color = const Color(0xFF4285F4)
-        ..strokeWidth = size.width * 0.16
-        ..strokeCap = StrokeCap.square,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

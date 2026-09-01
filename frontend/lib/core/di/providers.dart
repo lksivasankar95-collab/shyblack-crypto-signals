@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../network/api_client.dart';
 import '../../data/datasources/auth_remote_data_source.dart';
+import '../../data/datasources/google_sign_in_data_source.dart';
 import '../../data/datasources/market_remote_data_source.dart';
 import '../../data/datasources/markets_websocket_client.dart';
 import '../../data/datasources/notification_remote_data_source.dart';
@@ -32,6 +33,7 @@ import '../../domain/repositories/user_repository.dart';
 import '../../domain/repositories/watchlist_repository.dart';
 import '../../domain/usecases/get_current_user.dart';
 import '../../domain/usecases/login_user.dart';
+import '../../domain/usecases/login_with_google.dart';
 import '../../domain/usecases/signup_user.dart';
 import '../../domain/usecases/get_markets.dart';
 import '../../domain/usecases/get_notifications.dart';
@@ -60,15 +62,24 @@ final authRemoteDataSourceProvider = Provider<AuthRemoteDataSource>(
   (ref) => AuthRemoteDataSource(ref.watch(apiClientProvider)),
 );
 
+final googleSignInDataSourceProvider = Provider<GoogleSignInDataSource>(
+  (ref) => GoogleSignInDataSource(),
+);
+
 final authRepositoryProvider = Provider<AuthRepository>(
   (ref) => AuthRepositoryImpl(
     ref.watch(authRemoteDataSourceProvider),
     ref.watch(tokenLocalDataSourceProvider),
+    ref.watch(googleSignInDataSourceProvider),
   ),
 );
 
 final loginUserProvider = Provider<LoginUser>(
   (ref) => LoginUser(ref.watch(authRepositoryProvider)),
+);
+
+final loginWithGoogleProvider = Provider<LoginWithGoogle>(
+  (ref) => LoginWithGoogle(ref.watch(authRepositoryProvider)),
 );
 
 final signupUserProvider = Provider<SignupUser>(
