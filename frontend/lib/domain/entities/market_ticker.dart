@@ -28,6 +28,53 @@ class MarketTicker {
     }
     return upper;
   }
+
+  MarketTicker copyWith({
+    String? symbol,
+    String? name,
+    double? price,
+    double? change24h,
+    double? changePercent24h,
+    double? volume24h,
+    double? high24h,
+    double? low24h,
+  }) {
+    return MarketTicker(
+      symbol: symbol ?? this.symbol,
+      name: name ?? this.name,
+      price: price ?? this.price,
+      change24h: change24h ?? this.change24h,
+      changePercent24h: changePercent24h ?? this.changePercent24h,
+      volume24h: volume24h ?? this.volume24h,
+      high24h: high24h ?? this.high24h,
+      low24h: low24h ?? this.low24h,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MarketTicker &&
+          symbol == other.symbol &&
+          name == other.name &&
+          price == other.price &&
+          change24h == other.change24h &&
+          changePercent24h == other.changePercent24h &&
+          volume24h == other.volume24h &&
+          high24h == other.high24h &&
+          low24h == other.low24h;
+
+  @override
+  int get hashCode => Object.hash(
+        symbol,
+        name,
+        price,
+        change24h,
+        changePercent24h,
+        volume24h,
+        high24h,
+        low24h,
+      );
 }
 
 class MarketSnapshot {

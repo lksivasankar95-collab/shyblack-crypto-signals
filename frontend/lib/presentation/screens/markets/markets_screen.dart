@@ -79,6 +79,7 @@ class _MarketsScreenState extends ConsumerState<MarketsScreen> with SingleTicker
             ),
           Expanded(
             child: asyncMarkets.when(
+              skipLoadingOnReload: true,
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (error, _) => _ErrorState(
                 message: error.toString(),
@@ -113,6 +114,16 @@ class _MarketsBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (data.reconnecting) const _ReconnectingBanner(),
+        Expanded(child: _buildList(context)),
+      ],
+    );
+  }
+
+  Widget _buildList(BuildContext context) {
     if (data.isOptionsUnavailable) {
       return RefreshIndicator(
         color: AppColors.accent,
@@ -177,10 +188,14 @@ class _MarketsBody extends StatelessWidget {
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
               itemCount: tickers.length,
-              itemBuilder: (context, index) => _MarketTile(
-                ticker: tickers[index],
-                onTap: () => CoinDetailScreen.open(context, tickers[index]),
-              ),
+              itemBuilder: (context, index) {
+                final ticker = tickers[index];
+                return _LiveMarketTile(
+                  key: ValueKey(ticker.symbol),
+                  symbol: ticker.symbol,
+                  fallback: ticker,
+                );
+              },
             ),
     );
   }
@@ -198,6 +213,50 @@ class _MarketsBody extends StatelessWidget {
               ticker.baseSymbol.toLowerCase().contains(q),
         )
         .toList();
+  }
+}
+
+class _ReconnectingBanner extends StatelessWidget {
+  const _ReconnectingBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 12,
+            height: 12,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          SizedBox(width: 8),
+          Text(
+            'Reconnecting...',
+            style: TextStyle(color: AppColors.muted, fontSize: 12, fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LiveMarketTile extends ConsumerWidget {
+  const _LiveMarketTile({super.key, required this.symbol, required this.fallback});
+
+  final String symbol;
+  final MarketTicker fallback;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final ticker = ref.watch(
+          marketsControllerProvider.select((async) => async.value?.bySymbol[symbol]),
+        ) ??
+        fallback;
+    return _MarketTile(
+      ticker: ticker,
+      onTap: () => CoinDetailScreen.open(context, ticker),
+    );
   }
 }
 

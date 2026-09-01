@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/constants/app_constants.dart';
 import '../providers/navigation_provider.dart';
+import '../providers/markets_controller.dart';
 import '../screens/analysis/analysis_screen.dart';
 import '../screens/markets/markets_screen.dart';
 import '../screens/portfolio/portfolio_screen.dart';
@@ -23,6 +24,7 @@ class MainShell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final index = ref.watch(selectedTabProvider);
+    ref.watch(marketsControllerProvider);
 
     return Scaffold(
       appBar: index == 4 ? null : AppBar(title: Text('${AppConstants.appName} · ${_titles[index]}')),

@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -7,13 +10,13 @@ import 'package:cryptosignals/core/theme/app_theme.dart';
 import 'package:cryptosignals/main.dart';
 import 'package:cryptosignals/presentation/screens/auth/login_screen.dart';
 import 'package:cryptosignals/core/di/providers.dart';
+import 'package:cryptosignals/data/datasources/markets_websocket_client.dart';
 import 'package:cryptosignals/domain/entities/auth_tokens.dart';
 import 'package:cryptosignals/domain/entities/app_settings.dart';
 import 'package:cryptosignals/domain/entities/kline_candle.dart';
 import 'package:cryptosignals/domain/entities/market_ticker.dart';
 import 'package:cryptosignals/domain/repositories/auth_repository.dart';
 import 'package:cryptosignals/domain/repositories/market_repository.dart';
-import 'package:cryptosignals/presentation/providers/coin_detail_providers.dart';
 import 'package:cryptosignals/presentation/providers/markets_controller.dart';
 import 'package:cryptosignals/presentation/providers/settings_controller.dart';
 import 'package:cryptosignals/presentation/screens/markets/markets_screen.dart';
@@ -49,7 +52,7 @@ void main() {
         overrides: [
           authRepositoryProvider.overrideWith((ref) => _SessionAuthRepository(restored: true)),
           marketRepositoryProvider.overrideWith((ref) => _FakeMarketRepository()),
-          marketsPollIntervalProvider.overrideWith((ref) => null),
+          marketsSocketConnectorProvider.overrideWith((ref) => const _IdleSocketConnector()),
         ],
         child: const ShyBlackApp(),
       ),
@@ -124,9 +127,9 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     final container = ProviderContainer(
       overrides: [
+        authRepositoryProvider.overrideWith((ref) => _SessionAuthRepository(restored: true)),
         marketRepositoryProvider.overrideWith((ref) => _FakeMarketRepository()),
-        marketsPollIntervalProvider.overrideWith((ref) => null),
-        coinTickerPollIntervalProvider.overrideWith((ref) => null),
+        marketsSocketConnectorProvider.overrideWith((ref) => const _IdleSocketConnector()),
       ],
     );
     addTearDown(container.dispose);
@@ -173,9 +176,9 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     final container = ProviderContainer(
       overrides: [
+        authRepositoryProvider.overrideWith((ref) => _SessionAuthRepository(restored: true)),
         marketRepositoryProvider.overrideWith((ref) => _FakeMarketRepository()),
-        marketsPollIntervalProvider.overrideWith((ref) => null),
-        coinTickerPollIntervalProvider.overrideWith((ref) => null),
+        marketsSocketConnectorProvider.overrideWith((ref) => const _IdleSocketConnector()),
       ],
     );
     addTearDown(container.dispose);
@@ -201,6 +204,60 @@ void main() {
     expect(find.text('Trade BTC'), findsOneWidget);
     expect(find.text('Bitcoin / Tether'), findsOneWidget);
     expect(find.text('1D'), findsOneWidget);
+  });
+
+  testWidgets('websocket ticks patch a market row in place', (WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final ticks = StreamController<dynamic>.broadcast();
+    addTearDown(ticks.close);
+    final container = ProviderContainer(
+      overrides: [
+        authRepositoryProvider.overrideWith((ref) => _SessionAuthRepository(restored: true)),
+        marketRepositoryProvider.overrideWith((ref) => _FakeMarketRepository()),
+        marketsSocketConnectorProvider.overrideWith((ref) => _ScriptedSocketConnector(ticks)),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: AppTheme.dark(),
+          darkTheme: AppTheme.dark(),
+          themeMode: ThemeMode.dark,
+          home: const Scaffold(body: MarketsScreen()),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(find.text('65000.00'), findsOneWidget);
+
+    container.read(marketsControllerProvider.notifier).ingestWireMessage(
+      jsonEncode({
+        'type': 'tickers',
+        'mode': 'SPOT',
+        'tickers': [
+          {
+            'symbol': 'BTCUSDT',
+            'name': 'Bitcoin',
+            'price': 66123,
+            'change24h': 2,
+            'changePercent24h': 4.5,
+            'volume24h': 1000,
+            'high24h': 67000,
+            'low24h': 64000,
+          },
+        ],
+      }),
+    );
+    await tester.pump();
+
+    expect(find.text('66123.00'), findsOneWidget);
+    expect(find.text('65000.00'), findsNothing);
+    expect(find.text('+4.50%'), findsOneWidget);
   });
 }
 
@@ -273,6 +330,34 @@ class _FakeMarketRepository implements MarketRepository {
         _ticker('BTCUSDT', 'Bitcoin', 65000, 2.5),
         _ticker('ETHUSDT', 'Ethereum', 3400, -1.2),
       ],
+    );
+  }
+}
+
+class _IdleSocketConnector implements MarketsSocketConnector {
+  const _IdleSocketConnector();
+
+  @override
+  MarketsSocketSession connect(Uri uri) {
+    return MarketsSocketSession(
+      stream: StreamController<dynamic>().stream,
+      ready: Future.value(),
+      close: () async {},
+    );
+  }
+}
+
+class _ScriptedSocketConnector implements MarketsSocketConnector {
+  const _ScriptedSocketConnector(this.messages);
+
+  final StreamController<dynamic> messages;
+
+  @override
+  MarketsSocketSession connect(Uri uri) {
+    return MarketsSocketSession(
+      stream: messages.stream,
+      ready: Future.value(),
+      close: () async {},
     );
   }
 }

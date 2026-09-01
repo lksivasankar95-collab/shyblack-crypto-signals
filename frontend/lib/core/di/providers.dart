@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../network/api_client.dart';
 import '../../data/datasources/auth_remote_data_source.dart';
 import '../../data/datasources/market_remote_data_source.dart';
+import '../../data/datasources/markets_websocket_client.dart';
 import '../../data/datasources/notification_remote_data_source.dart';
 import '../../data/datasources/portfolio_remote_data_source.dart';
 import '../../data/datasources/position_remote_data_source.dart';
@@ -120,6 +121,10 @@ final signalRemoteDataSourceProvider = Provider<SignalRemoteDataSource>(
 
 final marketRemoteDataSourceProvider = Provider<MarketRemoteDataSource>(
   (ref) => MarketRemoteDataSource(ref.watch(apiClientProvider)),
+);
+
+final marketsSocketConnectorProvider = Provider<MarketsSocketConnector>(
+  (ref) => const WebSocketChannelConnector(),
 );
 
 final watchlistRemoteDataSourceProvider = Provider<WatchlistRemoteDataSource>(

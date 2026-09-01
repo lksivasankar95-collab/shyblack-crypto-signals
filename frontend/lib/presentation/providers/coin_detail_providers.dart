@@ -1,11 +1,10 @@
-import 'dart:async';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/di/providers.dart';
 import '../../domain/entities/app_settings.dart';
 import '../../domain/entities/kline_candle.dart';
 import '../../domain/entities/market_ticker.dart';
+import 'markets_controller.dart';
 import 'settings_controller.dart';
 
 enum ChartTimeframe {
@@ -49,20 +48,23 @@ class LocalWatchlist extends Notifier<Set<String>> {
 
 final localWatchlistProvider = NotifierProvider<LocalWatchlist, Set<String>>(LocalWatchlist.new);
 
-final coinTickerPollIntervalProvider = Provider<Duration?>((ref) => const Duration(seconds: 8));
-
 TradingMode _mode(Ref ref) => ref.watch(
       settingsControllerProvider.select((async) => async.value?.tradingMode ?? TradingMode.spot),
     );
 
-final coinTickerProvider = FutureProvider.autoDispose.family<MarketTicker, String>((ref, symbol) async {
+final coinTickerRestProvider = FutureProvider.autoDispose.family<MarketTicker, String>((ref, symbol) async {
   final mode = _mode(ref);
-  final poll = ref.watch(coinTickerPollIntervalProvider);
-  if (poll != null) {
-    final timer = Timer.periodic(poll, (_) => ref.invalidateSelf());
-    ref.onDispose(timer.cancel);
-  }
   return ref.read(getMarketTickerProvider).call(symbol, mode);
+});
+
+final coinTickerProvider = Provider.autoDispose.family<AsyncValue<MarketTicker>, String>((ref, symbol) {
+  final live = ref.watch(
+    marketsControllerProvider.select((async) => async.value?.bySymbol[symbol]),
+  );
+  if (live != null) {
+    return AsyncData(live);
+  }
+  return ref.watch(coinTickerRestProvider(symbol));
 });
 
 final coinKlinesProvider =

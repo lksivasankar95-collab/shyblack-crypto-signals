@@ -101,7 +101,10 @@ class _CoinDetailScreenState extends ConsumerState<CoinDetailScreen> {
           : ticker == null
               ? _ErrorBody(
                   message: tickerAsync.error?.toString() ?? 'Could not load this market',
-                  onRetry: () => ref.invalidate(coinTickerProvider(widget.symbol)),
+                  onRetry: () {
+                    ref.invalidate(coinTickerRestProvider(widget.symbol));
+                    ref.invalidate(coinTickerProvider(widget.symbol));
+                  },
                 )
               : Column(
                   children: [
