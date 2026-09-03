@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -52,7 +53,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (!_formKey.currentState!.validate()) {
       return;
     }
-    final ok = await ref.read(loginControllerProvider.notifier).submit(
+    final ok = await ref
+        .read(loginControllerProvider.notifier)
+        .submit(
           email: _emailController.text.trim(),
           password: _passwordController.text,
         );
@@ -89,7 +92,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 440),
             child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
               child: Form(
                 key: _formKey,
                 child: Column(
@@ -97,10 +100,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   children: [
                     const LoginBrandHeader(),
                     const SizedBox(height: 4),
-                    const LoginHeroGraphic(),
+                    const LoginHeroGraphic(height: 84),
                     const SizedBox(height: 4),
                     const Text(
-                      'Welcome Back!',
+                      'Welcome Back',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: AppColors.onBackground,
@@ -111,9 +114,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                     const SizedBox(height: 2),
                     const Text(
-                      'Login to continue to your account',
+                      'Sign in to continue to ShyBlack Crypto Signals',
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: AppColors.muted, fontSize: 12, height: 1.15),
+                      style: TextStyle(
+                        color: AppColors.muted,
+                        fontSize: 12,
+                        height: 1.15,
+                      ),
                     ),
                     const SizedBox(height: 6),
                     Container(
@@ -127,7 +134,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           const Text(
-                            'Email / Username',
+                            'Email Address',
                             style: TextStyle(
                               color: AppColors.onCard,
                               fontWeight: FontWeight.w600,
@@ -139,22 +146,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             controller: _emailController,
                             keyboardType: TextInputType.emailAddress,
                             textInputAction: TextInputAction.next,
-                            autovalidateMode: AutovalidateMode.onUserInteraction,
+                            autovalidateMode:
+                                AutovalidateMode.onUserInteraction,
                             style: const TextStyle(fontSize: 14),
                             validator: (value) {
                               final email = value?.trim() ?? '';
                               if (email.isEmpty) {
                                 return 'Email is required';
                               }
-                              final valid = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email);
+                              final valid = RegExp(
+                                r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
+                              ).hasMatch(email);
                               if (!valid) {
                                 return 'Enter a valid email';
                               }
                               return null;
                             },
                             decoration: _fieldDecoration(
-                              hint: 'Enter your email or username',
-                              prefix: Icons.person_outline,
+                              hint: 'Enter your email address',
+                              prefix: Icons.mail_outline,
                             ),
                           ),
                           const SizedBox(height: 8),
@@ -172,7 +182,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             obscureText: _obscurePassword,
                             textInputAction: TextInputAction.done,
                             onFieldSubmitted: (_) => _submit(),
-                            autovalidateMode: AutovalidateMode.onUserInteraction,
+                            autovalidateMode:
+                                AutovalidateMode.onUserInteraction,
                             style: const TextStyle(fontSize: 14),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
@@ -184,11 +195,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               hint: 'Enter your password',
                               prefix: Icons.lock_outline,
                               suffix: IconButton(
-                                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                                onPressed: () => setState(
+                                  () => _obscurePassword = !_obscurePassword,
+                                ),
                                 visualDensity: VisualDensity.compact,
                                 padding: EdgeInsets.zero,
                                 icon: Icon(
-                                  _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                                  _obscurePassword
+                                      ? Icons.visibility_outlined
+                                      : Icons.visibility_off_outlined,
                                   color: AppColors.muted,
                                   size: 20,
                                 ),
@@ -203,40 +218,61 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 height: 24,
                                 child: Checkbox(
                                   value: _rememberMe,
-                                  onChanged: (value) => setState(() => _rememberMe = value ?? false),
-                                  fillColor: WidgetStateProperty.resolveWith((states) {
+                                  onChanged: (value) => setState(
+                                    () => _rememberMe = value ?? false,
+                                  ),
+                                  fillColor: WidgetStateProperty.resolveWith((
+                                    states,
+                                  ) {
                                     if (states.contains(WidgetState.selected)) {
                                       return AppColors.accent;
                                     }
                                     return Colors.transparent;
                                   }),
                                   checkColor: Colors.black,
-                                  side: const BorderSide(color: AppColors.accent, width: 1.4),
+                                  side: const BorderSide(
+                                    color: AppColors.accent,
+                                    width: 1.4,
+                                  ),
                                 ),
                               ),
                               const SizedBox(width: 8),
                               const Expanded(
                                 child: Text(
                                   'Remember Me',
-                                  style: TextStyle(color: AppColors.onCard, fontSize: 13),
+                                  style: TextStyle(
+                                    color: AppColors.onCard,
+                                    fontSize: 13,
+                                  ),
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                               TextButton(
                                 onPressed: () {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Forgot password will be added next')),
+                                    const SnackBar(
+                                      content: Text(
+                                        'Forgot password will be added next',
+                                      ),
+                                    ),
                                   );
                                 },
                                 style: TextButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                  ),
                                   minimumSize: Size.zero,
-                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
                                   visualDensity: VisualDensity.compact,
                                 ),
                                 child: const Text(
                                   'Forgot Password?',
-                                  style: TextStyle(color: AppColors.accent, fontWeight: FontWeight.w700, fontSize: 13),
+                                  style: TextStyle(
+                                    color: AppColors.accent,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 13,
+                                  ),
                                 ),
                               ),
                             ],
@@ -246,7 +282,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             Text(
                               state.error!,
                               textAlign: TextAlign.center,
-                              style: const TextStyle(color: AppColors.loss, fontSize: 13),
+                              style: const TextStyle(
+                                color: AppColors.loss,
+                                fontSize: 13,
+                              ),
                             ),
                           ],
                           const SizedBox(height: 6),
@@ -255,26 +294,43 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.accent,
                               foregroundColor: Colors.black,
-                              disabledBackgroundColor: AppColors.accent.withValues(alpha: 0.5),
+                              disabledBackgroundColor: AppColors.accent
+                                  .withValues(alpha: 0.5),
                               disabledForegroundColor: Colors.black,
                               minimumSize: const Size.fromHeight(40),
-                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                              ),
                             ),
                             child: state.loading
                                 ? const SizedBox(
                                     height: 22,
                                     width: 22,
-                                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.black,
+                                    ),
                                   )
                                 : const SizedBox(
                                     height: 24,
                                     child: Stack(
                                       alignment: Alignment.center,
                                       children: [
-                                        Text('LOGIN', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w800, letterSpacing: 1.2)),
+                                        Text(
+                                          'Sign In',
+                                          style: TextStyle(
+                                            color: Colors.black,
+                                            fontWeight: FontWeight.w800,
+                                            letterSpacing: 0.4,
+                                          ),
+                                        ),
                                         Align(
                                           alignment: Alignment.centerRight,
-                                          child: Icon(Icons.arrow_forward, size: 18, color: Colors.black),
+                                          child: Icon(
+                                            Icons.arrow_forward,
+                                            size: 18,
+                                            color: Colors.black,
+                                          ),
                                         ),
                                       ],
                                     ),
@@ -286,7 +342,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               Expanded(child: Divider(color: AppColors.muted)),
                               Padding(
                                 padding: EdgeInsets.symmetric(horizontal: 12),
-                                child: Text('OR', style: TextStyle(color: AppColors.muted, fontWeight: FontWeight.w700)),
+                                child: Text(
+                                  'OR',
+                                  style: TextStyle(
+                                    color: AppColors.muted,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
                               ),
                               Expanded(child: Divider(color: AppColors.muted)),
                             ],
@@ -295,10 +357,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ContinueWithGoogleButton(
                             loading: state.loading,
                             onPressed: () {
-                              ref.read(loginControllerProvider.notifier).signInWithGoogle();
+                              ref
+                                  .read(loginControllerProvider.notifier)
+                                  .signInWithGoogle();
                             },
                             onWebIdToken: (idToken) {
-                              ref.read(loginControllerProvider.notifier).signInWithGoogle(idToken: idToken);
+                              ref
+                                  .read(loginControllerProvider.notifier)
+                                  .signInWithGoogle(idToken: idToken);
                             },
                           ),
                           const SizedBox(height: 6),
@@ -307,25 +373,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             children: [
                               const Text(
                                 "Don't have an account? ",
-                                style: TextStyle(color: AppColors.onCard, fontSize: 13),
+                                style: TextStyle(
+                                  color: AppColors.onCard,
+                                  fontSize: 13,
+                                ),
                               ),
                               GestureDetector(
                                 onTap: () {
                                   Navigator.of(context).push(
-                                    MaterialPageRoute<void>(builder: (_) => const SignUpScreen()),
+                                    MaterialPageRoute<void>(
+                                      builder: (_) => const SignUpScreen(),
+                                    ),
                                   );
                                 },
                                 child: const Text(
-                                  'SIGN UP',
+                                  'Create Account',
                                   style: TextStyle(
                                     color: AppColors.accent,
                                     fontWeight: FontWeight.w800,
-                                    letterSpacing: 0.6,
                                   ),
                                 ),
                               ),
                             ],
                           ),
+                          const SizedBox(height: 8),
+                          const _LegalFooter(),
                         ],
                       ),
                     ),
@@ -336,6 +408,53 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _LegalFooter extends StatelessWidget {
+  const _LegalFooter();
+
+  void _show(BuildContext context, String title) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(title)));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = AppColors.accent;
+    return Text.rich(
+      TextSpan(
+        text: 'By continuing, you agree to our ',
+        style: const TextStyle(
+          color: AppColors.muted,
+          fontSize: 11,
+          height: 1.35,
+        ),
+        children: [
+          TextSpan(
+            text: 'Terms of Service',
+            style: TextStyle(
+              color: accent,
+              decoration: TextDecoration.underline,
+              decorationColor: accent,
+            ),
+            recognizer: TapGestureRecognizer()
+              ..onTap = () => _show(context, 'Terms of Service'),
+          ),
+          const TextSpan(text: ' and '),
+          TextSpan(
+            text: 'Privacy Policy.',
+            style: TextStyle(
+              color: accent,
+              decoration: TextDecoration.underline,
+              decorationColor: accent,
+            ),
+            recognizer: TapGestureRecognizer()
+              ..onTap = () => _show(context, 'Privacy Policy'),
+          ),
+        ],
+      ),
+      textAlign: TextAlign.center,
     );
   }
 }

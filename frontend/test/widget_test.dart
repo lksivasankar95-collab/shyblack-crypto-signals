@@ -15,20 +15,27 @@ import 'package:cryptosignals/domain/entities/auth_tokens.dart';
 import 'package:cryptosignals/domain/entities/app_settings.dart';
 import 'package:cryptosignals/domain/entities/kline_candle.dart';
 import 'package:cryptosignals/domain/entities/market_ticker.dart';
+import 'package:cryptosignals/domain/entities/signal.dart';
 import 'package:cryptosignals/domain/repositories/auth_repository.dart';
 import 'package:cryptosignals/domain/repositories/market_repository.dart';
+import 'package:cryptosignals/domain/repositories/signal_repository.dart';
 import 'package:cryptosignals/presentation/providers/markets_controller.dart';
 import 'package:cryptosignals/presentation/providers/settings_controller.dart';
 import 'package:cryptosignals/presentation/screens/markets/markets_screen.dart';
 import 'package:cryptosignals/presentation/screens/settings/settings_screen.dart';
+import 'package:cryptosignals/presentation/screens/signals/signals_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
-  testWidgets('splash shows branding then opens login', (WidgetTester tester) async {
+  testWidgets('splash shows branding then opens login', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          authRepositoryProvider.overrideWith((ref) => _SessionAuthRepository(restored: false)),
+          authRepositoryProvider.overrideWith(
+            (ref) => _SessionAuthRepository(restored: false),
+          ),
         ],
         child: const ShyBlackApp(),
       ),
@@ -40,19 +47,30 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
 
-    expect(find.text('LOGIN'), findsOneWidget);
+    expect(find.text('Sign In'), findsOneWidget);
     expect(find.text('Continue with Google'), findsOneWidget);
-    expect(find.text('Welcome Back!'), findsOneWidget);
+    expect(find.text('Welcome Back'), findsOneWidget);
   });
 
-  testWidgets('restored session opens the main shell without login', (WidgetTester tester) async {
+  testWidgets('restored session opens the main shell without login', (
+    WidgetTester tester,
+  ) async {
     SharedPreferences.setMockInitialValues({});
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          authRepositoryProvider.overrideWith((ref) => _SessionAuthRepository(restored: true)),
-          marketRepositoryProvider.overrideWith((ref) => _FakeMarketRepository()),
-          marketsSocketConnectorProvider.overrideWith((ref) => const _IdleSocketConnector()),
+          authRepositoryProvider.overrideWith(
+            (ref) => _SessionAuthRepository(restored: true),
+          ),
+          marketRepositoryProvider.overrideWith(
+            (ref) => _FakeMarketRepository(),
+          ),
+          signalRepositoryProvider.overrideWith(
+            (ref) => _EmptySignalRepository(),
+          ),
+          marketsSocketConnectorProvider.overrideWith(
+            (ref) => const _IdleSocketConnector(),
+          ),
         ],
         child: const ShyBlackApp(),
       ),
@@ -60,11 +78,13 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
 
-    expect(find.text('LOGIN'), findsNothing);
+    expect(find.text('Sign In'), findsNothing);
     expect(find.text('Markets'), findsWidgets);
   });
 
-  testWidgets('login fits iPhone SE height without scrolling', (WidgetTester tester) async {
+  testWidgets('login fits iPhone SE height without scrolling', (
+    WidgetTester tester,
+  ) async {
     tester.view.physicalSize = const Size(375, 667);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -84,11 +104,13 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
-    expect(find.text('Welcome Back!'), findsOneWidget);
-    expect(find.text('LOGIN'), findsOneWidget);
+    expect(find.text('Welcome Back'), findsOneWidget);
+    expect(find.text('Sign In'), findsOneWidget);
     expect(find.text('Continue with Google'), findsOneWidget);
 
-    final scrollable = tester.state<ScrollableState>(find.byType(Scrollable).first);
+    final scrollable = tester.state<ScrollableState>(
+      find.byType(Scrollable).first,
+    );
     expect(
       scrollable.position.maxScrollExtent,
       0,
@@ -96,7 +118,9 @@ void main() {
     );
   });
 
-  testWidgets('settings shows profile and trading mode options', (WidgetTester tester) async {
+  testWidgets('settings shows profile and trading mode options', (
+    WidgetTester tester,
+  ) async {
     SharedPreferences.setMockInitialValues({});
     final theme = AppTheme.dark();
     await tester.pumpWidget(
@@ -123,13 +147,19 @@ void main() {
     expect(find.text('Active'), findsWidgets);
   });
 
-  testWidgets('markets lists coins, searches, and follows trading mode', (WidgetTester tester) async {
+  testWidgets('markets lists coins, searches, and follows trading mode', (
+    WidgetTester tester,
+  ) async {
     SharedPreferences.setMockInitialValues({});
     final container = ProviderContainer(
       overrides: [
-        authRepositoryProvider.overrideWith((ref) => _SessionAuthRepository(restored: true)),
+        authRepositoryProvider.overrideWith(
+          (ref) => _SessionAuthRepository(restored: true),
+        ),
         marketRepositoryProvider.overrideWith((ref) => _FakeMarketRepository()),
-        marketsSocketConnectorProvider.overrideWith((ref) => const _IdleSocketConnector()),
+        marketsSocketConnectorProvider.overrideWith(
+          (ref) => const _IdleSocketConnector(),
+        ),
       ],
     );
     addTearDown(container.dispose);
@@ -160,25 +190,38 @@ void main() {
     await tester.enterText(find.byType(TextField), '');
     await tester.pump();
 
-    await container.read(settingsControllerProvider.notifier).setTradingMode(TradingMode.futures);
+    await container
+        .read(settingsControllerProvider.notifier)
+        .setTradingMode(TradingMode.futures);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
     expect(find.text('BTC'), findsOneWidget);
     expect(find.text('ETH'), findsNothing);
 
-    await container.read(settingsControllerProvider.notifier).setTradingMode(TradingMode.options);
+    await container
+        .read(settingsControllerProvider.notifier)
+        .setTradingMode(TradingMode.options);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
-    expect(find.text("Options trading data isn't available yet"), findsOneWidget);
+    expect(
+      find.text("Options trading data isn't available yet"),
+      findsOneWidget,
+    );
   });
 
-  testWidgets('tapping a market opens coin detail', (WidgetTester tester) async {
+  testWidgets('tapping a market opens coin detail', (
+    WidgetTester tester,
+  ) async {
     SharedPreferences.setMockInitialValues({});
     final container = ProviderContainer(
       overrides: [
-        authRepositoryProvider.overrideWith((ref) => _SessionAuthRepository(restored: true)),
+        authRepositoryProvider.overrideWith(
+          (ref) => _SessionAuthRepository(restored: true),
+        ),
         marketRepositoryProvider.overrideWith((ref) => _FakeMarketRepository()),
-        marketsSocketConnectorProvider.overrideWith((ref) => const _IdleSocketConnector()),
+        marketsSocketConnectorProvider.overrideWith(
+          (ref) => const _IdleSocketConnector(),
+        ),
       ],
     );
     addTearDown(container.dispose);
@@ -206,15 +249,21 @@ void main() {
     expect(find.text('1D'), findsOneWidget);
   });
 
-  testWidgets('websocket ticks patch a market row in place', (WidgetTester tester) async {
+  testWidgets('websocket ticks patch a market row in place', (
+    WidgetTester tester,
+  ) async {
     SharedPreferences.setMockInitialValues({});
     final ticks = StreamController<dynamic>.broadcast();
     addTearDown(ticks.close);
     final container = ProviderContainer(
       overrides: [
-        authRepositoryProvider.overrideWith((ref) => _SessionAuthRepository(restored: true)),
+        authRepositoryProvider.overrideWith(
+          (ref) => _SessionAuthRepository(restored: true),
+        ),
         marketRepositoryProvider.overrideWith((ref) => _FakeMarketRepository()),
-        marketsSocketConnectorProvider.overrideWith((ref) => _ScriptedSocketConnector(ticks)),
+        marketsSocketConnectorProvider.overrideWith(
+          (ref) => _ScriptedSocketConnector(ticks),
+        ),
       ],
     );
     addTearDown(container.dispose);
@@ -235,33 +284,80 @@ void main() {
 
     expect(find.text('65000.00'), findsOneWidget);
 
-    container.read(marketsControllerProvider.notifier).ingestWireMessage(
-      jsonEncode({
-        'type': 'tickers',
-        'mode': 'SPOT',
-        'tickers': [
-          {
-            'symbol': 'BTCUSDT',
-            'name': 'Bitcoin',
-            'price': 66123,
-            'change24h': 2,
-            'changePercent24h': 4.5,
-            'volume24h': 1000,
-            'high24h': 67000,
-            'low24h': 64000,
-          },
-        ],
-      }),
-    );
+    container
+        .read(marketsControllerProvider.notifier)
+        .ingestWireMessage(
+          jsonEncode({
+            'type': 'tickers',
+            'mode': 'SPOT',
+            'tickers': [
+              {
+                'symbol': 'BTCUSDT',
+                'name': 'Bitcoin',
+                'price': 66123,
+                'change24h': 2,
+                'changePercent24h': 4.5,
+                'volume24h': 1000,
+                'high24h': 67000,
+                'low24h': 64000,
+              },
+            ],
+          }),
+        );
     await tester.pump();
 
     expect(find.text('66123.00'), findsOneWidget);
     expect(find.text('65000.00'), findsNothing);
     expect(find.text('+4.50%'), findsOneWidget);
   });
+
+  testWidgets('signals lists active signals, searches, and filters by tab', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final container = ProviderContainer(
+      overrides: [
+        authRepositoryProvider.overrideWith(
+          (ref) => _SessionAuthRepository(restored: true),
+        ),
+        signalRepositoryProvider.overrideWith((ref) => _FakeSignalRepository()),
+      ],
+    );
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: AppTheme.dark(),
+          darkTheme: AppTheme.dark(),
+          themeMode: ThemeMode.dark,
+          home: const Scaffold(body: SignalsScreen()),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(find.text('BTCUSDT'), findsWidgets);
+    expect(find.text('Active'), findsWidgets);
+    expect(find.text('Search symbol or type'), findsOneWidget);
+
+    await tester.tap(find.text('Pending'));
+    await tester.pumpAndSettle();
+    expect(find.text('ETHUSDT'), findsOneWidget);
+    expect(find.text('BTCUSDT'), findsNothing);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    container.dispose();
+  });
 }
 
-MarketTicker _ticker(String symbol, String name, double price, double changePct) {
+MarketTicker _ticker(
+  String symbol,
+  String name,
+  double price,
+  double changePct,
+) {
   return MarketTicker(
     symbol: symbol,
     name: name,
@@ -287,9 +383,9 @@ class _FakeMarketRepository implements MarketRepository {
   @override
   Future<MarketTicker> getTicker(String symbol, TradingMode mode) async {
     return _snapshot(mode).tickers.firstWhere(
-          (item) => item.symbol == symbol,
-          orElse: () => _ticker(symbol, symbol, 1, 0),
-        );
+      (item) => item.symbol == symbol,
+      orElse: () => _ticker(symbol, symbol, 1, 0),
+    );
   }
 
   @override
@@ -322,7 +418,10 @@ class _FakeMarketRepository implements MarketRepository {
       );
     }
     if (mode == TradingMode.futures) {
-      return MarketSnapshot(mode: 'FUTURES', tickers: [_ticker('BTCUSDT', 'Bitcoin', 65100, 3.1)]);
+      return MarketSnapshot(
+        mode: 'FUTURES',
+        tickers: [_ticker('BTCUSDT', 'Bitcoin', 65100, 3.1)],
+      );
     }
     return MarketSnapshot(
       mode: 'SPOT',
@@ -360,6 +459,36 @@ class _ScriptedSocketConnector implements MarketsSocketConnector {
       close: () async {},
     );
   }
+}
+
+class _FakeSignalRepository implements SignalRepository {
+  @override
+  Future<List<Signal>> getSignals() async => [
+    Signal(
+      id: 's1',
+      symbol: 'BTCUSDT',
+      status: SignalStatus.active,
+      side: PositionSide.long,
+      confidence: 88,
+      entryPrice: 65000,
+      strategy: 'Trend Following',
+      createdAt: DateTime.now(),
+    ),
+    Signal(
+      id: 's2',
+      symbol: 'ETHUSDT',
+      status: SignalStatus.pending,
+      side: PositionSide.short,
+      confidence: 72,
+      entryPrice: 3400,
+      createdAt: DateTime.now(),
+    ),
+  ];
+}
+
+class _EmptySignalRepository implements SignalRepository {
+  @override
+  Future<List<Signal>> getSignals() async => [];
 }
 
 class _SessionAuthRepository implements AuthRepository {

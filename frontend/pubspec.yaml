@@ -65,9 +65,9 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
-  # Replace assets/images/login_bull.png with the final bull artwork.
+  # App logo used on the login screen hero graphic.
   assets:
-    - assets/images/login_bull.png
+    - assets/images/logo.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:

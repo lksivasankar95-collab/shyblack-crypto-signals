@@ -4,16 +4,21 @@ import '../../core/theme/app_colors.dart';
 
 /// Hero graphic on the login screen.
 ///
-/// **DROP FINAL BULL ART HERE:** replace `frontend/assets/images/login_bull.png`
-/// (already listed in `pubspec.yaml`). Keep [useBundledBullAsset] `true`.
-/// Set it `false` to use the geometric [LoginBullPlaceholderPainter] instead.
+/// Uses `assets/images/logo.png` as the app logo (already listed in
+/// `pubspec.yaml`). Keep [useBundledBullAsset] `true`. Set it `false` to use
+/// the geometric [LoginBullPlaceholderPainter] instead.
 class LoginHeroGraphic extends StatelessWidget {
-  const LoginHeroGraphic({super.key});
+  const LoginHeroGraphic({
+    super.key,
+    this.height = LoginHeroGraphic.defaultHeight,
+  });
 
-  static const String assetPath = 'assets/images/login_bull.png';
+  static const String assetPath = 'assets/images/logo.png';
   static const bool useBundledBullAsset = true;
 
-  static const double height = 120;
+  static const double defaultHeight = 120;
+
+  final double height;
 
   @override
   Widget build(BuildContext context) {
@@ -36,7 +41,10 @@ class LoginHeroGraphic extends StatelessWidget {
                     child: SizedBox.expand(),
                   ),
                 )
-              : const CustomPaint(painter: LoginBullPlaceholderPainter(), child: SizedBox.expand()),
+              : const CustomPaint(
+                  painter: LoginBullPlaceholderPainter(),
+                  child: SizedBox.expand(),
+                ),
         ),
       ),
     );
@@ -54,23 +62,37 @@ class LoginBullPlaceholderPainter extends CustomPainter {
     final h = size.height;
     canvas.drawRect(Offset.zero & size, Paint()..color = AppColors.background);
 
-    final candlePaint = Paint()..color = AppColors.accent.withValues(alpha: 0.55);
+    final candlePaint = Paint()
+      ..color = AppColors.accent.withValues(alpha: 0.55);
     final wickPaint = Paint()
       ..color = AppColors.accent.withValues(alpha: 0.7)
       ..strokeWidth = 1.5;
-    final candles = <(double x, double bodyTop, double bodyH, double wickTop, double wickBot)>[
-      (0.08, 0.62, 0.22, 0.52, 0.88),
-      (0.16, 0.54, 0.24, 0.44, 0.84),
-      (0.24, 0.48, 0.22, 0.36, 0.78),
-      (0.32, 0.40, 0.26, 0.28, 0.74),
-      (0.40, 0.34, 0.24, 0.22, 0.66),
-      (0.70, 0.30, 0.22, 0.18, 0.58),
-      (0.78, 0.24, 0.20, 0.12, 0.52),
-      (0.86, 0.18, 0.22, 0.08, 0.48),
-    ];
+    final candles =
+        <
+          (
+            double x,
+            double bodyTop,
+            double bodyH,
+            double wickTop,
+            double wickBot,
+          )
+        >[
+          (0.08, 0.62, 0.22, 0.52, 0.88),
+          (0.16, 0.54, 0.24, 0.44, 0.84),
+          (0.24, 0.48, 0.22, 0.36, 0.78),
+          (0.32, 0.40, 0.26, 0.28, 0.74),
+          (0.40, 0.34, 0.24, 0.22, 0.66),
+          (0.70, 0.30, 0.22, 0.18, 0.58),
+          (0.78, 0.24, 0.20, 0.12, 0.52),
+          (0.86, 0.18, 0.22, 0.08, 0.48),
+        ];
     for (final c in candles) {
       final x = c.$1 * w;
-      canvas.drawLine(Offset(x + 8, c.$4 * h), Offset(x + 8, c.$5 * h), wickPaint);
+      canvas.drawLine(
+        Offset(x + 8, c.$4 * h),
+        Offset(x + 8, c.$5 * h),
+        wickPaint,
+      );
       canvas.drawRRect(
         RRect.fromRectAndRadius(
           Rect.fromLTWH(x, c.$2 * h, 16, c.$3 * h),
@@ -127,7 +149,11 @@ class LoginBullPlaceholderPainter extends CustomPainter {
       ..color = AppColors.accent
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
     canvas.drawCircle(Offset(w * 0.68, h * 0.34), 4.5, eye);
-    canvas.drawCircle(Offset(w * 0.68, h * 0.34), 3.2, Paint()..color = AppColors.accent);
+    canvas.drawCircle(
+      Offset(w * 0.68, h * 0.34),
+      3.2,
+      Paint()..color = AppColors.accent,
+    );
   }
 
   @override
