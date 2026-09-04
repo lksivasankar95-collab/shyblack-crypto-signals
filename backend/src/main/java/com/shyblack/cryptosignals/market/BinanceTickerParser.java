@@ -5,6 +5,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.math.BigDecimal;
+import java.math.MathContext;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -66,12 +67,18 @@ public final class BinanceTickerParser {
 
 	public static MarketTicker parseTicker(JsonObject data, String name) {
 		String symbol = data.get("s").getAsString();
+		BigDecimal price = decimal(data, "c");
+		BigDecimal open = decimal(data, "o");
+		BigDecimal priceChange = data.has("p") ? decimal(data, "p") : price.subtract(open);
+		BigDecimal percent = data.has("P") ? decimal(data, "P")
+				: (open.signum() == 0 ? BigDecimal.ZERO
+						: priceChange.multiply(BigDecimal.valueOf(100)).divide(open, MathContext.DECIMAL64));
 		return new MarketTicker(
 				symbol,
 				name,
-				decimal(data, "c"),
-				decimal(data, "p"),
-				decimal(data, "P"),
+				price,
+				priceChange,
+				percent,
 				decimal(data, "v"),
 				decimal(data, "h"),
 				decimal(data, "l"),

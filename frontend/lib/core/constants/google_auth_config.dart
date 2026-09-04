@@ -5,7 +5,8 @@ abstract final class GoogleAuthConfig {
   /// Paste your Client ID as the defaultValue, or pass `--dart-define=GOOGLE_CLIENT_ID=...`.
   static const String webClientId = String.fromEnvironment(
     'GOOGLE_CLIENT_ID',
-    defaultValue: 'PASTE_WEB_CLIENT_ID.apps.googleusercontent.com',
+    defaultValue:
+        '455850227264-l2jvc43ija2355rq67t98m1l3n71i47s.apps.googleusercontent.com',
   );
 
   static bool get isConfigured =>
