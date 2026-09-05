@@ -34,6 +34,66 @@ extension PositionSideLabel on PositionSide {
   }
 }
 
+enum SignalGrade { strongBuy, buy, watch, noTrade }
+
+extension SignalGradeLabel on SignalGrade {
+  String get label => switch (this) {
+    SignalGrade.strongBuy => 'STRONG BUY',
+    SignalGrade.buy => 'BUY',
+    SignalGrade.watch => 'WATCH',
+    SignalGrade.noTrade => 'NO TRADE',
+  };
+
+  static SignalGrade? parse(String? value) {
+    if (value == null) return null;
+    return switch (value.toUpperCase()) {
+      'STRONG_BUY' => SignalGrade.strongBuy,
+      'BUY' => SignalGrade.buy,
+      'WATCH' => SignalGrade.watch,
+      'NO_TRADE' => SignalGrade.noTrade,
+      _ => null,
+    };
+  }
+}
+
+enum EntryType { preBreakout, breakout, breakoutRetest }
+
+extension EntryTypeLabel on EntryType {
+  String get label => switch (this) {
+    EntryType.preBreakout => 'Pre-Breakout',
+    EntryType.breakout => 'Breakout',
+    EntryType.breakoutRetest => 'Breakout Retest',
+  };
+
+  static EntryType? parse(String? value) {
+    if (value == null) return null;
+    return switch (value.toUpperCase()) {
+      'BREAKOUT' => EntryType.breakout,
+      'BREAKOUT_RETEST' => EntryType.breakoutRetest,
+      _ => EntryType.preBreakout,
+    };
+  }
+}
+
+enum MarketRegime { bullish, neutral, bearish }
+
+extension MarketRegimeLabel on MarketRegime {
+  String get label => switch (this) {
+    MarketRegime.bullish => 'Bullish',
+    MarketRegime.neutral => 'Neutral',
+    MarketRegime.bearish => 'Bearish',
+  };
+
+  static MarketRegime? parse(String? value) {
+    if (value == null) return null;
+    return switch (value.toUpperCase()) {
+      'BULLISH' => MarketRegime.bullish,
+      'BEARISH' => MarketRegime.bearish,
+      _ => MarketRegime.neutral,
+    };
+  }
+}
+
 class Signal {
   const Signal({
     required this.id,
@@ -51,6 +111,14 @@ class Signal {
     this.technicalSummary,
     this.disclaimer,
     required this.createdAt,
+    // Spot Morning Plan fields
+    this.score,
+    this.signalGrade,
+    this.entryType,
+    this.marketRegime,
+    this.targetPrice2,
+    this.targetPrice3,
+    this.riskReward,
   });
 
   final String id;
@@ -68,4 +136,13 @@ class Signal {
   final String? technicalSummary;
   final String? disclaimer;
   final DateTime createdAt;
+
+  // Spot Morning Plan
+  final int? score;
+  final SignalGrade? signalGrade;
+  final EntryType? entryType;
+  final MarketRegime? marketRegime;
+  final double? targetPrice2;
+  final double? targetPrice3;
+  final double? riskReward;
 }

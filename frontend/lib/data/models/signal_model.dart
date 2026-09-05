@@ -17,6 +17,14 @@ class SignalModel {
     this.technicalSummary,
     this.disclaimer,
     required this.createdAt,
+    // Spot Morning Plan fields
+    this.score,
+    this.signalGrade,
+    this.entryType,
+    this.marketRegime,
+    this.targetPrice2,
+    this.targetPrice3,
+    this.riskReward,
   });
 
   final String id;
@@ -34,6 +42,15 @@ class SignalModel {
   final String? technicalSummary;
   final String? disclaimer;
   final DateTime createdAt;
+
+  // Spot Morning Plan fields
+  final int? score;
+  final SignalGrade? signalGrade;
+  final EntryType? entryType;
+  final MarketRegime? marketRegime;
+  final double? targetPrice2;
+  final double? targetPrice3;
+  final double? riskReward;
 
   factory SignalModel.fromJson(Map<String, dynamic> json) {
     return SignalModel(
@@ -54,6 +71,14 @@ class SignalModel {
       createdAt:
           _parseDate(json['createdAt']) ??
           DateTime.fromMillisecondsSinceEpoch(0),
+      // Spot Morning Plan fields
+      score: (json['score'] as num?)?.toInt(),
+      signalGrade: SignalGradeLabel.parse(json['signalGrade'] as String?),
+      entryType: EntryTypeLabel.parse(json['entryType'] as String?),
+      marketRegime: MarketRegimeLabel.parse(json['marketRegime'] as String?),
+      targetPrice2: (json['targetPrice2'] as num?)?.toDouble(),
+      targetPrice3: (json['targetPrice3'] as num?)?.toDouble(),
+      riskReward: (json['riskReward'] as num?)?.toDouble(),
     );
   }
 
@@ -84,6 +109,13 @@ class SignalModel {
       technicalSummary: technicalSummary,
       disclaimer: disclaimer,
       createdAt: createdAt,
+      score: score,
+      signalGrade: signalGrade,
+      entryType: entryType,
+      marketRegime: marketRegime,
+      targetPrice2: targetPrice2,
+      targetPrice3: targetPrice3,
+      riskReward: riskReward,
     );
   }
 }

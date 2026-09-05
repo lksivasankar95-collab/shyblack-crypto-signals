@@ -1,7 +1,11 @@
 package com.shyblack.cryptosignals.entity;
 
+import com.shyblack.cryptosignals.entity.enums.EntryType;
+import com.shyblack.cryptosignals.entity.enums.MarketRegime;
 import com.shyblack.cryptosignals.entity.enums.PositionSide;
+import com.shyblack.cryptosignals.entity.enums.SignalGrade;
 import com.shyblack.cryptosignals.entity.enums.SignalStatus;
+import com.shyblack.cryptosignals.entity.enums.TradingMode;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -65,4 +69,34 @@ public class Signal extends BaseEntity {
 
 	@Column(length = 1000)
 	private String disclaimer;
+
+	// --- Spot Morning Plan fields ---
+
+	@Column
+	private Integer score;
+
+	@Enumerated(EnumType.STRING)
+	@Column
+	private SignalGrade signalGrade;
+
+	@Enumerated(EnumType.STRING)
+	@Column
+	private EntryType entryType;
+
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = false)
+	private TradingMode tradingMode = TradingMode.SPOT;
+
+	@Enumerated(EnumType.STRING)
+	@Column
+	private MarketRegime marketRegime;
+
+	@Column(precision = 19, scale = 8)
+	private BigDecimal targetPrice2;
+
+	@Column(precision = 19, scale = 8)
+	private BigDecimal targetPrice3;
+
+	@Column(precision = 10, scale = 4)
+	private BigDecimal riskReward;
 }

@@ -34,6 +34,16 @@ class SignalDetailsScreen extends StatelessWidget {
             _SummaryCard(signal: signal, sideColor: sideColor),
             const SizedBox(height: 12),
             _PriceCard(signal: signal),
+            if (signal.targetPrice2 != null || signal.targetPrice3 != null) ...[
+              const SizedBox(height: 12),
+              _ExtendedTargetsCard(signal: signal),
+            ],
+            if (signal.score != null || signal.signalGrade != null ||
+                signal.entryType != null || signal.marketRegime != null ||
+                signal.riskReward != null) ...[
+              const SizedBox(height: 12),
+              _SignalEngineCard(signal: signal),
+            ],
             if (signal.technicalSummary case final summary?) ...[
               const SizedBox(height: 12),
               _InfoCard(
@@ -118,6 +128,136 @@ class SignalDetailsScreen extends StatelessWidget {
   static String _two(int value) => value.toString().padLeft(2, '0');
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Extended targets card: TP2 + TP3
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _ExtendedTargetsCard extends StatelessWidget {
+  const _ExtendedTargetsCard({required this.signal});
+
+  final Signal signal;
+
+  @override
+  Widget build(BuildContext context) {
+    return _InfoCard(
+      title: 'Extended Targets',
+      icon: Icons.flag_outlined,
+      child: Row(
+        children: [
+          _PriceCell(label: 'TP2', value: signal.targetPrice2),
+          const _Divider(),
+          _PriceCell(label: 'TP3', value: signal.targetPrice3),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Signal engine card: score, grade, regime, entry type, R:R
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _SignalEngineCard extends StatelessWidget {
+  const _SignalEngineCard({required this.signal});
+
+  final Signal signal;
+
+  @override
+  Widget build(BuildContext context) {
+    return _InfoCard(
+      title: 'Signal Engine',
+      icon: Icons.auto_graph_outlined,
+      child: Column(
+        children: [
+          if (signal.score case final score?) ...[
+            _ScoreBar(score: score),
+            const SizedBox(height: 8),
+          ],
+          if (signal.signalGrade case final grade?)
+            _DetailRow(
+              label: 'Grade',
+              value: grade.label,
+            ),
+          if (signal.entryType case final et?)
+            _DetailRow(label: 'Entry Type', value: et.label),
+          if (signal.marketRegime case final regime?)
+            _DetailRow(label: 'Market Regime', value: regime.label),
+          if (signal.riskReward case final rr?)
+            _DetailRow(
+              label: 'Risk / Reward',
+              value: '${rr.toStringAsFixed(2)} : 1',
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Score bar widget
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _ScoreBar extends StatelessWidget {
+  const _ScoreBar({required this.score});
+
+  final int score;
+
+  @override
+  Widget build(BuildContext context) {
+    final fraction = score.clamp(0, 100) / 100.0;
+    final color = score >= 85
+        ? const Color(0xFF00E676)
+        : score >= 75
+        ? AppColors.accent
+        : score >= 65
+        ? const Color(0xFFFFB300)
+        : AppColors.muted;
+
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Score',
+                    style: TextStyle(color: AppColors.muted, fontSize: 12),
+                  ),
+                  Text(
+                    '$score / 100',
+                    style: TextStyle(
+                      color: color,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: fraction,
+                  backgroundColor: const Color(0xFF2A2A2A),
+                  valueColor: AlwaysStoppedAnimation<Color>(color),
+                  minHeight: 6,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Existing widgets (unchanged from original)
+// ─────────────────────────────────────────────────────────────────────────────
+
 class _SummaryCard extends StatelessWidget {
   const _SummaryCard({required this.signal, required this.sideColor});
 
@@ -164,12 +304,38 @@ class _SummaryCard extends StatelessWidget {
                           label: signal.status.label,
                           color: AppColors.muted,
                         ),
+                        if (signal.signalGrade case final grade?) ...[
+                          const SizedBox(width: 6),
+                          _Badge(
+                            label: grade.label,
+                            color: _gradeColor(grade),
+                          ),
+                        ],
                       ],
                     ),
                   ],
                 ),
               ),
-              if (signal.confidence case final confidence?)
+              if (signal.score case final score?)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    const Text(
+                      'Score',
+                      style: TextStyle(color: AppColors.muted, fontSize: 11),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '$score',
+                      style: TextStyle(
+                        color: _scoreColor(score),
+                        fontWeight: FontWeight.w800,
+                        fontSize: 20,
+                      ),
+                    ),
+                  ],
+                )
+              else if (signal.confidence case final confidence?)
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
@@ -193,6 +359,20 @@ class _SummaryCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  static Color _gradeColor(SignalGrade grade) => switch (grade) {
+    SignalGrade.strongBuy => const Color(0xFF00E676),
+    SignalGrade.buy => AppColors.accent,
+    SignalGrade.watch => const Color(0xFFFFB300),
+    SignalGrade.noTrade => AppColors.loss,
+  };
+
+  static Color _scoreColor(int score) {
+    if (score >= 85) return const Color(0xFF00E676);
+    if (score >= 75) return AppColors.accent;
+    if (score >= 65) return const Color(0xFFFFB300);
+    return AppColors.muted;
   }
 }
 
