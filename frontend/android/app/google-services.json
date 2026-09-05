@@ -1,0 +1,121 @@
+{
+  "project_info": {
+    "project_number": "455850227264",
+    "project_id": "shyblack-trading-intelli-3ce5b",
+    "storage_bucket": "shyblack-trading-intelli-3ce5b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:455850227264:android:17c8d51bf48eb80aa191a5",
+        "android_client_info": {
+          "package_name": "com.shyblack.chessplayandlearn"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "455850227264-rfadsuircvbvgqt21cre47qk72fa8il4.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.shyblack.chessplayandlearn",
+            "certificate_hash": "e0a4280186d131e01de0cf907226338db67738c4"
+          }
+        },
+        {
+          "client_id": "455850227264-l2jvc43ija2355rq67t98m1l3n71i47s.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCj2oN9hyql8eh4JPBJvuilVdIlkKNkBTk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "455850227264-l2jvc43ija2355rq67t98m1l3n71i47s.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:455850227264:android:d47ed6a1975f0443a191a5",
+        "android_client_info": {
+          "package_name": "com.shyblack.cryptosignels"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "455850227264-heho39gst11eh55rjn21iq9rj57ef6r9.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.shyblack.cryptosignels",
+            "certificate_hash": "44186dde5d4ae90207a37cfe932661900882899f"
+          }
+        },
+        {
+          "client_id": "455850227264-l2jvc43ija2355rq67t98m1l3n71i47s.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCj2oN9hyql8eh4JPBJvuilVdIlkKNkBTk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "455850227264-l2jvc43ija2355rq67t98m1l3n71i47s.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:455850227264:android:7e99db78bbb3a630a191a5",
+        "android_client_info": {
+          "package_name": "com.shyblack.signal"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "455850227264-q03dc4s98hicglnd6pc5mgc9lap22v1o.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.shyblack.signal",
+            "certificate_hash": "f181f3b1ce07a1e13173259cbc608eea348ca968"
+          }
+        },
+        {
+          "client_id": "455850227264-l2jvc43ija2355rq67t98m1l3n71i47s.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCj2oN9hyql8eh4JPBJvuilVdIlkKNkBTk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "455850227264-l2jvc43ija2355rq67t98m1l3n71i47s.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
