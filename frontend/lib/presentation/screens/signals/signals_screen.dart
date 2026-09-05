@@ -5,6 +5,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../domain/entities/app_settings.dart';
 import '../../../domain/entities/signal.dart';
 import '../../providers/settings_controller.dart';
+import '../../providers/notifications_controller.dart';
 import '../../providers/signals_controller.dart';
 import '../../widgets/coin_letter_avatar.dart';
 import '../notifications/notifications_screen.dart';
@@ -200,7 +201,7 @@ extension on Signal {
   }
 }
 
-class _TopBar extends StatelessWidget {
+class _TopBar extends ConsumerWidget {
   const _TopBar({
     required this.onOpenSettings,
     required this.onOpenNotifications,
@@ -212,7 +213,17 @@ class _TopBar extends StatelessWidget {
   final VoidCallback onOpenProfile;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final unread = ref.watch(notificationsControllerProvider.select(
+      (state) => state.value?.where((n) => !n.read).length ?? 0,
+    ));
+
+    String badgeText() {
+      if (unread <= 0) return '';
+      if (unread > 99) return '99+';
+      return unread.toString();
+    }
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(8, 4, 12, 4),
       child: Row(
@@ -239,11 +250,38 @@ class _TopBar extends StatelessWidget {
           const Spacer(),
           IconButton(
             onPressed: onOpenNotifications,
-            icon: const Stack(
+            icon: Stack(
               clipBehavior: Clip.none,
               children: [
-                Icon(Icons.notifications_none, color: AppColors.muted),
-                Positioned(right: -2, top: -2, child: _Dot()),
+                const Icon(Icons.notifications_none, color: AppColors.muted),
+                if (unread <= 0)
+                  const Positioned(right: -2, top: -2, child: _Dot())
+                else
+                  Positioned(
+                    right: -8,
+                    top: -8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.accent,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.fromBorderSide(
+                          const BorderSide(color: AppColors.background, width: 1.5),
+                        ),
+                      ),
+                      constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                      child: Center(
+                        child: Text(
+                          badgeText(),
+                          style: const TextStyle(
+                            color: Colors.black,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
