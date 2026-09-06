@@ -5,7 +5,7 @@ import '../../data/datasources/token_local_data_source.dart';
 
 class ApiClient {
   ApiClient({
-    required TokenLocalDataSource this._tokens,
+    required this._tokens,
     Dio? dio,
   }) : _dio = dio ??
            Dio(

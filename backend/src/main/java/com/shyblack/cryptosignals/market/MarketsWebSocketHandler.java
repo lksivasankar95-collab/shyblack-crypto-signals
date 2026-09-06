@@ -99,6 +99,19 @@ public class MarketsWebSocketHandler extends TextWebSocketHandler {
 		}
 	}
 
+	/**
+	 * Broadcast an alert payload to all SPOT-mode sessions. Payload should be a JsonObject.
+	 */
+	public void broadcastAlert(com.google.gson.JsonObject payload) {
+		if (payload == null || sessions.isEmpty()) return;
+		String json = gson.toJson(payload);
+		for (WebSocketSession session : sessions) {
+			if (sessionModes.getOrDefault(session.getId(), TradingMode.SPOT) == TradingMode.SPOT) {
+				send(session, json);
+			}
+		}
+	}
+
 	private static TradingMode modeFrom(WebSocketSession session) {
 		URI uri = session.getUri();
 		if (uri == null) {

@@ -12,4 +12,7 @@ public interface NotificationRepository extends JpaRepository<Notification, UUID
 	List<Notification> findByUser(User user);
 
 	List<Notification> findByUserAndCategory(User user, NotificationCategory category);
+
+	boolean existsBySignalId(UUID signalId);
+	boolean existsByUserAndSignalId(com.shyblack.cryptosignals.entity.User user, UUID signalId);
 }

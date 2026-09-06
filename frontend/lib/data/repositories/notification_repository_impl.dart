@@ -11,4 +11,14 @@ class NotificationRepositoryImpl implements NotificationRepository {
     final models = await _remote.getNotifications();
     return models.map((model) => model.toEntity()).toList();
   }
+
+  @override
+  Future<void> registerDeviceToken(String token) async {
+    await _remote.registerDeviceToken(token);
+  }
+
+  @override
+  Future<void> removeDeviceToken(String token) async {
+    await _remote.removeDeviceToken(token);
+  }
 }

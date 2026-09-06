@@ -35,6 +35,8 @@ public class SpotSignalScheduler {
     private final SpotSignalEngine engine;
     private final SignalRepository signalRepository;
     private final MarketBook marketBook;
+    private final com.shyblack.cryptosignals.service.SignalNotificationService signalNotificationService;
+    private final org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     @Scheduled(cron = SignalConstants.SIGNAL_CRON)
     @Transactional
@@ -82,6 +84,15 @@ public class SpotSignalScheduler {
 
                 Signal signal = buildSignal(symbol, candidate, ticker);
                 signalRepository.save(signal);
+                // Dispatch notification for actionable spot signals (idempotent inside service)
+                try {
+                    if (signal.getSignalGrade() == SignalGrade.STRONG_BUY || signal.getSignalGrade() == SignalGrade.BUY) {
+                        // publish an event so notifications are dispatched AFTER the transaction commits
+                        eventPublisher.publishEvent(new com.shyblack.cryptosignals.service.SignalGeneratedEvent(signal.getId()));
+                    }
+                } catch (Exception ex) {
+                    log.warn("[SignalCycle] Notification publish failed for {}: {}", symbol, ex.getMessage());
+                }
                 generated++;
 
                 log.info("[SignalCycle] Saved {} signal: {} score={} grade={}",

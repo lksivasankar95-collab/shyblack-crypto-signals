@@ -109,7 +109,7 @@ class AuthFlowIntegrationTest {
 	}
 
 	@Test
-	void googleLoginExistingEmailIssuesTokens() throws Exception {
+	void googleLoginExistingEmailReturnsConflict() throws Exception {
 		mockMvc.perform(post("/api/auth/signup")
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
@@ -125,9 +125,9 @@ class AuthFlowIntegrationTest {
 						.content("""
 								{"idToken":"fake-google-id-token"}
 								"""))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.accessToken").isNotEmpty())
-				.andExpect(jsonPath("$.refreshToken").isNotEmpty());
+				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.message").value(
+						"A password account already exists for linked.google@example.com. Sign in with email and password instead."));
 	}
 
 	@Test

@@ -22,7 +22,14 @@ abstract final class ApiExceptionMapper {
       return const AuthException('Invalid credentials', unauthorized: true);
     }
     if (status == 409) {
-      return const AuthException('Email already exists');
+      final data = error.response?.data;
+      if (data is Map<String, dynamic>) {
+        final message = data['message']?.toString();
+        if (message != null && message.isNotEmpty) {
+          return AuthException(message);
+        }
+      }
+      return const AuthException('This account cannot be linked automatically');
     }
 
     final data = error.response?.data;

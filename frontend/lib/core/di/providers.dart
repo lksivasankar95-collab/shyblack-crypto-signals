@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 
 import '../network/api_client.dart';
 import '../../data/datasources/auth_remote_data_source.dart';
@@ -225,3 +226,5 @@ final getWatchlistProvider = Provider<GetWatchlist>(
 final getNotificationsProvider = Provider<GetNotifications>(
   (ref) => GetNotifications(ref.watch(notificationRepositoryProvider)),
 );
+
+final pendingSignalProvider = StateProvider<String?>((ref) => null);

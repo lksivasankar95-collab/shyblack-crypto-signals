@@ -15,6 +15,7 @@ import com.shyblack.cryptosignals.entity.enums.RiskProfile;
 import com.shyblack.cryptosignals.entity.enums.Role;
 import com.shyblack.cryptosignals.entity.enums.TradingMode;
 import com.shyblack.cryptosignals.exception.DuplicateEmailException;
+import com.shyblack.cryptosignals.exception.GoogleAccountConflictException;
 import com.shyblack.cryptosignals.exception.InvalidCredentialsException;
 import com.shyblack.cryptosignals.exception.InvalidTokenException;
 import com.shyblack.cryptosignals.repository.RefreshTokenRepository;
@@ -106,6 +107,10 @@ public class AuthService {
 			user.setRiskProfile(RiskProfile.MODERATE);
 			user.setTimezone("UTC");
 			user.setEnabled(true);
+		} else if (user.getGoogleSub() == null && user.getAuthProvider() == AuthProvider.LOCAL) {
+			throw new GoogleAccountConflictException(email);
+		} else if (user.getGoogleSub() != null && !user.getGoogleSub().equals(googleUser.subject())) {
+			throw new GoogleAccountConflictException(email);
 		} else if (googleUser.fullName() != null && !googleUser.fullName().isBlank()
 				&& (user.getFullName() == null || user.getFullName().isBlank())) {
 			user.setFullName(googleUser.fullName());

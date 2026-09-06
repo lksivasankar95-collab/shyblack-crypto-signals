@@ -9,7 +9,9 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.time.Instant;
+import java.util.UUID;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -18,7 +20,8 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @Entity
-@Table(name = "notifications")
+@Table(name = "notifications",
+	uniqueConstraints = @UniqueConstraint(name = "uk_notifications_user_signal", columnNames = {"user_id", "signal_id"}))
 public class Notification extends BaseEntity {
 
 	@ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -39,4 +42,10 @@ public class Notification extends BaseEntity {
 	private boolean read;
 
 	private Instant readAt;
+    
+	// Link to a signal if this notification was generated for a signal
+	private UUID signalId;
+    
+	// e.g. SPOT
+	private String marketType;
 }

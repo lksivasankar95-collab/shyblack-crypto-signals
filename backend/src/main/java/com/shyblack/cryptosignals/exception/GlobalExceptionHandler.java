@@ -40,6 +40,14 @@ public class GlobalExceptionHandler {
 		return build(HttpStatus.CONFLICT, ex.getMessage(), request, List.of());
 	}
 
+	@ExceptionHandler(GoogleAccountConflictException.class)
+	public ResponseEntity<ApiError> handleGoogleAccountConflict(
+			GoogleAccountConflictException ex,
+			HttpServletRequest request
+	) {
+		return build(HttpStatus.CONFLICT, ex.getMessage(), request, List.of());
+	}
+
 	@ExceptionHandler(InvalidCredentialsException.class)
 	public ResponseEntity<ApiError> handleInvalidCredentials(
 			InvalidCredentialsException ex,
