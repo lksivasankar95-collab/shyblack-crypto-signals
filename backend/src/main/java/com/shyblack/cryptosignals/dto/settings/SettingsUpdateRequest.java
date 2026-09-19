@@ -1,8 +1,10 @@
 package com.shyblack.cryptosignals.dto.settings;
 
+import com.shyblack.cryptosignals.entity.enums.AccountType;
 import com.shyblack.cryptosignals.entity.enums.PositionSizingMode;
 import com.shyblack.cryptosignals.entity.enums.QuoteCurrency;
 import com.shyblack.cryptosignals.entity.enums.RiskProfile;
+import com.shyblack.cryptosignals.entity.enums.TradingMode;
 
 /**
  * Partial (patch-style) settings update. Only non-null fields are applied.
@@ -16,6 +18,8 @@ public record SettingsUpdateRequest(
 		String defaultLeverageView,
 		String themeName,
 		String languageCode,
-		Boolean liveTradingAllowed
+		Boolean liveTradingAllowed,
+		TradingMode tradingMode,
+		AccountType accountType
 ) {
 }

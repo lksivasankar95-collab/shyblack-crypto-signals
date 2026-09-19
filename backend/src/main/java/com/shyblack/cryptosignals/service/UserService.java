@@ -1,5 +1,6 @@
 package com.shyblack.cryptosignals.service;
 
+import com.shyblack.cryptosignals.dto.user.UpdateProfileRequest;
 import com.shyblack.cryptosignals.dto.user.UserResponse;
 import com.shyblack.cryptosignals.entity.User;
 import com.shyblack.cryptosignals.exception.ResourceNotFoundException;
@@ -37,6 +38,33 @@ public class UserService {
 		}
 		User user = userRepository.findById(principal.getId())
 				.orElseThrow(() -> new ResourceNotFoundException("User not found"));
+		return UserResponse.from(user);
+	}
+
+	@Transactional
+	public UserResponse updateMe(UserPrincipal principal, UpdateProfileRequest request) {
+		User user = userRepository.findById(principal.getId())
+				.orElseThrow(() -> new ResourceNotFoundException("User not found"));
+		boolean changed = false;
+		if (request.fullName() != null && !request.fullName().isBlank()) {
+			user.setFullName(request.fullName().trim());
+			changed = true;
+		}
+		if (request.phoneNumber() != null) {
+			user.setPhoneNumber(request.phoneNumber().isBlank() ? null : request.phoneNumber().trim());
+			changed = true;
+		}
+		if (request.country() != null) {
+			user.setCountry(request.country().isBlank() ? null : request.country().trim());
+			changed = true;
+		}
+		if (request.timezone() != null && !request.timezone().isBlank()) {
+			user.setTimezone(request.timezone().trim());
+			changed = true;
+		}
+		if (changed) {
+			userRepository.save(user);
+		}
 		return UserResponse.from(user);
 	}
 }

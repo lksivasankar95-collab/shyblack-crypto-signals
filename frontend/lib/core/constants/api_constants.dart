@@ -11,7 +11,7 @@ abstract final class ApiConstants {
   static const String signals = '/v1/signals';
   static const String watchlist = '/v1/watchlist';
   static const String notifications = '/v1/notifications';
-  static const String deviceTokens = '/api/device-tokens';
+  static const String deviceTokens = '/device-tokens';
   static const String markets = '/markets';
   static const String marketsGainers = '/markets/gainers';
   static const String marketsLosers = '/markets/losers';
@@ -25,6 +25,13 @@ abstract final class ApiConstants {
   static const String authRefresh = '/auth/refresh';
   static const String authGoogle = '/auth/google';
   static const String usersMe = '/users/me';
+
+  // Settings
+  static const String settings = '/v1/settings';
+  static const String settingsExchanges = '/v1/settings/exchanges';
+  static const String settingsNotifications = '/v1/settings/notifications';
+  static String settingsExchangeTest(String id) => '/v1/settings/exchanges/$id/test-connection';
+  static String settingsExchangeDelete(String id) => '/v1/settings/exchanges/$id';
 
   static const String news = '/v1/news';
   static const String newsMeta = '/v1/news/meta';

@@ -3,9 +3,10 @@
 import '../../core/theme/app_colors.dart';
 
 class PremiumBadge extends StatelessWidget {
-  const PremiumBadge({super.key, this.compact = false});
+  const PremiumBadge({super.key, this.compact = false, this.label = 'Standard'});
 
   final bool compact;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
@@ -17,7 +18,7 @@ class PremiumBadge extends StatelessWidget {
         border: Border.all(color: AppColors.accent),
       ),
       child: Text(
-        'Premium',
+        label,
         style: TextStyle(
           color: AppColors.accent,
           fontWeight: FontWeight.w800,

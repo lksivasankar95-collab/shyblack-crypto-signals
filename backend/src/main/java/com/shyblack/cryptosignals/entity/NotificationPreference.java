@@ -23,4 +23,19 @@ public class NotificationPreference extends BaseEntity {
 
     @Column(nullable = false)
     private boolean signalsEnabled = true;
+
+    @Column(nullable = false)
+    private boolean buyAlertsEnabled = true;
+
+    @Column(nullable = false)
+    private boolean sellAlertsEnabled = true;
+
+    @Column(nullable = false)
+    private boolean newsAlertsEnabled = true;
+
+    @Column(nullable = false)
+    private boolean systemAlertsEnabled = true;
+
+    @Column(nullable = true)
+    private String minimumSignalGrade;
 }

@@ -8,11 +8,13 @@ import com.shyblack.cryptosignals.dto.settings.SettingsResponse;
 import com.shyblack.cryptosignals.dto.settings.SettingsUpdateRequest;
 import com.shyblack.cryptosignals.entity.User;
 import com.shyblack.cryptosignals.entity.UserSettings;
+import com.shyblack.cryptosignals.entity.enums.AccountType;
 import com.shyblack.cryptosignals.entity.enums.ExchangeConnectionStatus;
 import com.shyblack.cryptosignals.entity.enums.ExchangeName;
 import com.shyblack.cryptosignals.entity.enums.PositionSizingMode;
 import com.shyblack.cryptosignals.entity.enums.QuoteCurrency;
 import com.shyblack.cryptosignals.entity.enums.RiskProfile;
+import com.shyblack.cryptosignals.entity.enums.TradingMode;
 import com.shyblack.cryptosignals.exception.BadRequestException;
 import com.shyblack.cryptosignals.exception.ResourceNotFoundException;
 import com.shyblack.cryptosignals.repository.UserRepository;
@@ -98,6 +100,20 @@ public class SettingsService {
 		if (changed) {
 			userSettingsRepository.save(settings);
 		}
+
+		boolean userChanged = false;
+		if (request.tradingMode() != null) {
+			user.setTradingMode(request.tradingMode());
+			userChanged = true;
+		}
+		if (request.accountType() != null) {
+			user.setAccountType(request.accountType());
+			userChanged = true;
+		}
+		if (userChanged) {
+			userRepository.save(user);
+		}
+
 		return SettingsMappers.toSettingsResponse(
 				user, settings, exchangeCredentialService.list(principal));
 	}

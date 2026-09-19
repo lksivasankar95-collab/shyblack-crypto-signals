@@ -31,24 +31,13 @@ class ProfileScreen extends ConsumerWidget {
               SettingsCard(
                 child: Row(
                   children: [
-                    _StatCell(label: 'Member Since', value: settings.memberSince),
+                    _StatCell(label: 'Member Since', value: settings.memberSince.isEmpty ? '—' : settings.memberSince),
                     _StatCell(label: 'Membership', value: settings.membershipTier),
-                    _StatCell(label: 'Valid Till', value: settings.subscriptionValidTill),
+                    _StatCell(label: 'Plan', value: settings.liveTradingAllowed ? 'Live' : 'Paper'),
                   ],
                 ),
               ),
               const SizedBox(height: 12),
-              SettingsCard(
-                child: Text(
-                  '"${settings.tagline}"',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: AppColors.accent,
-                    fontStyle: FontStyle.italic,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
               const SettingsSectionTitle('PROFILE INFORMATION'),
               SettingsCard(
                 padding: EdgeInsets.zero,
@@ -365,7 +354,7 @@ class _Header extends StatelessWidget {
               style: const TextStyle(color: AppColors.onBackground, fontSize: 20, fontWeight: FontWeight.w800),
             ),
             const SizedBox(width: 8),
-            const PremiumBadge(),
+            PremiumBadge(label: settings.membershipTier),
           ],
         ),
         const SizedBox(height: 8),

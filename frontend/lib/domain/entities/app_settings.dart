@@ -4,6 +4,8 @@ enum TradingAccount { paper, live }
 
 enum RiskProfile { conservative, moderate, aggressive }
 
+enum PositionSizingMode { fixedPercent, fixedAmount, kellyPercent }
+
 extension TradingModeLabel on TradingMode {
   String get label => switch (this) {
         TradingMode.spot => 'Spot',
@@ -11,7 +13,6 @@ extension TradingModeLabel on TradingMode {
         TradingMode.options => 'Options',
       };
 
-  /// Query value for GET /api/markets?mode=
   String get apiParam => name.toUpperCase();
 }
 
@@ -35,6 +36,14 @@ extension RiskProfileLabel on RiskProfile {
       };
 }
 
+extension PositionSizingModeLabel on PositionSizingMode {
+  String get label => switch (this) {
+        PositionSizingMode.fixedPercent => 'Fixed %',
+        PositionSizingMode.fixedAmount => 'Fixed Amount',
+        PositionSizingMode.kellyPercent => 'Kelly %',
+      };
+}
+
 class AppSettings {
   const AppSettings({
     required this.fullName,
@@ -45,16 +54,16 @@ class AppSettings {
     required this.memberId,
     required this.memberSince,
     required this.membershipTier,
-    required this.subscriptionValidTill,
-    required this.tagline,
-    required this.isPremium,
     required this.tradingMode,
     required this.tradingAccount,
     required this.quoteCurrency,
     required this.riskProfile,
+    required this.positionSizingMode,
     required this.defaultLeverageView,
     required this.themeName,
     required this.language,
+    this.liveTradingAllowed = false,
+    this.hasVerifiedExchange = false,
   });
 
   final String fullName;
@@ -65,36 +74,36 @@ class AppSettings {
   final String memberId;
   final String memberSince;
   final String membershipTier;
-  final String subscriptionValidTill;
-  final String tagline;
-  final bool isPremium;
   final TradingMode tradingMode;
   final TradingAccount tradingAccount;
   final String quoteCurrency;
   final RiskProfile riskProfile;
+  final PositionSizingMode positionSizingMode;
   final String defaultLeverageView;
   final String themeName;
   final String language;
+  final bool liveTradingAllowed;
+  final bool hasVerifiedExchange;
 
   static const AppSettings defaults = AppSettings(
-    fullName: 'Ada Trader',
-    email: 'trader@example.com',
-    phone: '+1 555 0100',
-    country: 'United States',
+    fullName: '',
+    email: '',
+    phone: '',
+    country: '',
     timezone: 'UTC',
-    memberId: 'SB-100001',
-    memberSince: 'Aug 2026',
-    membershipTier: 'Premium',
-    subscriptionValidTill: '30 Aug 2027',
-    tagline: 'Analyze. Predict. Profit.',
-    isPremium: true,
+    memberId: '',
+    memberSince: '',
+    membershipTier: 'Standard',
     tradingMode: TradingMode.spot,
     tradingAccount: TradingAccount.paper,
     quoteCurrency: 'USDT',
     riskProfile: RiskProfile.moderate,
-    defaultLeverageView: 'Isolated',
-    themeName: 'Dark',
+    positionSizingMode: PositionSizingMode.fixedPercent,
+    defaultLeverageView: '1x',
+    themeName: 'dark',
     language: 'English',
+    liveTradingAllowed: false,
+    hasVerifiedExchange: false,
   );
 
   AppSettings copyWith({
@@ -106,16 +115,16 @@ class AppSettings {
     String? memberId,
     String? memberSince,
     String? membershipTier,
-    String? subscriptionValidTill,
-    String? tagline,
-    bool? isPremium,
     TradingMode? tradingMode,
     TradingAccount? tradingAccount,
     String? quoteCurrency,
     RiskProfile? riskProfile,
+    PositionSizingMode? positionSizingMode,
     String? defaultLeverageView,
     String? themeName,
     String? language,
+    bool? liveTradingAllowed,
+    bool? hasVerifiedExchange,
   }) {
     return AppSettings(
       fullName: fullName ?? this.fullName,
@@ -126,16 +135,16 @@ class AppSettings {
       memberId: memberId ?? this.memberId,
       memberSince: memberSince ?? this.memberSince,
       membershipTier: membershipTier ?? this.membershipTier,
-      subscriptionValidTill: subscriptionValidTill ?? this.subscriptionValidTill,
-      tagline: tagline ?? this.tagline,
-      isPremium: isPremium ?? this.isPremium,
       tradingMode: tradingMode ?? this.tradingMode,
       tradingAccount: tradingAccount ?? this.tradingAccount,
       quoteCurrency: quoteCurrency ?? this.quoteCurrency,
       riskProfile: riskProfile ?? this.riskProfile,
+      positionSizingMode: positionSizingMode ?? this.positionSizingMode,
       defaultLeverageView: defaultLeverageView ?? this.defaultLeverageView,
       themeName: themeName ?? this.themeName,
       language: language ?? this.language,
+      liveTradingAllowed: liveTradingAllowed ?? this.liveTradingAllowed,
+      hasVerifiedExchange: hasVerifiedExchange ?? this.hasVerifiedExchange,
     );
   }
 }

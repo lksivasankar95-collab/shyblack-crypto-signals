@@ -11,4 +11,5 @@ abstract final class AppColors {
   static const Color onBackground = Color(0xFFFFFFFF);
   static const Color onCard = Color(0xFFE8E8E8);
   static const Color muted = Color(0xFF9E9E9E);
+  static const Color profit = Color(0xFF00E676);
 }

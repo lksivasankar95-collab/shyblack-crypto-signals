@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
@@ -6,8 +6,16 @@ import '../../../domain/entities/app_settings.dart';
 import '../../providers/auth_session.dart';
 import '../../providers/settings_controller.dart';
 import '../../widgets/settings_widgets.dart';
-import 'coming_soon_screen.dart';
+import 'about_screen.dart';
+import 'data_management_screen.dart';
+import 'exchange_accounts_screen.dart';
+import 'help_support_screen.dart';
+import 'market_preferences_screen.dart';
+import 'notifications_screen.dart';
 import 'profile_screen.dart';
+import 'security_screen.dart';
+import 'signal_preferences_screen.dart';
+import 'subscription_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -21,7 +29,19 @@ class SettingsScreen extends ConsumerWidget {
       body: SafeArea(
         child: asyncSettings.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, stackTrace) => const Center(child: Text('Could not load settings')),
+          error: (error, stackTrace) => Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Could not load settings', style: TextStyle(color: AppColors.muted)),
+                const SizedBox(height: 12),
+                TextButton(
+                  onPressed: () => ref.invalidate(settingsControllerProvider),
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          ),
           data: (settings) => SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
             child: Column(
@@ -79,23 +99,21 @@ class SettingsScreen extends ConsumerWidget {
                       SettingsNavTile(
                         icon: Icons.workspace_premium_outlined,
                         title: 'Subscription',
-                        onTap: () => _soon(context, 'Subscription'),
+                        onTap: () => _open(context, const SubscriptionScreen()),
                       ),
                       SettingsNavTile(
                         icon: Icons.shield_outlined,
                         title: 'Security',
-                        onTap: () => _soon(context, 'Security'),
-                      ),
-                      SettingsNavTile(
-                        icon: Icons.devices_outlined,
-                        title: 'Devices',
-                        onTap: () => _soon(context, 'Devices'),
+                        onTap: () => _open(context, const SecurityScreen()),
                       ),
                       SettingsNavTile(
                         icon: Icons.account_balance_wallet_outlined,
                         title: 'Connect Exchange Accounts',
-                        badge: _newBadge(),
-                        onTap: () => _soon(context, 'Connect Exchange Accounts'),
+                        badge: _badge(
+                          settings.hasVerifiedExchange ? 'Connected' : 'New',
+                          settings.hasVerifiedExchange ? AppColors.profit : AppColors.accent,
+                        ),
+                        onTap: () => _open(context, const ExchangeAccountsScreen()),
                       ),
                     ],
                   ),
@@ -108,17 +126,17 @@ class SettingsScreen extends ConsumerWidget {
                       SettingsNavTile(
                         icon: Icons.notifications_outlined,
                         title: 'Notifications',
-                        onTap: () => _soon(context, 'Notifications'),
+                        onTap: () => _open(context, const NotificationsScreen()),
                       ),
                       SettingsNavTile(
                         icon: Icons.bolt_outlined,
                         title: 'Signal Preferences',
-                        onTap: () => _soon(context, 'Signal Preferences'),
+                        onTap: () => _open(context, const SignalPreferencesScreen()),
                       ),
                       SettingsNavTile(
                         icon: Icons.show_chart,
                         title: 'Market Preferences',
-                        onTap: () => _soon(context, 'Market Preferences'),
+                        onTap: () => _open(context, const MarketPreferencesScreen()),
                       ),
                       SettingsNavTile(
                         icon: Icons.palette_outlined,
@@ -161,17 +179,17 @@ class SettingsScreen extends ConsumerWidget {
                       SettingsNavTile(
                         icon: Icons.storage_outlined,
                         title: 'Data Management',
-                        onTap: () => _soon(context, 'Data Management'),
+                        onTap: () => _open(context, const DataManagementScreen()),
                       ),
                       SettingsNavTile(
                         icon: Icons.help_outline,
                         title: 'Help & Support',
-                        onTap: () => _soon(context, 'Help & Support'),
+                        onTap: () => _open(context, const HelpSupportScreen()),
                       ),
                       SettingsNavTile(
                         icon: Icons.info_outline,
                         title: 'About Us',
-                        onTap: () => _soon(context, 'About Us'),
+                        onTap: () => _open(context, const AboutScreen()),
                       ),
                     ],
                   ),
@@ -194,16 +212,17 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  static Widget _newBadge() {
+  static Widget _badge(String label, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
       decoration: BoxDecoration(
-        color: AppColors.accent,
+        color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
       ),
-      child: const Text(
-        'New',
-        style: TextStyle(color: Colors.black, fontSize: 10, fontWeight: FontWeight.w800),
+      child: Text(
+        label,
+        style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w800),
       ),
     );
   }
@@ -212,12 +231,8 @@ class SettingsScreen extends ConsumerWidget {
     Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => screen));
   }
 
-  static void _soon(BuildContext context, String title) {
-    _open(context, ComingSoonScreen(title: title));
-  }
-
   static Future<void> _pickTheme(BuildContext context, WidgetRef ref, AppSettings settings) async {
-    final next = await _choice(context, 'Theme', const ['Dark'], settings.themeName);
+    final next = await _choice(context, 'Theme', const ['dark', 'light', 'system'], settings.themeName);
     if (next != null) {
       await ref.read(settingsControllerProvider.notifier).patch(settings.copyWith(themeName: next));
     }
@@ -302,7 +317,7 @@ class _ProfileSummaryCard extends StatelessWidget {
                     children: [
                       Flexible(
                         child: Text(
-                          settings.fullName,
+                          settings.fullName.isEmpty ? 'My Account' : settings.fullName,
                           style: const TextStyle(
                             color: AppColors.onBackground,
                             fontWeight: FontWeight.w800,
@@ -311,7 +326,7 @@ class _ProfileSummaryCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      const PremiumBadge(compact: true),
+                      PremiumBadge(compact: true, label: settings.membershipTier),
                     ],
                   ),
                   const SizedBox(height: 4),

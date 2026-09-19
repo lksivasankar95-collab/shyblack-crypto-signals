@@ -20,6 +20,7 @@ import 'package:cryptosignals/domain/entities/signal.dart';
 import 'package:cryptosignals/domain/repositories/auth_repository.dart';
 import 'package:cryptosignals/domain/repositories/market_repository.dart';
 import 'package:cryptosignals/domain/repositories/news_repository.dart';
+import 'package:cryptosignals/domain/repositories/settings_repository.dart';
 import 'package:cryptosignals/domain/repositories/signal_repository.dart';
 import 'package:cryptosignals/presentation/providers/markets_controller.dart';
 import 'package:cryptosignals/presentation/providers/settings_controller.dart';
@@ -130,6 +131,11 @@ void main() {
     final theme = AppTheme.dark();
     await tester.pumpWidget(
       ProviderScope(
+        overrides: [
+          settingsRepositoryProvider.overrideWith(
+            (ref) => _FakeSettingsRepository(),
+          ),
+        ],
         child: MaterialApp(
           theme: theme,
           darkTheme: theme,
@@ -140,7 +146,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Ada Trader'), findsOneWidget);
+    expect(find.text('My Account'), findsOneWidget);
     expect(find.text('Spot'), findsOneWidget);
     expect(find.text('Futures'), findsOneWidget);
     expect(find.text('Options'), findsOneWidget);
@@ -164,6 +170,9 @@ void main() {
         marketRepositoryProvider.overrideWith((ref) => _FakeMarketRepository()),
         marketsSocketConnectorProvider.overrideWith(
           (ref) => const _IdleSocketConnector(),
+        ),
+        settingsRepositoryProvider.overrideWith(
+          (ref) => _FakeSettingsRepository(),
         ),
       ],
     );
@@ -227,6 +236,9 @@ void main() {
         marketsSocketConnectorProvider.overrideWith(
           (ref) => const _IdleSocketConnector(),
         ),
+        settingsRepositoryProvider.overrideWith(
+          (ref) => _FakeSettingsRepository(),
+        ),
       ],
     );
     addTearDown(container.dispose);
@@ -268,6 +280,9 @@ void main() {
         marketRepositoryProvider.overrideWith((ref) => _FakeMarketRepository()),
         marketsSocketConnectorProvider.overrideWith(
           (ref) => _ScriptedSocketConnector(ticks),
+        ),
+        settingsRepositoryProvider.overrideWith(
+          (ref) => _FakeSettingsRepository(),
         ),
       ],
     );
@@ -540,6 +555,37 @@ class _EmptyNewsRepository implements NewsRepository {
   Future<NewsContext> getAssetContext(String symbol, {int? windowHours}) {
     throw UnimplementedError();
   }
+}
+
+class _FakeSettingsRepository implements SettingsRepository {
+  AppSettings _settings = AppSettings.defaults;
+
+  @override
+  Future<AppSettings> load() async => _settings;
+
+  @override
+  Future<void> save(AppSettings settings) async => _settings = settings;
+
+  @override
+  Future<List<Map<String, dynamic>>> listExchanges() async => [];
+
+  @override
+  Future<Map<String, dynamic>> connectExchange(Map<String, dynamic> body) async => {};
+
+  @override
+  Future<Map<String, dynamic>> testExchangeConnection(String id) async => {'ok': true};
+
+  @override
+  Future<void> deleteExchange(String id) async {}
+
+  @override
+  Future<Map<String, dynamic>> getNotificationPrefs() async => {};
+
+  @override
+  Future<Map<String, dynamic>> updateNotificationPrefs(Map<String, dynamic> body) async => {};
+
+  @override
+  Future<List<Map<String, dynamic>>> listDeviceTokens() async => [];
 }
 
 class _SessionAuthRepository implements AuthRepository {

@@ -56,6 +56,7 @@ import '../../domain/usecases/get_asset_news.dart';
 import '../../domain/usecases/get_news_meta.dart';
 import '../../domain/usecases/get_news_context.dart';
 import '../../data/datasources/settings_local_data_source.dart';
+import '../../data/datasources/settings_remote_data_source.dart';
 import '../../data/repositories/settings_repository_impl.dart';
 import '../../domain/repositories/settings_repository.dart';
 
@@ -107,8 +108,15 @@ final settingsLocalDataSourceProvider = Provider<SettingsLocalDataSource>(
   (ref) => SettingsLocalDataSource(),
 );
 
+final settingsRemoteDataSourceProvider = Provider<SettingsRemoteDataSource>(
+  (ref) => SettingsRemoteDataSource(ref.watch(apiClientProvider)),
+);
+
 final settingsRepositoryProvider = Provider<SettingsRepository>(
-  (ref) => SettingsRepositoryImpl(ref.watch(settingsLocalDataSourceProvider)),
+  (ref) => SettingsRepositoryImpl(
+    ref.watch(settingsLocalDataSourceProvider),
+    ref.watch(settingsRemoteDataSourceProvider),
+  ),
 );
 
 final getSettingsProvider = Provider<GetSettings>(
@@ -264,3 +272,19 @@ final getNewsContextProvider = Provider<GetNewsContext>(
 );
 
 final pendingSignalProvider = StateProvider<String?>((ref) => null);
+
+final listExchangesProvider = Provider<Future<List<Map<String, dynamic>>> Function()>(
+  (ref) => () => ref.read(settingsRepositoryProvider).listExchanges(),
+);
+
+final getNotificationPrefsProvider = Provider<Future<Map<String, dynamic>> Function()>(
+  (ref) => () => ref.read(settingsRepositoryProvider).getNotificationPrefs(),
+);
+
+final updateNotificationPrefsProvider = Provider<Future<Map<String, dynamic>> Function(Map<String, dynamic>)>(
+  (ref) => (body) => ref.read(settingsRepositoryProvider).updateNotificationPrefs(body),
+);
+
+final listDeviceTokensProvider = Provider<Future<List<Map<String, dynamic>>> Function()>(
+  (ref) => () => ref.read(settingsRepositoryProvider).listDeviceTokens(),
+);
