@@ -6,6 +6,7 @@ import '../../../domain/entities/app_settings.dart';
 import '../../providers/auth_session.dart';
 import '../../providers/settings_controller.dart';
 import '../../widgets/settings_widgets.dart';
+import '../live_trading/live_trading_screen.dart';
 import 'about_screen.dart';
 import 'data_management_screen.dart';
 import 'exchange_accounts_screen.dart';
@@ -114,6 +115,18 @@ class SettingsScreen extends ConsumerWidget {
                           settings.hasVerifiedExchange ? AppColors.profit : AppColors.accent,
                         ),
                         onTap: () => _open(context, const ExchangeAccountsScreen()),
+                      ),
+                      SettingsNavTile(
+                        icon: Icons.bolt,
+                        title: 'Live Trading',
+                        subtitle: settings.liveTradingAllowed
+                            ? 'Real orders enabled'
+                            : 'Real orders disabled',
+                        badge: _badge(
+                          settings.liveTradingAllowed ? 'LIVE' : 'OFF',
+                          settings.liveTradingAllowed ? AppColors.loss : AppColors.muted,
+                        ),
+                        onTap: () => _open(context, const LiveTradingScreen()),
                       ),
                     ],
                   ),

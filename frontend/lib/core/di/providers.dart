@@ -57,9 +57,12 @@ import '../../domain/usecases/get_news_meta.dart';
 import '../../domain/usecases/get_news_context.dart';
 import '../../data/datasources/settings_local_data_source.dart';
 import '../../data/datasources/settings_remote_data_source.dart';
+import '../../data/datasources/live_trading_remote_data_source.dart';
 import '../../data/datasources/paper_trading_remote_data_source.dart';
+import '../../data/repositories/live_trading_repository_impl.dart';
 import '../../data/repositories/paper_trading_repository_impl.dart';
 import '../../data/repositories/settings_repository_impl.dart';
+import '../../domain/repositories/live_trading_repository.dart';
 import '../../domain/repositories/paper_trading_repository.dart';
 import '../../domain/repositories/settings_repository.dart';
 
@@ -282,6 +285,14 @@ final paperTradingRemoteDataSourceProvider = Provider<PaperTradingRemoteDataSour
 
 final paperTradingRepositoryProvider = Provider<PaperTradingRepository>(
   (ref) => PaperTradingRepositoryImpl(ref.watch(paperTradingRemoteDataSourceProvider)),
+);
+
+final liveTradingRemoteDataSourceProvider = Provider<LiveTradingRemoteDataSource>(
+  (ref) => LiveTradingRemoteDataSource(ref.watch(apiClientProvider)),
+);
+
+final liveTradingRepositoryProvider = Provider<LiveTradingRepository>(
+  (ref) => LiveTradingRepositoryImpl(ref.watch(liveTradingRemoteDataSourceProvider)),
 );
 
 final listExchangesProvider = Provider<Future<List<Map<String, dynamic>>> Function()>(

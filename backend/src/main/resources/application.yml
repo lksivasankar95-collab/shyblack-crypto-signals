@@ -53,3 +53,17 @@ app:
     max-active-positions: ${PAPER_MAX_ACTIVE_POSITIONS:10}
     risk-per-trade-pct: ${PAPER_RISK_PER_TRADE_PCT:2.00}
     default-quote-currency: ${PAPER_DEFAULT_QUOTE_CURRENCY:USDT}
+  live-trading:
+    # MOCK (default) = in-process simulator, safe for dev + tests.
+    # EXCHANGE = real Binance signed API. Requires explicit ops flip.
+    mode: ${LIVE_TRADING_MODE:MOCK}
+    spot-rest-base-url: ${LIVE_BINANCE_SPOT_REST:https://testnet.binance.vision}
+    spot-stream-base-url: ${LIVE_BINANCE_SPOT_STREAM:wss://testnet.binance.vision/ws}
+    futures-rest-base-url: ${LIVE_BINANCE_FUTURES_REST:https://testnet.binancefuture.com}
+    recv-window-ms: ${LIVE_RECV_WINDOW_MS:5000}
+    default-max-notional: ${LIVE_MAX_NOTIONAL:200.00}
+    default-max-active: ${LIVE_MAX_ACTIVE:3}
+    default-daily-loss-pct: ${LIVE_DAILY_LOSS_PCT:5.00}
+    auto-execute: ${LIVE_AUTO_EXECUTE:false}
+    reconcile-interval-ms: ${LIVE_RECONCILE_MS:30000}
+    balance-refresh-ms: ${LIVE_BALANCE_REFRESH_MS:60000}

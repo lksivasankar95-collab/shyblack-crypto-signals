@@ -26,6 +26,18 @@ abstract final class ApiConstants {
   static const String authGoogle = '/auth/google';
   static const String usersMe = '/users/me';
 
+  // Live Trading
+  static const String liveAccount = '/v1/live-trading/account';
+  static const String liveConnection = '/v1/live-trading/connection';
+  static const String liveConnectionValidate = '/v1/live-trading/connection/validate';
+  static const String liveActivate = '/v1/live-trading/activate';
+  static const String liveDeactivate = '/v1/live-trading/deactivate';
+  static const String liveKillSwitch = '/v1/live-trading/kill-switch';
+  static const String liveOrders = '/v1/live-trading/orders';
+  static const String liveHistory = '/v1/live-trading/history';
+  static const String livePerformance = '/v1/live-trading/performance';
+  static String liveCancel(String id) => '/v1/live-trading/orders/$id/cancel';
+
   // Paper Trading
   static const String paperAccount = '/v1/paper-trading/account';
   static const String paperPositions = '/v1/paper-trading/positions';
