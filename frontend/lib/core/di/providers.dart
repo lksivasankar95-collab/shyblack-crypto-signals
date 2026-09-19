@@ -57,7 +57,10 @@ import '../../domain/usecases/get_news_meta.dart';
 import '../../domain/usecases/get_news_context.dart';
 import '../../data/datasources/settings_local_data_source.dart';
 import '../../data/datasources/settings_remote_data_source.dart';
+import '../../data/datasources/paper_trading_remote_data_source.dart';
+import '../../data/repositories/paper_trading_repository_impl.dart';
 import '../../data/repositories/settings_repository_impl.dart';
+import '../../domain/repositories/paper_trading_repository.dart';
 import '../../domain/repositories/settings_repository.dart';
 
 final apiClientProvider = Provider<ApiClient>(
@@ -272,6 +275,14 @@ final getNewsContextProvider = Provider<GetNewsContext>(
 );
 
 final pendingSignalProvider = StateProvider<String?>((ref) => null);
+
+final paperTradingRemoteDataSourceProvider = Provider<PaperTradingRemoteDataSource>(
+  (ref) => PaperTradingRemoteDataSource(ref.watch(apiClientProvider)),
+);
+
+final paperTradingRepositoryProvider = Provider<PaperTradingRepository>(
+  (ref) => PaperTradingRepositoryImpl(ref.watch(paperTradingRemoteDataSourceProvider)),
+);
 
 final listExchangesProvider = Provider<Future<List<Map<String, dynamic>>> Function()>(
   (ref) => () => ref.read(settingsRepositoryProvider).listExchanges(),

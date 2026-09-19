@@ -110,7 +110,7 @@ class SettingsServiceTest {
 				.thenReturn(Optional.of(existingSettings()));
 
 		SettingsUpdateRequest request = new SettingsUpdateRequest(
-				null, null, null, "5x", "light", "de", null);
+				null, null, null, "5x", "light", "de", null, null, null);
 		SettingsResponse response = service.update(principal, request);
 
 		assertThat(response.defaultLeverageView()).isEqualTo("5x");
@@ -128,7 +128,7 @@ class SettingsServiceTest {
 				.thenReturn(Optional.of(existingSettings()));
 
 		SettingsUpdateRequest request = new SettingsUpdateRequest(
-				null, null, null, null, null, null, true);
+				null, null, null, null, null, null, true, null, null);
 
 		assertThatThrownBy(() -> service.update(principal, request))
 				.isInstanceOf(BadRequestException.class)
@@ -142,7 +142,7 @@ class SettingsServiceTest {
 				QuoteCurrency.USDT, PositionSizingMode.FIXED_PERCENT);
 		service = new SettingsService(settingsRepository, userRepository, properties, exchangeCredentialService);
 		SettingsUpdateRequest request = new SettingsUpdateRequest(
-				null, null, RiskProfile.AGGRESSIVE, null, null, null, null);
+				null, null, RiskProfile.AGGRESSIVE, null, null, null, null, null, null);
 
 		assertThatThrownBy(() -> service.update(principal, request))
 				.isInstanceOf(BadRequestException.class)
@@ -155,7 +155,7 @@ class SettingsServiceTest {
 				.thenReturn(Optional.of(existingSettings()));
 
 		SettingsUpdateRequest request = new SettingsUpdateRequest(
-				null, null, RiskProfile.CONSERVATIVE, null, null, null, null);
+				null, null, RiskProfile.CONSERVATIVE, null, null, null, null, null, null);
 		SettingsResponse response = service.update(principal, request);
 
 		assertThat(response.riskProfileOverride()).isEqualTo(RiskProfile.CONSERVATIVE);

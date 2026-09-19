@@ -46,3 +46,10 @@ app:
     default-risk-profile: ${SETTINGS_DEFAULT_RISK_PROFILE:CONSERVATIVE}
     default-quote-currency: ${SETTINGS_DEFAULT_QUOTE_CURRENCY:USDT}
     default-position-sizing-mode: ${SETTINGS_DEFAULT_POSITION_SIZING_MODE:FIXED_PERCENT}
+  paper-trading:
+    fee-rate-pct: ${PAPER_FEE_RATE_PCT:0.10}
+    slippage-pct: ${PAPER_SLIPPAGE_PCT:0.05}
+    initial-balance: ${PAPER_INITIAL_BALANCE:10000.00}
+    max-active-positions: ${PAPER_MAX_ACTIVE_POSITIONS:10}
+    risk-per-trade-pct: ${PAPER_RISK_PER_TRADE_PCT:2.00}
+    default-quote-currency: ${PAPER_DEFAULT_QUOTE_CURRENCY:USDT}

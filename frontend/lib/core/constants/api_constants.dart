@@ -26,6 +26,13 @@ abstract final class ApiConstants {
   static const String authGoogle = '/auth/google';
   static const String usersMe = '/users/me';
 
+  // Paper Trading
+  static const String paperAccount = '/v1/paper-trading/account';
+  static const String paperPositions = '/v1/paper-trading/positions';
+  static const String paperHistory = '/v1/paper-trading/history';
+  static const String paperPerformance = '/v1/paper-trading/performance';
+  static String paperClose(String id) => '/v1/paper-trading/positions/$id/close';
+
   // Settings
   static const String settings = '/v1/settings';
   static const String settingsExchanges = '/v1/settings/exchanges';
