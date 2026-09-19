@@ -26,6 +26,21 @@ abstract final class ApiConstants {
   static const String authGoogle = '/auth/google';
   static const String usersMe = '/users/me';
 
+  // Futures Trading
+  static const String futuresAccount = '/v1/futures-trading/account';
+  static const String futuresConnection = '/v1/futures-trading/connection';
+  static const String futuresConnectionValidate = '/v1/futures-trading/connection/validate';
+  static const String futuresAcknowledge = '/v1/futures-trading/acknowledge';
+  static const String futuresActivate = '/v1/futures-trading/activate';
+  static const String futuresDeactivate = '/v1/futures-trading/deactivate';
+  static const String futuresKillSwitch = '/v1/futures-trading/kill-switch';
+  static const String futuresOrders = '/v1/futures-trading/orders';
+  static const String futuresHistory = '/v1/futures-trading/history';
+  static const String futuresPositions = '/v1/futures-trading/positions';
+  static const String futuresPositionsHistory = '/v1/futures-trading/positions/history';
+  static String futuresCancel(String id) => '/v1/futures-trading/orders/$id/cancel';
+  static String futuresClosePosition(String id) => '/v1/futures-trading/positions/$id/close';
+
   // Live Trading
   static const String liveAccount = '/v1/live-trading/account';
   static const String liveConnection = '/v1/live-trading/connection';

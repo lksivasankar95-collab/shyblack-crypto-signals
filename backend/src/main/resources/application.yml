@@ -53,6 +53,24 @@ app:
     max-active-positions: ${PAPER_MAX_ACTIVE_POSITIONS:10}
     risk-per-trade-pct: ${PAPER_RISK_PER_TRADE_PCT:2.00}
     default-quote-currency: ${PAPER_DEFAULT_QUOTE_CURRENCY:USDT}
+  futures-trading:
+    # MOCK (default) = in-process simulator; safe for dev + tests.
+    # EXCHANGE = real Binance USDT-M Futures signed API. Requires explicit ops flip.
+    mode: ${FUTURES_TRADING_MODE:MOCK}
+    rest-base-url: ${FUTURES_BINANCE_REST:https://testnet.binancefuture.com}
+    stream-base-url: ${FUTURES_BINANCE_STREAM:wss://stream.binancefuture.com/ws}
+    recv-window-ms: ${FUTURES_RECV_WINDOW_MS:5000}
+    max-leverage: ${FUTURES_MAX_LEVERAGE:3}
+    default-margin-mode: ${FUTURES_DEFAULT_MARGIN_MODE:ISOLATED}
+    required-position-mode: ${FUTURES_REQUIRED_POSITION_MODE:ONE_WAY}
+    default-max-notional: ${FUTURES_MAX_NOTIONAL:200.00}
+    default-max-active: ${FUTURES_MAX_ACTIVE:2}
+    default-daily-loss-pct: ${FUTURES_DAILY_LOSS_PCT:5.00}
+    min-stop-distance-pct: ${FUTURES_MIN_STOP_DIST_PCT:0.30}
+    liquidation-buffer-pct: ${FUTURES_LIQ_BUFFER_PCT:15.00}
+    auto-execute: ${FUTURES_AUTO_EXECUTE:false}
+    reconcile-interval-ms: ${FUTURES_RECONCILE_MS:30000}
+    balance-refresh-ms: ${FUTURES_BALANCE_REFRESH_MS:60000}
   live-trading:
     # MOCK (default) = in-process simulator, safe for dev + tests.
     # EXCHANGE = real Binance signed API. Requires explicit ops flip.

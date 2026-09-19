@@ -6,6 +6,7 @@ import '../../../domain/entities/app_settings.dart';
 import '../../providers/auth_session.dart';
 import '../../providers/settings_controller.dart';
 import '../../widgets/settings_widgets.dart';
+import '../futures_trading/futures_trading_screen.dart';
 import '../live_trading/live_trading_screen.dart';
 import 'about_screen.dart';
 import 'data_management_screen.dart';
@@ -127,6 +128,13 @@ class SettingsScreen extends ConsumerWidget {
                           settings.liveTradingAllowed ? AppColors.loss : AppColors.muted,
                         ),
                         onTap: () => _open(context, const LiveTradingScreen()),
+                      ),
+                      SettingsNavTile(
+                        icon: Icons.stacked_line_chart,
+                        title: 'Futures Trading',
+                        subtitle: 'USDT-M leveraged — off by default',
+                        badge: _badge('FUTURES', AppColors.loss),
+                        onTap: () => _open(context, const FuturesTradingScreen()),
                       ),
                     ],
                   ),
