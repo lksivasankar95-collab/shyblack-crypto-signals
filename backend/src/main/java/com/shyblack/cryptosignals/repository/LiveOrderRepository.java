@@ -24,6 +24,11 @@ public interface LiveOrderRepository extends JpaRepository<LiveOrder, UUID> {
 	List<LiveOrder> findByAccountAndStatusInOrderByCreatedAtDesc(
 			LiveTradingAccount account, List<LiveOrderStatus> statuses);
 
+	List<LiveOrder> findByAccountAndSymbolAndPurposeAndStatusIn(
+			LiveTradingAccount account, String symbol,
+			com.shyblack.cryptosignals.entity.enums.LiveOrderPurpose purpose,
+			List<LiveOrderStatus> statuses);
+
 	List<LiveOrder> findByStatusIn(List<LiveOrderStatus> statuses);
 
 	@Lock(LockModeType.PESSIMISTIC_WRITE)

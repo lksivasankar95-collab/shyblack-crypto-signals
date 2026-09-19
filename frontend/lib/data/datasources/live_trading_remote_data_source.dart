@@ -86,6 +86,13 @@ class LiveTradingRemoteDataSource {
     return res.data ?? const {};
   }
 
+  Future<Map<String, dynamic>> closePosition(String entryOrderId) async {
+    final res = await _api.dio.post<Map<String, dynamic>>(
+      '/api${ApiConstants.liveClosePosition(entryOrderId)}',
+    );
+    return res.data ?? const {};
+  }
+
   Future<Map<String, dynamic>> getPerformance() async {
     final res = await _api.dio.get<Map<String, dynamic>>(
       '/api${ApiConstants.livePerformance}',

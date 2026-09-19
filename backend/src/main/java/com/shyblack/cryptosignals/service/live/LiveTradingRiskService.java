@@ -1,12 +1,16 @@
 package com.shyblack.cryptosignals.service.live;
 
+import com.shyblack.cryptosignals.entity.LiveOrder;
 import com.shyblack.cryptosignals.entity.LiveTradingAccount;
 import com.shyblack.cryptosignals.entity.Signal;
 import com.shyblack.cryptosignals.entity.User;
 import com.shyblack.cryptosignals.entity.UserSettings;
 import com.shyblack.cryptosignals.entity.enums.ExchangeConnectionStatus;
+import com.shyblack.cryptosignals.entity.enums.LiveOrderPurpose;
 import com.shyblack.cryptosignals.entity.enums.LiveOrderStatus;
 import com.shyblack.cryptosignals.entity.enums.LiveTradingRiskReason;
+import com.shyblack.cryptosignals.entity.enums.PositionSide;
+import com.shyblack.cryptosignals.entity.enums.TradingMode;
 import com.shyblack.cryptosignals.repository.LiveOrderRepository;
 import com.shyblack.cryptosignals.repository.UserSettingsRepository;
 import java.math.BigDecimal;
@@ -20,10 +24,19 @@ import org.springframework.stereotype.Service;
  * Pre-order risk gate. Every {@code check(...)} evaluates a stack of
  * deterministic rules; the first failure short-circuits with an explicit
  * reason so callers can audit exactly why a signal was blocked.
+ *
+ * This implementation is SPOT-only. FUTURES / OPTIONS signals are refused at
+ * the top of the stack, and SPOT signals with side != LONG are refused
+ * before they can hit the exchange adapter — SPOT has no naked short.
  */
 @Service
 @RequiredArgsConstructor
 public class LiveTradingRiskService {
+
+	private static final List<LiveOrderStatus> ACTIVE_STATUSES = List.of(
+			LiveOrderStatus.CREATED, LiveOrderStatus.SUBMITTING, LiveOrderStatus.SUBMITTED,
+			LiveOrderStatus.ACKNOWLEDGED, LiveOrderStatus.PARTIALLY_FILLED,
+			LiveOrderStatus.FILLED); // FILLED entries count as open positions until closed
 
 	private final UserSettingsRepository userSettingsRepository;
 	private final LiveOrderRepository liveOrderRepository;
@@ -35,14 +48,29 @@ public class LiveTradingRiskService {
 		if (account.getConnectionStatus() != ExchangeConnectionStatus.CONNECTED) {
 			return LiveTradingRiskReason.ACCOUNT_DISCONNECTED;
 		}
-		if (signal == null || signal.getStopLoss() == null || signal.getStopLoss().signum() <= 0) {
+		if (signal == null) return LiveTradingRiskReason.INVALID_STOP_LOSS;
+		// SPOT ONLY — refuse anything else before we can build an order.
+		if (signal.getTradingMode() != TradingMode.SPOT) {
+			return LiveTradingRiskReason.UNSUPPORTED_TRADING_MODE;
+		}
+		// SPOT does not permit naked shorts. Entries must be LONG.
+		if (signal.getSide() != PositionSide.LONG) {
+			return LiveTradingRiskReason.UNSUPPORTED_SIDE;
+		}
+		if (signal.getStopLoss() == null || signal.getStopLoss().signum() <= 0) {
 			return LiveTradingRiskReason.INVALID_STOP_LOSS;
 		}
 		UserSettings settings = userSettingsRepository.findByUser_Id(user.getId()).orElse(null);
 		if (settings == null || !settings.isLiveTradingAllowed()) {
 			return LiveTradingRiskReason.TRADING_DISABLED;
 		}
-		List<com.shyblack.cryptosignals.entity.LiveOrder> active = liveOrderRepository
+
+		// Refuse to stack another BUY on top of an existing open entry for the same symbol.
+		if (hasOpenEntry(account, signal.getSymbol())) {
+			return LiveTradingRiskReason.EXISTING_POSITION;
+		}
+
+		List<LiveOrder> active = liveOrderRepository
 				.findByAccountAndStatusInOrderByCreatedAtDesc(account, List.of(
 						LiveOrderStatus.CREATED, LiveOrderStatus.SUBMITTING, LiveOrderStatus.SUBMITTED,
 						LiveOrderStatus.ACKNOWLEDGED, LiveOrderStatus.PARTIALLY_FILLED));
@@ -53,6 +81,11 @@ public class LiveTradingRiskService {
 		return LiveTradingRiskReason.OK;
 	}
 
+	public boolean hasOpenEntry(LiveTradingAccount account, String symbol) {
+		return !liveOrderRepository.findByAccountAndSymbolAndPurposeAndStatusIn(
+				account, symbol, LiveOrderPurpose.ENTRY, ACTIVE_STATUSES).isEmpty();
+	}
+
 	private boolean dailyLossExceeded(LiveTradingAccount account) {
 		BigDecimal limitPct = account.getDailyLossLimitPct();
 		BigDecimal startEquity = account.getSessionStartEquity();
@@ -61,7 +94,7 @@ public class LiveTradingRiskService {
 		}
 		if (account.getSessionDate() == null || !account.getSessionDate()
 				.equals(LocalDate.now(ZoneOffset.UTC))) {
-			return false; // session hasn't been rolled yet — first trade of the day gets through
+			return false;
 		}
 		BigDecimal current = account.getCachedTotalBalance() == null ? startEquity
 				: account.getCachedTotalBalance();

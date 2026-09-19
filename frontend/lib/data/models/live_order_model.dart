@@ -18,6 +18,7 @@ class LiveOrderModel {
         type: _type(json['type'] as String?),
         purpose: _purpose(json['purpose'] as String?),
         status: _status(json['status'] as String?),
+        protectionStatus: _protection(json['protectionStatus'] as String?),
         requestedQuantity: _num(json['requestedQuantity']),
         executedQuantity: _num(json['executedQuantity']),
         remainingQuantity: _num(json['remainingQuantity']),
@@ -71,6 +72,13 @@ class LiveOrderModel {
         'MANUAL_CLOSE' => LiveOrderPurpose.manualClose,
         'EMERGENCY_CLOSE' => LiveOrderPurpose.emergencyClose,
         _ => LiveOrderPurpose.entry,
+      };
+
+  static LiveProtectionStatus _protection(String? raw) => switch (raw?.toUpperCase()) {
+        'PENDING' => LiveProtectionStatus.pending,
+        'PROTECTED' => LiveProtectionStatus.protected_,
+        'PROTECTION_FAILED' => LiveProtectionStatus.protectionFailed,
+        _ => LiveProtectionStatus.notApplicable,
       };
 
   static LiveOrderStatus _status(String? raw) => switch (raw?.toUpperCase()) {

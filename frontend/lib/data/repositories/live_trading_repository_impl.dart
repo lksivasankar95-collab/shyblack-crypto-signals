@@ -64,6 +64,10 @@ class LiveTradingRepositoryImpl implements LiveTradingRepository {
       LiveOrderModel.fromJson(await _remote.cancelOrder(id)).order;
 
   @override
+  Future<LiveOrder> closePosition(String entryOrderId) async =>
+      LiveOrderModel.fromJson(await _remote.closePosition(entryOrderId)).order;
+
+  @override
   Future<LivePerformance> getPerformance() async =>
       LivePerformanceModel.fromJson(await _remote.getPerformance()).performance;
 

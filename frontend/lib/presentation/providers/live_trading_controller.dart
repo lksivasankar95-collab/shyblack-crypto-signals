@@ -110,6 +110,13 @@ class LiveTradingController extends AsyncNotifier<LiveTradingViewData> {
     return order;
   }
 
+  Future<LiveOrder> closePosition(String entryOrderId) async {
+    final order = await ref.read(liveTradingRepositoryProvider)
+        .closePosition(entryOrderId);
+    unawaited(refresh());
+    return order;
+  }
+
   void _startAutoRefresh() {
     _refreshTimer?.cancel();
     _refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {

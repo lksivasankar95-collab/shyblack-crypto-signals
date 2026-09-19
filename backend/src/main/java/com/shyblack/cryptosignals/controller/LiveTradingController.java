@@ -13,6 +13,7 @@ import com.shyblack.cryptosignals.exception.ResourceNotFoundException;
 import com.shyblack.cryptosignals.repository.UserRepository;
 import com.shyblack.cryptosignals.security.UserPrincipal;
 import com.shyblack.cryptosignals.service.live.LiveTradingAccountService;
+import com.shyblack.cryptosignals.service.live.LiveTradingCloseService;
 import com.shyblack.cryptosignals.service.live.LiveTradingExecutionService;
 import com.shyblack.cryptosignals.service.live.LiveTradingQueryService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -47,6 +48,7 @@ public class LiveTradingController {
 	private final LiveTradingAccountService accountService;
 	private final LiveTradingQueryService queryService;
 	private final LiveTradingExecutionService executionService;
+	private final LiveTradingCloseService closeService;
 	private final UserRepository userRepository;
 
 	@Operation(summary = "Get the live trading account (or 404 if never connected)")
@@ -125,6 +127,12 @@ public class LiveTradingController {
 		return toDto(executionService.cancel(owned.getId(), "manual"));
 	}
 
+	@Operation(summary = "Manually close a filled SPOT entry — places a real SELL for the executed quantity")
+	@PostMapping("/positions/{entryOrderId}/close")
+	public LiveOrderResponse closePosition(@PathVariable UUID entryOrderId) {
+		return toDto(closeService.closeEntry(currentUser(), entryOrderId));
+	}
+
 	@Operation(summary = "Order history (terminal states only)")
 	@GetMapping("/history")
 	public List<LiveOrderResponse> history() {
@@ -166,6 +174,7 @@ public class LiveTradingController {
 				o.getClientOrderId(), o.getExchangeOrderId(),
 				o.getSymbol(), o.getSide(), o.getType(), o.getPurpose(),
 				o.getStatus(),
+				o.getProtectionStatus(),
 				o.getRequestedQuantity(), o.getExecutedQuantity(),
 				o.remainingQuantity(),
 				o.getPrice(), o.getStopPrice(), o.getAvgFillPrice(),

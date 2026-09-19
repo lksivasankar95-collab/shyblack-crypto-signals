@@ -11,7 +11,9 @@ import com.shyblack.cryptosignals.entity.enums.LiveOrderPurpose;
 import com.shyblack.cryptosignals.entity.enums.LiveOrderStatus;
 import com.shyblack.cryptosignals.entity.enums.LiveOrderType;
 import com.shyblack.cryptosignals.entity.enums.LiveTradingRiskReason;
+import com.shyblack.cryptosignals.entity.enums.ProtectionStatus;
 import com.shyblack.cryptosignals.entity.enums.SignalStatus;
+import com.shyblack.cryptosignals.repository.LiveOrderRepository;
 import com.shyblack.cryptosignals.exchange.ExchangeTradingAdapter;
 import com.shyblack.cryptosignals.exchange.SymbolRules;
 import com.shyblack.cryptosignals.market.MarketBook;
@@ -57,6 +59,7 @@ public class LiveTradingEngineService {
 	private final LiveTradingExecutionService executionService;
 	private final ExchangeTradingAdapter adapter;
 	private final MarketBook marketBook;
+	private final LiveOrderRepository liveOrderRepository;
 
 	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
 	public void onSignalGenerated(com.shyblack.cryptosignals.service.SignalGeneratedEvent event) {
@@ -122,6 +125,7 @@ public class LiveTradingEngineService {
 
 		if (submitted.getStatus() == LiveOrderStatus.FILLED
 				|| submitted.getStatus() == LiveOrderStatus.PARTIALLY_FILLED) {
+			markProtection(submitted, ProtectionStatus.PENDING);
 			placeProtectiveStop(account, signal, rules, submitted);
 		}
 	}
@@ -132,17 +136,49 @@ public class LiveTradingEngineService {
 		BigDecimal limitPrice = rules.normalizePrice(
 				signal.getStopLoss().multiply(new BigDecimal("0.995")));
 		BigDecimal qty = entry.getExecutedQuantity();
-		if (qty == null || qty.signum() <= 0) return;
+		if (qty == null || qty.signum() <= 0) {
+			markProtection(entry, ProtectionStatus.PROTECTION_FAILED);
+			log.warn("[Live] SL skipped — entry {} has no executed quantity", entry.getId());
+			return;
+		}
 
-		LiveOrder intent = executionService.createIntent(
-				account, signal, rules, qty, limitPrice,
-				LiveOrderPurpose.STOP_LOSS,
-				LiveOrderType.STOP_LOSS_LIMIT,
-				entry.getId(),
-				stopPrice);
-		executionService.submit(intent);
-		log.info("[Live] SL placed for entry={} qty={} stop={} limit={}",
-				entry.getId(), qty, stopPrice, limitPrice);
+		LiveOrder submitted;
+		try {
+			LiveOrder intent = executionService.createIntent(
+					account, signal, rules, qty, limitPrice,
+					LiveOrderPurpose.STOP_LOSS,
+					LiveOrderType.STOP_LOSS_LIMIT,
+					entry.getId(),
+					stopPrice);
+			submitted = executionService.submit(intent);
+		} catch (Exception ex) {
+			markProtection(entry, ProtectionStatus.PROTECTION_FAILED);
+			log.error("[Live] SL PLACEMENT FAILED for entry={} err={} — position is UNPROTECTED",
+					entry.getId(), ex.getMessage());
+			return;
+		}
+
+		boolean protectedOk = switch (submitted.getStatus()) {
+			case ACKNOWLEDGED, SUBMITTED, PARTIALLY_FILLED, FILLED -> true;
+			default -> false;
+		};
+		markProtection(entry, protectedOk
+				? ProtectionStatus.PROTECTED
+				: ProtectionStatus.PROTECTION_FAILED);
+		if (!protectedOk) {
+			log.error("[Live] SL placement returned non-live status={} for entry={} — UNPROTECTED",
+					submitted.getStatus(), entry.getId());
+		} else {
+			log.info("[Live] SL placed for entry={} qty={} stop={} limit={}",
+					entry.getId(), qty, stopPrice, limitPrice);
+		}
+	}
+
+	private void markProtection(LiveOrder entry, ProtectionStatus status) {
+		liveOrderRepository.findByIdForUpdate(entry.getId()).ifPresent(fresh -> {
+			fresh.setProtectionStatus(status);
+			liveOrderRepository.save(fresh);
+		});
 	}
 
 	private BigDecimal liveReferencePrice(Signal signal) {

@@ -125,7 +125,7 @@ public class LiveTradingExecutionService {
 	}
 
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
-	protected LiveOrder applyResult(UUID id, ExchangeOrderResult result) {
+	public LiveOrder applyResult(UUID id, ExchangeOrderResult result) {
 		LiveOrder order = liveOrderRepository.findByIdForUpdate(id)
 				.orElseThrow(() -> new IllegalStateException("Order missing: " + id));
 		order.setExchangeOrderId(result.exchangeOrderId());
@@ -156,7 +156,7 @@ public class LiveTradingExecutionService {
 	}
 
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
-	protected LiveOrder recordFailure(UUID id, ExchangeAdapterException ex) {
+	public LiveOrder recordFailure(UUID id, ExchangeAdapterException ex) {
 		LiveOrder order = liveOrderRepository.findByIdForUpdate(id).orElseThrow();
 		// If the exchange might have accepted the order but we couldn't parse the
 		// response, mark UNKNOWN so reconciliation can query by clientOrderId.

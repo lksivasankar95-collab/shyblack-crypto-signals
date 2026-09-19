@@ -81,8 +81,8 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
 
-    // LIVE badge visible.
-    expect(find.text('LIVE'), findsOneWidget);
+    // LIVE • SPOT badge visible.
+    expect(find.text('LIVE • SPOT'), findsOneWidget);
     // Balance visible.
     expect(find.textContaining('USDT'), findsWidgets);
     // Open order row.
@@ -93,6 +93,71 @@ void main() {
     expect(find.text('Kill switch'), findsOneWidget);
     // Cancel button visible for non-terminal order.
     expect(find.text('CANCEL'), findsOneWidget);
+  });
+
+  testWidgets('live trading — filled entry shows CLOSE POSITION and calls closePosition',
+      (WidgetTester tester) async {
+    final repo = _FakeRepo(
+      account: const LiveAccount(
+        id: 'a1',
+        exchange: LiveExchange.binance,
+        connectionStatus: LiveConnectionStatus.connected,
+        enabled: true,
+        killSwitchActive: false,
+        quoteCurrency: 'USDT',
+        cachedAvailableBalance: 800,
+        cachedTotalBalance: 1000,
+        maxNotionalPerTrade: 200,
+        maxActivePositions: 3,
+      ),
+      openOrders: [
+        const LiveOrder(
+          id: 'entry-1',
+          clientOrderId: 'SB-entry',
+          symbol: 'BTCUSDT',
+          side: LiveSide.long,
+          type: LiveOrderType.market,
+          purpose: LiveOrderPurpose.entry,
+          status: LiveOrderStatus.filled,
+          protectionStatus: LiveProtectionStatus.protected_,
+          requestedQuantity: 0.01,
+          executedQuantity: 0.01,
+          remainingQuantity: 0,
+          avgFillPrice: 50000,
+        ),
+      ],
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          liveTradingRepositoryProvider.overrideWith((ref) => repo),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.dark(),
+          darkTheme: AppTheme.dark(),
+          themeMode: ThemeMode.dark,
+          home: const LiveTradingScreen(),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    // Filled entry: CLOSE POSITION appears, CANCEL does not.
+    expect(find.text('CLOSE POSITION'), findsOneWidget);
+    expect(find.text('CANCEL'), findsNothing);
+    // Protection status visible.
+    expect(find.text('Protected by SL'), findsOneWidget);
+
+    await tester.tap(find.text('CLOSE POSITION'));
+    await tester.pumpAndSettle();
+    // Dialog.
+    expect(find.text('Close BTCUSDT position?'), findsOneWidget);
+    await tester.tap(find.text('CLOSE POSITION').last);
+    await tester.pumpAndSettle();
+
+    expect(repo.closedEntryId, 'entry-1');
+    expect(find.text('Close submitted for BTCUSDT'), findsOneWidget);
   });
 
   testWidgets('live trading — enabling live requires acknowledgement dialog',
@@ -223,6 +288,14 @@ class _FakeRepo implements LiveTradingRepository {
   @override
   Future<LiveOrder> cancelOrder(String id) async =>
       openOrders.firstWhere((o) => o.id == id);
+
+  String? closedEntryId;
+
+  @override
+  Future<LiveOrder> closePosition(String entryOrderId) async {
+    closedEntryId = entryOrderId;
+    return openOrders.firstWhere((o) => o.id == entryOrderId);
+  }
 
   @override
   Future<LivePerformance> getPerformance() async => const LivePerformance(

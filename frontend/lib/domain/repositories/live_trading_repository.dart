@@ -15,5 +15,6 @@ abstract class LiveTradingRepository {
   Future<List<LiveOrder>> listOpenOrders();
   Future<List<LiveOrder>> listHistory();
   Future<LiveOrder> cancelOrder(String id);
+  Future<LiveOrder> closePosition(String entryOrderId);
   Future<LivePerformance> getPerformance();
 }

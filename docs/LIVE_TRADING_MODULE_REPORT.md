@@ -1,8 +1,11 @@
 # Live Trading Module — Implementation Report
 
-**Status:** vertical slice shipped. Runtime testnet verification NOT PERFORMED
+**Status:** SPOT end-to-end shipped. Runtime testnet verification NOT PERFORMED
 in this drop.
-**Baseline:** paper-trading commit `08d328d`.
+**Baseline:** paper-trading commit `08d328d`; live vertical slice `efec487`.
+**Supported:** Binance **SPOT** (testnet URL by default).
+**Not supported:** FUTURES, OPTIONS, MARGIN, LEVERAGE, naked SHORT selling —
+each is explicitly rejected at the risk gate with a deterministic reason.
 
 ---
 
@@ -151,7 +154,7 @@ response was lost, the local row is stuck in `UNKNOWN`; the reconciler queries
 Binance by `origClientOrderId` on its next tick and updates state. The
 engine will never resubmit.
 
-## 8. Risk engine (Phase 6)
+## 8. Risk engine (Phase 6 + SPOT-only)
 
 `LiveTradingRiskService.check(user, account, signal)` returns a single
 `LiveTradingRiskReason`. Order of checks:
@@ -159,13 +162,16 @@ engine will never resubmit.
 1. account exists / activated
 2. `enabled` + not `killSwitchActive`
 3. `connectionStatus = CONNECTED`
-4. `signal.stopLoss` present + valid
-5. `userSettings.liveTradingAllowed`
-6. `active positions < maxActivePositions`
-7. daily-loss limit (`session start equity − current equity < startEquity × pct/100`)
+4. **`signal.tradingMode == SPOT`** — otherwise `UNSUPPORTED_TRADING_MODE`
+5. **`signal.side == LONG`** — SPOT has no naked short; otherwise `UNSUPPORTED_SIDE`
+6. `signal.stopLoss` present + valid
+7. `userSettings.liveTradingAllowed`
+8. **no open ENTRY already exists for this symbol** — otherwise `EXISTING_POSITION`
+9. `active positions < maxActivePositions`
+10. daily-loss limit
 
-Any non-`OK` return short-circuits the engine and writes a
-`RISK_BLOCKED` lifecycle event.
+Any non-`OK` return short-circuits the engine and writes a `RISK_BLOCKED`
+lifecycle event.
 
 ## 9. Sizing (Phase 7)
 
@@ -195,13 +201,33 @@ the signal:
 6. On fill, `placeProtectiveStop(...)` submits a `STOP_LOSS_LIMIT` order
    linked back to the entry via `parentOrderId`.
 
-## 11. Protective SL/TP (Phase 13 — hybrid model)
+## 11. Protective SL/TP (Phase 13/14 — hybrid model)
 
 - **Preferred:** exchange-side `STOP_LOSS_LIMIT` order attached immediately
   after entry fill. The exchange manages the trigger — the app can lose
   network without leaving the position unprotected.
+- **`ProtectionStatus` on the entry row** tracks whether the protective SELL
+  is live: `PENDING` → `PROTECTED`, or `PROTECTION_FAILED` if placement
+  errors or returns a non-live status. Failures are logged loudly and
+  surfaced to the UI as *"PROTECTION FAILED — position is UNPROTECTED"* so a
+  filled entry is never displayed as safe when it isn't.
 - Multi-target TPs (TP2 / TP3) are captured in the signal but **not
-  auto-placed** in this drop. Documented as a known limitation below.
+  auto-placed** in this drop. Listed as a known limitation.
+
+## 11a. Manual close (Phase 16)
+
+`POST /api/v1/live-trading/positions/{entryOrderId}/close` places a real
+SPOT SELL for the executed quantity of a filled entry. Flow:
+
+1. Verify the entry is owned by the caller (IDOR-safe).
+2. Verify status is `FILLED` or `PARTIALLY_FILLED`.
+3. Cancel the sibling `STOP_LOSS_LIMIT` first so no dangling SL remains.
+4. Normalize the executed qty via `SymbolRules` (stepSize / minQty).
+5. Build a deterministic `clientOrderId` for the close leg — same idempotency
+   contract as entries; double-tapping *Close* can never produce two SELLs.
+6. Persist the intent, commit, then submit via
+   `ExchangeTradingAdapter.placeOrder`. Terminal state comes from the
+   exchange response, never from local optimism.
 
 ## 12. Reconciliation (Phase 16)
 
@@ -258,28 +284,49 @@ Live Trading screen.
 
 ## 17. Tests
 
-**Backend (18 new tests, all green):**
+**Backend (35 tests across live/exchange/isolation, all green):**
 
-- `ClientOrderIdGeneratorTest` — deterministic id + purpose separation.
-- `SymbolRulesTest` — step/tick normalization, minNotional / minQty gates.
-- `LiveTradingSizingServiceTest` — risk math, max-notional cap, invalid stops.
-- `MockExchangeTradingAdapterTest` — market fill, idempotency, stop
-  acknowledge, forceFill, cancel.
-- `PaperLiveIsolationTest` — enforces no cross-package imports. Fails the
-  build if paper touches exchange or live touches paper.
+- `ClientOrderIdGeneratorTest`, `SymbolRulesTest`, `LiveTradingSizingServiceTest`,
+  `MockExchangeTradingAdapterTest`, `PaperLiveIsolationTest` (from prior drop).
+- **New in this drop:**
+  - `LiveTradingRiskServiceTest` — SPOT accepted, FUTURES/OPTIONS rejected
+    with `UNSUPPORTED_TRADING_MODE`, SHORT-side rejected with
+    `UNSUPPORTED_SIDE`, `EXISTING_POSITION` when an open entry exists,
+    kill-switch / disabled / disconnected / invalid stop paths.
+  - `LiveTradingCloseServiceTest` — closes filled entry with a real SPOT
+    SELL, cancels sibling SL before submitting, IDOR check (returns 404 for
+    another user's order), rejects non-ENTRY purposes, rejects non-filled
+    entries, idempotent re-close returns the existing close row.
 
-Backend suite: 181 tests, 180 pass. The 1 failure
+Backend suite: **198 tests, 197 pass**. The 1 failure
 (`NewsApiIntegrationTest.assetContextAggregatesProcessedArticles`) pre-exists
-on `main` — see paper-trading commit for the same result.
+on main — see paper-trading commit for the same result.
 
-**Flutter (3 new tests, all green):**
+**Flutter (4 tests, all green):**
 
 - No-account → shows Connect CTA.
-- Connected → renders balance, LIVE badge, orders, safety panel.
-- Activation → requires acknowledgement dialog, triggers repo with
-  `acknowledged=true`, shows success snackbar.
+- Connected → renders balance, `LIVE • SPOT` badge, orders, safety panel.
+- **New:** Filled entry shows `CLOSE POSITION`, hides `CANCEL`, displays
+  `Protected by SL`, tapping through the confirm dialog invokes
+  `closePosition(entryId)`.
+- Activation → requires acknowledgement modal, triggers `activate(acknowledged=true)`.
 
-Total Flutter suite: 16 / 16 pass.
+Total Flutter suite: **17 / 17 pass**. `flutter analyze` — 0 new issues.
+
+## 17a. SPOT-only enforcement
+
+Three explicit rejection reasons enforce the SPOT contract at the risk gate:
+
+- `UNSUPPORTED_TRADING_MODE` — any `signal.tradingMode` other than SPOT is
+  refused before the exchange adapter is ever called.
+- `UNSUPPORTED_SIDE` — SPOT does not permit opening a naked SHORT position;
+  a SHORT-side signal is refused.
+- `EXISTING_POSITION` — a second BUY for a symbol whose prior entry is still
+  open (`CREATED`, `SUBMITTING`, `SUBMITTED`, `ACKNOWLEDGED`,
+  `PARTIALLY_FILLED`, `FILLED`) is refused. Stacking is impossible.
+
+These are covered by `LiveTradingRiskServiceTest` and their absence would
+break the build.
 
 ## 18. Phase-42 Verification Ledger
 
@@ -296,7 +343,10 @@ Total Flutter suite: 16 / 16 pass.
 | Order state machine               | ✅ 13 states, no illegal transitions |
 | Partial fills                     | ✅ executedQuantity + cumulativeQuoteQty tracked |
 | P&L on actual fills               | ✅ uses cumulativeQuoteQty from exchange |
-| Protective SL (exchange-side)     | ✅ STOP_LOSS_LIMIT on fill |
+| Protective SL (exchange-side)     | ✅ STOP_LOSS_LIMIT on fill + ProtectionStatus |
+| Manual close position             | ✅ POST /positions/{id}/close — cancels SL + real SPOT SELL |
+| SPOT-only enforcement             | ✅ UNSUPPORTED_TRADING_MODE / UNSUPPORTED_SIDE |
+| Existing-position check           | ✅ EXISTING_POSITION at risk gate |
 | Multi-target TP                   | ⚠ TP1 only; TP2/TP3 tracked, not auto-placed |
 | Reconciliation                    | ✅ scheduled 30 s + balance sync 60 s |
 | User-data WebSocket               | ⚠ deferred to next drop; REST reconciler covers the same events |

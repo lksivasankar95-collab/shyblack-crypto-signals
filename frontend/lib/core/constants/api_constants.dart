@@ -37,6 +37,8 @@ abstract final class ApiConstants {
   static const String liveHistory = '/v1/live-trading/history';
   static const String livePerformance = '/v1/live-trading/performance';
   static String liveCancel(String id) => '/v1/live-trading/orders/$id/cancel';
+  static String liveClosePosition(String entryOrderId) =>
+      '/v1/live-trading/positions/$entryOrderId/close';
 
   // Paper Trading
   static const String paperAccount = '/v1/paper-trading/account';

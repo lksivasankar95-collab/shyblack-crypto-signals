@@ -4,6 +4,7 @@ import com.shyblack.cryptosignals.entity.enums.LiveOrderPurpose;
 import com.shyblack.cryptosignals.entity.enums.LiveOrderStatus;
 import com.shyblack.cryptosignals.entity.enums.LiveOrderType;
 import com.shyblack.cryptosignals.entity.enums.PositionSide;
+import com.shyblack.cryptosignals.entity.enums.ProtectionStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -87,6 +88,11 @@ public class LiveOrder extends BaseEntity {
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false)
 	private LiveOrderStatus status = LiveOrderStatus.CREATED;
+
+	/** For ENTRY orders: state of the protective SELL that should follow the fill. */
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = false)
+	private ProtectionStatus protectionStatus = ProtectionStatus.NOT_APPLICABLE;
 
 	@Column(precision = 19, scale = 8, nullable = false)
 	private BigDecimal requestedQuantity;

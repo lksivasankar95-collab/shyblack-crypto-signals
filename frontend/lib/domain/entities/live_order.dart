@@ -11,6 +11,8 @@ enum LiveOrderType { market, limit, stopLossLimit, takeProfitLimit }
 
 enum LiveSide { long, short }
 
+enum LiveProtectionStatus { notApplicable, pending, protected_, protectionFailed }
+
 class LiveOrder {
   const LiveOrder({
     required this.id,
@@ -23,6 +25,7 @@ class LiveOrder {
     required this.type,
     required this.purpose,
     required this.status,
+    this.protectionStatus = LiveProtectionStatus.notApplicable,
     required this.requestedQuantity,
     required this.executedQuantity,
     required this.remainingQuantity,
@@ -49,6 +52,7 @@ class LiveOrder {
   final LiveOrderType type;
   final LiveOrderPurpose purpose;
   final LiveOrderStatus status;
+  final LiveProtectionStatus protectionStatus;
   final double requestedQuantity;
   final double executedQuantity;
   final double remainingQuantity;

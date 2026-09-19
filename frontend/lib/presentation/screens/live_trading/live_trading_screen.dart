@@ -114,18 +114,65 @@ class _ConnectedBody extends ConsumerWidget {
         if (view.openOrders.isEmpty)
           _EmptyRow(text: 'No open live orders')
         else
-          ...view.openOrders.map((o) => _OrderCard(order: o, onCancel: () => _confirmCancel(context, ref, o))),
+          ...view.openOrders.map((o) => _OrderCard(
+                order: o,
+                onCancel: o.status == LiveOrderStatus.filled
+                    ? null
+                    : () => _confirmCancel(context, ref, o),
+                onClose: (o.purpose == LiveOrderPurpose.entry &&
+                        (o.status == LiveOrderStatus.filled ||
+                            o.status == LiveOrderStatus.partiallyFilled))
+                    ? () => _confirmClose(context, ref, o)
+                    : null,
+              )),
         const SizedBox(height: 16),
         _SectionHeader('HISTORY'),
         if (view.history.isEmpty)
           _EmptyRow(text: 'No orders yet')
         else
-          ...view.history.take(20).map((o) => _OrderCard(order: o, onCancel: null)),
+          ...view.history.take(20).map(
+              (o) => _OrderCard(order: o, onCancel: null, onClose: null)),
         const SizedBox(height: 16),
         _SectionHeader('PERFORMANCE'),
         _PerformanceCard(view: view),
       ],
     );
+  }
+
+  Future<void> _confirmClose(BuildContext context, WidgetRef ref, LiveOrder o) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        backgroundColor: AppColors.card,
+        title: Text('Close ${o.symbol} position?'),
+        content: const Text(
+          'A real SPOT SELL will be placed at market for the executed quantity. '
+          'The existing protective stop will be cancelled first.',
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(dialogCtx, false),
+              child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(dialogCtx, true),
+              child: const Text('CLOSE POSITION',
+                  style: TextStyle(color: AppColors.loss))),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await ref.read(liveTradingControllerProvider.notifier).closePosition(o.id);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Close submitted for ${o.symbol}')),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed: $e'), backgroundColor: AppColors.loss),
+      );
+    }
   }
 
   Future<void> _confirmCancel(BuildContext context, WidgetRef ref, LiveOrder o) async {
@@ -196,7 +243,7 @@ class _AccountCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(6),
                   border: Border.all(color: AppColors.loss.withValues(alpha: 0.4)),
                 ),
-                child: const Text('LIVE',
+                child: const Text('LIVE • SPOT',
                     style: TextStyle(
                         color: AppColors.loss,
                         fontSize: 10,
@@ -403,9 +450,10 @@ class _SafetyPanel extends StatelessWidget {
 }
 
 class _OrderCard extends StatelessWidget {
-  const _OrderCard({required this.order, required this.onCancel});
+  const _OrderCard({required this.order, required this.onCancel, required this.onClose});
   final LiveOrder order;
   final VoidCallback? onCancel;
+  final VoidCallback? onClose;
 
   @override
   Widget build(BuildContext context) {
@@ -475,19 +523,44 @@ class _OrderCard extends StatelessWidget {
               child: Text(order.rejectReason!,
                   style: const TextStyle(color: AppColors.loss, fontSize: 11)),
             ),
-          if (onCancel != null && !order.isTerminal)
-            Align(
-              alignment: Alignment.centerRight,
-              child: OutlinedButton(
-                onPressed: onCancel,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.loss,
-                  side: const BorderSide(color: AppColors.loss),
-                  minimumSize: const Size(0, 32),
-                ),
-                child: const Text('CANCEL',
-                    style: TextStyle(
-                        fontWeight: FontWeight.w800, letterSpacing: 0.8)),
+          if (order.purpose == LiveOrderPurpose.entry &&
+              order.protectionStatus != LiveProtectionStatus.notApplicable)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: _ProtectionRow(status: order.protectionStatus),
+            ),
+          if (onCancel != null || onClose != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  if (onCancel != null && !order.isTerminal)
+                    OutlinedButton(
+                      onPressed: onCancel,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.muted,
+                        side: const BorderSide(color: AppColors.muted),
+                        minimumSize: const Size(0, 32),
+                      ),
+                      child: const Text('CANCEL',
+                          style: TextStyle(
+                              fontWeight: FontWeight.w800, letterSpacing: 0.8)),
+                    ),
+                  if (onCancel != null && onClose != null) const SizedBox(width: 8),
+                  if (onClose != null)
+                    OutlinedButton(
+                      onPressed: onClose,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.loss,
+                        side: const BorderSide(color: AppColors.loss),
+                        minimumSize: const Size(0, 32),
+                      ),
+                      child: const Text('CLOSE POSITION',
+                          style: TextStyle(
+                              fontWeight: FontWeight.w800, letterSpacing: 0.8)),
+                    ),
+                ],
               ),
             ),
         ],
@@ -509,6 +582,36 @@ class _OrderCard extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _ProtectionRow extends StatelessWidget {
+  const _ProtectionRow({required this.status});
+  final LiveProtectionStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    final (label, color) = switch (status) {
+      LiveProtectionStatus.pending => ('SL pending…', AppColors.accent),
+      LiveProtectionStatus.protected_ => ('Protected by SL', AppColors.profit),
+      LiveProtectionStatus.protectionFailed =>
+        ('PROTECTION FAILED — position is UNPROTECTED', AppColors.loss),
+      LiveProtectionStatus.notApplicable => ('', AppColors.muted),
+    };
+    if (label.isEmpty) return const SizedBox.shrink();
+    return Row(children: [
+      Icon(
+        status == LiveProtectionStatus.protected_
+            ? Icons.verified_user_outlined
+            : Icons.warning_amber_rounded,
+        color: color,
+        size: 14,
+      ),
+      const SizedBox(width: 4),
+      Text(label,
+          style: TextStyle(
+              color: color, fontSize: 11, fontWeight: FontWeight.w700)),
+    ]);
   }
 }
 
