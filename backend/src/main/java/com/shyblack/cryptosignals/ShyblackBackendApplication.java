@@ -2,6 +2,8 @@ package com.shyblack.cryptosignals;
 
 import com.shyblack.cryptosignals.config.JwtProperties;
 import com.shyblack.cryptosignals.config.MarketProperties;
+import com.shyblack.cryptosignals.config.NewsProperties;
+import com.shyblack.cryptosignals.config.SettingsProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -11,7 +13,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @SpringBootApplication
 @EnableJpaAuditing
 @EnableScheduling
-@EnableConfigurationProperties({JwtProperties.class, MarketProperties.class})
+@EnableConfigurationProperties({JwtProperties.class, MarketProperties.class, NewsProperties.class, SettingsProperties.class})
 public class ShyblackBackendApplication {
 
 	public static void main(String[] args) {

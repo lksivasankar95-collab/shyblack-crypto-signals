@@ -38,3 +38,11 @@ app:
     futures-stream-url: ${BINANCE_FUTURES_STREAM_URL:wss://fstream.binance.com/ws/!ticker@arr}
     quote-asset: ${BINANCE_QUOTE_ASSET:USDT}
     exchange-info-refresh-ms: ${BINANCE_EXCHANGE_INFO_REFRESH_MS:3600000}
+  settings:
+    risk-per-trade-ceiling-pct: ${SETTINGS_RISK_PER_TRADE_CEILING_PCT:2.0}
+    max-position-size-pct: ${SETTINGS_MAX_POSITION_SIZE_PCT:20.0}
+    max-open-positions: ${SETTINGS_MAX_OPEN_POSITIONS:4}
+    encryption-secret-key: ${SETTINGS_ENCRYPTION_SECRET_KEY:dev-only-settings-encryption-key-seed-change-me}
+    default-risk-profile: ${SETTINGS_DEFAULT_RISK_PROFILE:CONSERVATIVE}
+    default-quote-currency: ${SETTINGS_DEFAULT_QUOTE_CURRENCY:USDT}
+    default-position-sizing-mode: ${SETTINGS_DEFAULT_POSITION_SIZING_MODE:FIXED_PERCENT}
