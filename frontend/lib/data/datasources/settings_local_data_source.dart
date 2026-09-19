@@ -1,16 +1,16 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsLocalDataSource {
-  SettingsLocalDataSource({this._preferences});
+  SettingsLocalDataSource({this.preferences});
 
   static const storageKey = 'app_settings';
 
-  SharedPreferences? _preferences;
+  SharedPreferences? preferences;
 
   Future<SharedPreferences> _prefs() async {
-    return _preferences ??= await SharedPreferences.getInstance();
+    return preferences ??= await SharedPreferences.getInstance();
   }
 
   Future<Map<String, dynamic>?> read() async {

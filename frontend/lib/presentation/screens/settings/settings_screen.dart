@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
@@ -21,7 +21,7 @@ class SettingsScreen extends ConsumerWidget {
       body: SafeArea(
         child: asyncSettings.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (_, _) => const Center(child: Text('Could not load settings')),
+          error: (error, stackTrace) => const Center(child: Text('Could not load settings')),
           data: (settings) => SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
             child: Column(

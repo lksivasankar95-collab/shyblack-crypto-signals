@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -20,7 +20,7 @@ class ProfileScreen extends ConsumerWidget {
       appBar: AppBar(title: const Text('Profile')),
       body: asyncSettings.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, _) => const Center(child: Text('Could not load profile')),
+        error: (error, stackTrace) => const Center(child: Text('Could not load profile')),
         data: (settings) => SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
           child: Column(

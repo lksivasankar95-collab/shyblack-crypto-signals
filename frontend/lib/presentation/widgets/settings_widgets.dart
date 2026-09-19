@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
 
@@ -104,7 +104,7 @@ class SettingsNavTile extends StatelessWidget {
             ),
           ),
           if (badge != null) const SizedBox(width: 8),
-          ?badge,
+          if (badge != null) badge!,
         ],
       ),
       subtitle: switch (subtitle) {
@@ -114,7 +114,7 @@ class SettingsNavTile extends StatelessWidget {
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          ?trailing,
+          if (trailing != null) trailing!,
           const Icon(Icons.chevron_right, color: AppColors.muted),
         ],
       ),
