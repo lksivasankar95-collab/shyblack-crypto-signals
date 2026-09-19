@@ -25,4 +25,15 @@ abstract final class ApiConstants {
   static const String authRefresh = '/auth/refresh';
   static const String authGoogle = '/auth/google';
   static const String usersMe = '/users/me';
+
+  static const String news = '/v1/news';
+  static const String newsMeta = '/v1/news/meta';
+  static const String newsSources = '/v1/news/sources';
+
+  static String newsDetail(String id) => '/v1/news/$id';
+
+  static String newsAsset(String symbol) => '/v1/news/asset/$symbol';
+
+  static String newsAssetContext(String symbol) =>
+      '/v1/news/asset/$symbol/context';
 }

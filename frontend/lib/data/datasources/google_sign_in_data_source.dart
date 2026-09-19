@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../core/constants/google_auth_config.dart';
@@ -29,10 +30,16 @@ class GoogleSignInDataSource {
     if (!GoogleAuthConfig.isConfigured) {
       return;
     }
-    await GoogleSignIn.instance.initialize(
-      clientId: GoogleAuthConfig.webClientId,
-      serverClientId: GoogleAuthConfig.webClientId,
-    );
+    if (kIsWeb) {
+      await GoogleSignIn.instance.initialize(
+        clientId: GoogleAuthConfig.webClientId,
+      );
+    } else {
+      await GoogleSignIn.instance.initialize(
+        clientId: GoogleAuthConfig.webClientId,
+        serverClientId: GoogleAuthConfig.webClientId,
+      );
+    }
     _events = GoogleSignIn.instance.authenticationEvents.listen((event) {
       if (event is GoogleSignInAuthenticationEventSignIn) {
         final token = event.user.authentication.idToken;

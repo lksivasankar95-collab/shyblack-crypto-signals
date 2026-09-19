@@ -15,9 +15,11 @@ import 'package:cryptosignals/domain/entities/auth_tokens.dart';
 import 'package:cryptosignals/domain/entities/app_settings.dart';
 import 'package:cryptosignals/domain/entities/kline_candle.dart';
 import 'package:cryptosignals/domain/entities/market_ticker.dart';
+import 'package:cryptosignals/domain/entities/news.dart';
 import 'package:cryptosignals/domain/entities/signal.dart';
 import 'package:cryptosignals/domain/repositories/auth_repository.dart';
 import 'package:cryptosignals/domain/repositories/market_repository.dart';
+import 'package:cryptosignals/domain/repositories/news_repository.dart';
 import 'package:cryptosignals/domain/repositories/signal_repository.dart';
 import 'package:cryptosignals/presentation/providers/markets_controller.dart';
 import 'package:cryptosignals/presentation/providers/settings_controller.dart';
@@ -67,6 +69,9 @@ void main() {
           ),
           signalRepositoryProvider.overrideWith(
             (ref) => _EmptySignalRepository(),
+          ),
+          newsRepositoryProvider.overrideWith(
+            (ref) => _EmptyNewsRepository(),
           ),
           marketsSocketConnectorProvider.overrideWith(
             (ref) => const _IdleSocketConnector(),
@@ -489,6 +494,52 @@ class _FakeSignalRepository implements SignalRepository {
 class _EmptySignalRepository implements SignalRepository {
   @override
   Future<List<Signal>> getSignals() async => [];
+}
+
+class _EmptyNewsRepository implements NewsRepository {
+  @override
+  Future<NewsPage> getNews({
+    String? category,
+    String? sentiment,
+    String? impact,
+    String? source,
+    String? query,
+    int page = 0,
+    int size = 20,
+    String? sort,
+    String? direction,
+  }) async => NewsPage.empty;
+
+  @override
+  Future<NewsPage> getAssetNews(
+    String symbol, {
+    String? category,
+    String? sentiment,
+    String? impact,
+    int page = 0,
+    int size = 20,
+    String? sort,
+    String? direction,
+  }) async => NewsPage.empty;
+
+  @override
+  Future<NewsArticleDetail> getDetail(String id) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<NewsMeta> getMeta() async => NewsMeta(
+    totalArticles: 0,
+    sources: const [],
+    categories: const [],
+    sentiments: const [],
+    impacts: const [],
+  );
+
+  @override
+  Future<NewsContext> getAssetContext(String symbol, {int? windowHours}) {
+    throw UnimplementedError();
+  }
 }
 
 class _SessionAuthRepository implements AuthRepository {

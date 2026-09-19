@@ -14,6 +14,7 @@ import '../../data/datasources/transaction_remote_data_source.dart';
 import '../../data/datasources/user_remote_data_source.dart';
 import '../../data/datasources/watchlist_remote_data_source.dart';
 import '../../data/datasources/token_local_data_source.dart';
+import '../../data/datasources/news_remote_data_source.dart';
 import '../../data/repositories/auth_repository_impl.dart';
 import '../../data/repositories/market_repository_impl.dart';
 import '../../data/repositories/notification_repository_impl.dart';
@@ -23,6 +24,7 @@ import '../../data/repositories/signal_repository_impl.dart';
 import '../../data/repositories/transaction_repository_impl.dart';
 import '../../data/repositories/user_repository_impl.dart';
 import '../../data/repositories/watchlist_repository_impl.dart';
+import '../../data/repositories/news_repository_impl.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../domain/repositories/market_repository.dart';
 import '../../domain/repositories/notification_repository.dart';
@@ -32,6 +34,7 @@ import '../../domain/repositories/signal_repository.dart';
 import '../../domain/repositories/transaction_repository.dart';
 import '../../domain/repositories/user_repository.dart';
 import '../../domain/repositories/watchlist_repository.dart';
+import '../../domain/repositories/news_repository.dart';
 import '../../domain/usecases/get_current_user.dart';
 import '../../domain/usecases/login_user.dart';
 import '../../domain/usecases/login_with_google.dart';
@@ -47,6 +50,11 @@ import '../../domain/usecases/get_settings.dart';
 import '../../domain/usecases/logout_user.dart';
 import '../../domain/usecases/restore_session.dart';
 import '../../domain/usecases/save_settings.dart';
+import '../../domain/usecases/get_news.dart';
+import '../../domain/usecases/get_news_detail.dart';
+import '../../domain/usecases/get_asset_news.dart';
+import '../../domain/usecases/get_news_meta.dart';
+import '../../domain/usecases/get_news_context.dart';
 import '../../data/datasources/settings_local_data_source.dart';
 import '../../data/repositories/settings_repository_impl.dart';
 import '../../domain/repositories/settings_repository.dart';
@@ -225,6 +233,34 @@ final getWatchlistProvider = Provider<GetWatchlist>(
 
 final getNotificationsProvider = Provider<GetNotifications>(
   (ref) => GetNotifications(ref.watch(notificationRepositoryProvider)),
+);
+
+final newsRemoteDataSourceProvider = Provider<NewsRemoteDataSource>(
+  (ref) => NewsRemoteDataSource(ref.watch(apiClientProvider)),
+);
+
+final newsRepositoryProvider = Provider<NewsRepository>(
+  (ref) => NewsRepositoryImpl(ref.watch(newsRemoteDataSourceProvider)),
+);
+
+final getNewsProvider = Provider<GetNews>(
+  (ref) => GetNews(ref.watch(newsRepositoryProvider)),
+);
+
+final getNewsDetailProvider = Provider<GetNewsDetail>(
+  (ref) => GetNewsDetail(ref.watch(newsRepositoryProvider)),
+);
+
+final getAssetNewsProvider = Provider<GetAssetNews>(
+  (ref) => GetAssetNews(ref.watch(newsRepositoryProvider)),
+);
+
+final getNewsMetaProvider = Provider<GetNewsMeta>(
+  (ref) => GetNewsMeta(ref.watch(newsRepositoryProvider)),
+);
+
+final getNewsContextProvider = Provider<GetNewsContext>(
+  (ref) => GetNewsContext(ref.watch(newsRepositoryProvider)),
 );
 
 final pendingSignalProvider = StateProvider<String?>((ref) => null);

@@ -55,52 +55,41 @@ class _ContinueWithGoogleButtonState extends ConsumerState<ContinueWithGoogleBut
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final webHit = kIsWeb && !widget.loading && GoogleAuthConfig.isConfigured
-            ? googleSignInWebHitTarget(minWidth: constraints.maxWidth)
-            : null;
-        return Stack(
-          alignment: Alignment.center,
-          children: [
-            IgnorePointer(
-              ignoring: kIsWeb && webHit != null,
-              child: OutlinedButton(
-                onPressed: widget.loading ? null : widget.onPressed,
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(40),
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                ),
-                child: widget.loading
-                    ? const SizedBox(
-                        height: 22,
-                        width: 22,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            GoogleMark(),
-                            SizedBox(width: 8),
-                            Text('Continue with Google'),
-                          ],
-                        ),
-                      ),
+    if (kIsWeb && GoogleAuthConfig.isConfigured) {
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          return googleSignInButton(
+            minWidth: constraints.maxWidth,
+            loading: widget.loading,
+          );
+        },
+      );
+    }
+
+    return OutlinedButton(
+      onPressed: widget.loading ? null : widget.onPressed,
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size.fromHeight(40),
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+      ),
+      child: widget.loading
+          ? const SizedBox(
+              height: 22,
+              width: 22,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : const FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  GoogleMark(),
+                  SizedBox(width: 8),
+                  Text('Continue with Google'),
+                ],
               ),
             ),
-            if (webHit != null)
-              Positioned.fill(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: webHit,
-                ),
-              ),
-          ],
-        );
-      },
     );
   }
 }
