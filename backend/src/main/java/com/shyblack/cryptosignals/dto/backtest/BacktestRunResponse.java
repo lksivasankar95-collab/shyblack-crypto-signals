@@ -1,0 +1,57 @@
+package com.shyblack.cryptosignals.dto.backtest;
+
+import com.shyblack.cryptosignals.entity.enums.BacktestExecutionModel;
+import com.shyblack.cryptosignals.entity.enums.BacktestSameCandlePolicy;
+import com.shyblack.cryptosignals.entity.enums.BacktestStatus;
+import com.shyblack.cryptosignals.entity.enums.TradingMode;
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.UUID;
+
+public record BacktestRunResponse(
+		UUID id,
+		BacktestStatus status,
+		String strategyId,
+		String strategyVersion,
+		String engineVersion,
+		TradingMode tradingMode,
+		String symbol,
+		String timeframe,
+		Instant startDate,
+		Instant endDate,
+		BigDecimal initialCapital,
+		BigDecimal riskPerTradePct,
+		BigDecimal feePct,
+		BigDecimal slippagePct,
+		int leverage,
+		BacktestExecutionModel executionModel,
+		BacktestSameCandlePolicy sameCandlePolicy,
+		String configurationHash,
+		int processedCandles,
+		int totalCandles,
+		String failureReason,
+		Instant startedAt,
+		Instant completedAt,
+		Instant createdAt,
+		BigDecimal finalEquity,
+		BigDecimal totalNetPnl,
+		BigDecimal totalReturnPct,
+		BigDecimal maxDrawdown,
+		BigDecimal maxDrawdownPct,
+		BigDecimal winRatePct,
+		BigDecimal profitFactor,
+		BigDecimal sharpeRatio,
+		BigDecimal sortinoRatio,
+		BigDecimal totalFees,
+		BigDecimal grossProfit,
+		BigDecimal grossLoss,
+		int totalTrades,
+		int winningTrades,
+		int losingTrades,
+		int liquidations,
+		BigDecimal averageWin,
+		BigDecimal averageLoss,
+		BigDecimal largestWin,
+		BigDecimal largestLoss,
+		BigDecimal expectancy
+) {}

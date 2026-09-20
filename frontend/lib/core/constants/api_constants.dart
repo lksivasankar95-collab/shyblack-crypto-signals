@@ -26,6 +26,14 @@ abstract final class ApiConstants {
   static const String authGoogle = '/auth/google';
   static const String usersMe = '/users/me';
 
+  // Backtesting
+  static const String backtests = '/v1/backtests';
+  static const String backtestStrategies = '/v1/backtests/strategies';
+  static String backtest(String id) => '/v1/backtests/$id';
+  static String backtestTrades(String id) => '/v1/backtests/$id/trades';
+  static String backtestEquity(String id) => '/v1/backtests/$id/equity';
+  static String backtestCancel(String id) => '/v1/backtests/$id/cancel';
+
   // Futures Trading
   static const String futuresAccount = '/v1/futures-trading/account';
   static const String futuresConnection = '/v1/futures-trading/connection';

@@ -85,3 +85,9 @@ app:
     auto-execute: ${LIVE_AUTO_EXECUTE:false}
     reconcile-interval-ms: ${LIVE_RECONCILE_MS:30000}
     balance-refresh-ms: ${LIVE_BALANCE_REFRESH_MS:60000}
+  backtesting:
+    engine-version: ${BACKTEST_ENGINE_VERSION:backtest-engine/v1}
+    max-candles: ${BACKTEST_MAX_CANDLES:20000}
+    max-concurrent-runs: ${BACKTEST_MAX_CONCURRENT:2}
+    max-range-days: ${BACKTEST_MAX_RANGE_DAYS:365}
+    default-warmup-candles: ${BACKTEST_DEFAULT_WARMUP:200}

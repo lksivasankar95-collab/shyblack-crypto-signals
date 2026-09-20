@@ -57,13 +57,16 @@ import '../../domain/usecases/get_news_meta.dart';
 import '../../domain/usecases/get_news_context.dart';
 import '../../data/datasources/settings_local_data_source.dart';
 import '../../data/datasources/settings_remote_data_source.dart';
+import '../../data/datasources/backtesting_remote_data_source.dart';
 import '../../data/datasources/futures_trading_remote_data_source.dart';
 import '../../data/datasources/live_trading_remote_data_source.dart';
 import '../../data/datasources/paper_trading_remote_data_source.dart';
+import '../../data/repositories/backtesting_repository_impl.dart';
 import '../../data/repositories/futures_trading_repository_impl.dart';
 import '../../data/repositories/live_trading_repository_impl.dart';
 import '../../data/repositories/paper_trading_repository_impl.dart';
 import '../../data/repositories/settings_repository_impl.dart';
+import '../../domain/repositories/backtesting_repository.dart';
 import '../../domain/repositories/futures_trading_repository.dart';
 import '../../domain/repositories/live_trading_repository.dart';
 import '../../domain/repositories/paper_trading_repository.dart';
@@ -304,6 +307,14 @@ final futuresTradingRemoteDataSourceProvider = Provider<FuturesTradingRemoteData
 
 final futuresTradingRepositoryProvider = Provider<FuturesTradingRepository>(
   (ref) => FuturesTradingRepositoryImpl(ref.watch(futuresTradingRemoteDataSourceProvider)),
+);
+
+final backtestingRemoteDataSourceProvider = Provider<BacktestingRemoteDataSource>(
+  (ref) => BacktestingRemoteDataSource(ref.watch(apiClientProvider)),
+);
+
+final backtestingRepositoryProvider = Provider<BacktestingRepository>(
+  (ref) => BacktestingRepositoryImpl(ref.watch(backtestingRemoteDataSourceProvider)),
 );
 
 final listExchangesProvider = Provider<Future<List<Map<String, dynamic>>> Function()>(

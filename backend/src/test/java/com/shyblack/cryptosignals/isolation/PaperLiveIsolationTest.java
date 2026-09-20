@@ -34,31 +34,41 @@ class PaperLiveIsolationTest {
 	private static final String P_PAPER = "com.shyblack.cryptosignals.service.paper";
 	private static final String P_LIVE = "com.shyblack.cryptosignals.service.live";
 	private static final String P_FUTURES = "com.shyblack.cryptosignals.service.futures";
+	private static final String P_BACKTEST = "com.shyblack.cryptosignals.service.backtest";
 	private static final String P_EXCHANGE = "com.shyblack.cryptosignals.exchange.";
 
 	@Test
-	void paperPackageMustNotImportLiveOrFuturesOrExchange() throws IOException {
+	void paperPackageMustNotImportLiveOrFuturesOrBacktestOrExchange() throws IOException {
 		List<String> offenders = scan("paper",
-				P_LIVE, P_FUTURES, P_EXCHANGE,
+				P_LIVE, P_FUTURES, P_BACKTEST, P_EXCHANGE,
 				"ExchangeTradingAdapter", "FuturesExchangeAdapter");
 		assertThat(offenders)
-				.as("Paper trading must not import live/futures/exchange")
+				.as("Paper trading must not import live/futures/backtest/exchange")
 				.isEmpty();
 	}
 
 	@Test
-	void livePackageMustNotImportPaperOrFutures() throws IOException {
-		List<String> offenders = scan("live", P_PAPER, P_FUTURES);
+	void livePackageMustNotImportPaperOrFuturesOrBacktest() throws IOException {
+		List<String> offenders = scan("live", P_PAPER, P_FUTURES, P_BACKTEST);
 		assertThat(offenders)
-				.as("Live SPOT must not import paper or futures")
+				.as("Live SPOT must not import paper/futures/backtest")
 				.isEmpty();
 	}
 
 	@Test
-	void futuresPackageMustNotImportPaperOrLive() throws IOException {
-		List<String> offenders = scan("futures", P_PAPER, P_LIVE);
+	void futuresPackageMustNotImportPaperOrLiveOrBacktest() throws IOException {
+		List<String> offenders = scan("futures", P_PAPER, P_LIVE, P_BACKTEST);
 		assertThat(offenders)
-				.as("Live FUTURES must not import paper or live-spot")
+				.as("Live FUTURES must not import paper/live-spot/backtest")
+				.isEmpty();
+	}
+
+	@Test
+	void backtestPackageMustNotImportPaperOrLiveOrFutures() throws IOException {
+		List<String> offenders = scan("backtest", P_PAPER, P_LIVE, P_FUTURES,
+				"ExchangeTradingAdapter", "FuturesExchangeAdapter");
+		assertThat(offenders)
+				.as("Backtesting must not import paper/live/futures execution")
 				.isEmpty();
 	}
 
