@@ -35,7 +35,7 @@ class _CreateStrategyScreenState extends ConsumerState<CreateStrategyScreen> {
     }
     setState(() => _saving = true);
     try {
-      await ref.read(StrategyTabController.provider(widget.mode).notifier)
+      await ref.read(strategyTabProvider(widget.mode).notifier)
           .createStrategy(name, _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim());
       if (mounted) Navigator.of(context).pop();
     } catch (e) {

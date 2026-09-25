@@ -31,6 +31,8 @@ class PaperPositionModel {
         openedAt: _date(json['openedAt']),
         closedAt: _date(json['closedAt']),
         createdAt: _date(json['createdAt']),
+        strategyId: json['strategyId'] as String?,
+        strategyVersion: (json['strategyVersion'] as num?)?.toInt(),
       ),
     );
   }

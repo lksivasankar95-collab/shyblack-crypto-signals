@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart';
-
 enum StrategyTradingMode { spot, futures }
 enum StrategyType { system, user }
 enum StrategyStatus { active, inactive }

@@ -36,6 +36,8 @@ class PaperPosition {
     this.openedAt,
     this.closedAt,
     this.createdAt,
+    this.strategyId,
+    this.strategyVersion,
   });
 
   final String id;
@@ -61,4 +63,6 @@ class PaperPosition {
   final DateTime? openedAt;
   final DateTime? closedAt;
   final DateTime? createdAt;
+  final String? strategyId;
+  final int? strategyVersion;
 }

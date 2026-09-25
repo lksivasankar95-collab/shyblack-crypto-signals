@@ -122,6 +122,13 @@ public class Position extends BaseEntity {
 	@Column
 	private Instant closedAt;
 
+	/** Strategy that produced the originating signal — preserved for trade history auditability. */
+	@Column
+	private UUID strategyId;
+
+	@Column
+	private Integer strategyVersion;
+
 	@Version
 	@Column(nullable = false)
 	private Long version = 0L;

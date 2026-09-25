@@ -208,6 +208,56 @@ class PaperTradingExecutionServiceTest {
 		assertThat(result).isEmpty();
 	}
 
+	@Test
+	void openFromSignal_copiesStrategyIdAndVersion() {
+		UUID strategyId = UUID.randomUUID();
+		Signal signal = buildSignal(new BigDecimal("100"), new BigDecimal("95"), new BigDecimal("110"));
+		signal.setStrategyId(strategyId);
+		signal.setStrategyVersion(3);
+		when(positions.findByPortfolioAndSignalId(portfolio, signal.getId())).thenReturn(Optional.empty());
+		when(positions.saveAndFlush(any(Position.class))).thenAnswer(inv -> inv.getArgument(0));
+		when(portfolios.save(any(Portfolio.class))).thenAnswer(inv -> inv.getArgument(0));
+
+		Optional<Position> opened = svc.openFromSignal(portfolio, signal);
+
+		assertThat(opened).isPresent();
+		assertThat(opened.get().getStrategyId()).isEqualTo(strategyId);
+		assertThat(opened.get().getStrategyVersion()).isEqualTo(3);
+	}
+
+	@Test
+	void openFromSignal_short_setsCorrectSide() {
+		Signal signal = buildShortSignal(new BigDecimal("100"), new BigDecimal("105"), new BigDecimal("90"));
+		when(positions.findByPortfolioAndSignalId(portfolio, signal.getId())).thenReturn(Optional.empty());
+		when(positions.saveAndFlush(any(Position.class))).thenAnswer(inv -> inv.getArgument(0));
+		when(portfolios.save(any(Portfolio.class))).thenAnswer(inv -> inv.getArgument(0));
+
+		Optional<Position> opened = svc.openFromSignal(portfolio, signal);
+
+		assertThat(opened).isPresent();
+		assertThat(opened.get().getSide()).isEqualTo(PositionSide.SHORT);
+		assertThat(opened.get().getStopLoss()).isEqualByComparingTo("105");
+		assertThat(opened.get().getTakeProfit1()).isEqualByComparingTo("90");
+	}
+
+	@Test
+	void close_short_atTP_profits_whenPriceDropsBelowTP() {
+		Position open = openShortPosition(new BigDecimal("100"), new BigDecimal("105"), new BigDecimal("90"), new BigDecimal("40"));
+		portfolio.setAvailableBalance(new BigDecimal("6000"));
+		portfolio.setInvested(new BigDecimal("4000"));
+		portfolio.setTotalFees(new BigDecimal("4"));
+
+		when(positions.findByIdForUpdate(open.getId())).thenReturn(Optional.of(open));
+		when(positions.save(any(Position.class))).thenAnswer(inv -> inv.getArgument(0));
+		when(portfolios.save(any(Portfolio.class))).thenAnswer(inv -> inv.getArgument(0));
+
+		Optional<Position> result = svc.close(open.getId(), new BigDecimal("90"), CloseReason.TAKE_PROFIT);
+
+		assertThat(result).isPresent();
+		assertThat(result.get().getRealizedPnl().signum()).isPositive(); // (100-90)*40 net > 0
+		assertThat(portfolio.getWinningTrades()).isEqualTo(1);
+	}
+
 	private Signal buildSignal(BigDecimal entry, BigDecimal stop, BigDecimal tp) {
 		Signal s = new Signal();
 		s.setId(UUID.randomUUID());
@@ -218,6 +268,35 @@ class PaperTradingExecutionServiceTest {
 		s.setTargetPrice(tp);
 		s.setSuggestedRiskPercent(new BigDecimal("2.00"));
 		return s;
+	}
+
+	private Signal buildShortSignal(BigDecimal entry, BigDecimal stop, BigDecimal tp) {
+		Signal s = new Signal();
+		s.setId(UUID.randomUUID());
+		s.setSymbol("BTCUSDT");
+		s.setSide(PositionSide.SHORT);
+		s.setEntryPrice(entry);
+		s.setStopLoss(stop);
+		s.setTargetPrice(tp);
+		s.setSuggestedRiskPercent(new BigDecimal("2.00"));
+		return s;
+	}
+
+	private Position openShortPosition(BigDecimal entry, BigDecimal stop, BigDecimal tp, BigDecimal qty) {
+		Position p = new Position();
+		p.setId(UUID.randomUUID());
+		p.setPortfolio(portfolio);
+		p.setSymbol("BTCUSDT");
+		p.setSide(PositionSide.SHORT);
+		p.setEntryPrice(entry);
+		p.setStopLoss(stop);
+		p.setTakeProfit1(tp);
+		p.setSize(qty);
+		p.setNotional(entry.multiply(qty));
+		p.setEntryFee(new BigDecimal("4"));
+		p.setStatus(PositionStatus.OPEN);
+		p.setOpenedAt(Instant.now());
+		return p;
 	}
 
 	private Position openPosition(BigDecimal entry, BigDecimal stop, BigDecimal tp, BigDecimal qty) {

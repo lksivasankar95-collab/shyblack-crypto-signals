@@ -216,7 +216,9 @@ public class PaperTradingController {
 				p.getCloseReason(),
 				p.getOpenedAt(),
 				p.getClosedAt(),
-				p.getCreatedAt());
+				p.getCreatedAt(),
+				p.getStrategyId(),
+				p.getStrategyVersion());
 	}
 
 	private User currentUser() {

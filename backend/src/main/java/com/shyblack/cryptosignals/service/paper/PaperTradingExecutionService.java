@@ -99,6 +99,8 @@ public class PaperTradingExecutionService {
 		p.setOpenedAt(now);
 		p.setRealizedPnl(BigDecimal.ZERO);
 		p.setUnrealizedPnl(BigDecimal.ZERO);
+		p.setStrategyId(signal.getStrategyId());
+		p.setStrategyVersion(signal.getStrategyVersion());
 
 		try {
 			p = positionRepository.saveAndFlush(p);

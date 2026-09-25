@@ -63,7 +63,7 @@ class _StrategyModeTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final async = ref.watch(StrategyTabController.provider(mode));
+    final async = ref.watch(strategyTabProvider(mode));
 
     return async.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -72,14 +72,14 @@ class _StrategyModeTab extends ConsumerWidget {
           const Text('Could not load strategies', style: TextStyle(color: AppColors.muted)),
           const SizedBox(height: 12),
           TextButton(
-            onPressed: () => ref.read(StrategyTabController.provider(mode).notifier).refresh(),
+            onPressed: () => ref.read(strategyTabProvider(mode).notifier).refresh(),
             child: const Text('Retry'),
           ),
         ]),
       ),
       data: (state) => RefreshIndicator(
         color: AppColors.accent,
-        onRefresh: () => ref.read(StrategyTabController.provider(mode).notifier).refresh(),
+        onRefresh: () => ref.read(strategyTabProvider(mode).notifier).refresh(),
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
           children: [
@@ -100,7 +100,7 @@ class _StrategyModeTab extends ConsumerWidget {
             ...state.strategies.map((s) => _StrategyCard(
               strategy: s,
               isActive: state.activeInfo?.strategyId == s.id,
-              onSetActive: () => ref.read(StrategyTabController.provider(mode).notifier).setActive(s.id),
+              onSetActive: () => ref.read(strategyTabProvider(mode).notifier).setActive(s.id),
               onDelete: s.deletable
                   ? () => _confirmDelete(context, ref, s)
                   : null,
@@ -114,7 +114,7 @@ class _StrategyModeTab extends ConsumerWidget {
   void _addStrategy(BuildContext context, WidgetRef ref) {
     Navigator.of(context).push(MaterialPageRoute<void>(
       builder: (_) => CreateStrategyScreen(mode: mode),
-    )).then((_) => ref.read(StrategyTabController.provider(mode).notifier).refresh());
+    )).then((_) => ref.read(strategyTabProvider(mode).notifier).refresh());
   }
 
   void _confirmDelete(BuildContext context, WidgetRef ref, TradingStrategy strategy) {
@@ -134,7 +134,7 @@ class _StrategyModeTab extends ConsumerWidget {
       ),
     ).then((confirmed) {
       if (confirmed == true) {
-        ref.read(StrategyTabController.provider(mode).notifier).deleteStrategy(strategy.id);
+        ref.read(strategyTabProvider(mode).notifier).deleteStrategy(strategy.id);
       }
     });
   }

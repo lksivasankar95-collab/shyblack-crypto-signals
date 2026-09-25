@@ -24,7 +24,6 @@ import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
@@ -123,9 +122,10 @@ public class PaperTradingEngineService {
 		}
 	}
 
-	@Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true)
+	/** Returns open PAPER positions for the given symbol. Repository provides its own transaction. */
 	protected List<Position> openPositionsForSymbol(String symbol) {
-		return positionRepository.findByStatus(PositionStatus.OPEN).stream()
+		return positionRepository.findByStatusAndPortfolio_AccountType(PositionStatus.OPEN, AccountType.PAPER)
+				.stream()
 				.filter(p -> symbol.equals(p.getSymbol()))
 				.toList();
 	}

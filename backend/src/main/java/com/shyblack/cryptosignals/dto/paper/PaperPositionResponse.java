@@ -30,5 +30,7 @@ public record PaperPositionResponse(
 		CloseReason closeReason,
 		Instant openedAt,
 		Instant closedAt,
-		Instant createdAt
+		Instant createdAt,
+		UUID strategyId,
+		Integer strategyVersion
 ) {}
