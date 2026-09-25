@@ -69,7 +69,9 @@ public class SignalService {
                 s.getMarketRegime(),
                 s.getTargetPrice2(),
                 s.getTargetPrice3(),
-                s.getRiskReward()
+                s.getRiskReward(),
+                s.getStrategyId(),
+                s.getStrategyVersion()
         );
     }
 }

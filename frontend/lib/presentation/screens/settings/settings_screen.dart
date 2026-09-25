@@ -17,6 +17,7 @@ import 'notifications_screen.dart';
 import 'profile_screen.dart';
 import 'security_screen.dart';
 import 'signal_preferences_screen.dart';
+import 'strategy_build_screen.dart';
 import 'subscription_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -135,6 +136,12 @@ class SettingsScreen extends ConsumerWidget {
                         subtitle: 'USDT-M leveraged — off by default',
                         badge: _badge('FUTURES', AppColors.loss),
                         onTap: () => _open(context, const FuturesTradingScreen()),
+                      ),
+                      SettingsNavTile(
+                        icon: Icons.architecture,
+                        title: 'Strategy Build',
+                        subtitle: 'Manage Spot & Futures strategies',
+                        onTap: () => _open(context, const StrategyBuildScreen()),
                       ),
                     ],
                   ),

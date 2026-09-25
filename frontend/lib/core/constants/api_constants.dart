@@ -87,4 +87,9 @@ abstract final class ApiConstants {
 
   static String newsAssetContext(String symbol) =>
       '/v1/news/asset/$symbol/context';
+
+  // Strategies
+  static const String strategies = '/v1/strategies';
+  static const String strategiesActive = '/v1/strategies/active';
+  static String strategyById(String id) => '/v1/strategies/$id';
 }

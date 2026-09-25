@@ -71,6 +71,9 @@ import '../../domain/repositories/futures_trading_repository.dart';
 import '../../domain/repositories/live_trading_repository.dart';
 import '../../domain/repositories/paper_trading_repository.dart';
 import '../../domain/repositories/settings_repository.dart';
+import '../../data/datasources/strategy_remote_data_source.dart';
+import '../../data/repositories/trading_strategy_repository_impl.dart';
+import '../../domain/repositories/trading_strategy_repository.dart';
 
 final apiClientProvider = Provider<ApiClient>(
   (ref) => ApiClient(tokens: ref.watch(tokenLocalDataSourceProvider)),
@@ -331,4 +334,12 @@ final updateNotificationPrefsProvider = Provider<Future<Map<String, dynamic>> Fu
 
 final listDeviceTokensProvider = Provider<Future<List<Map<String, dynamic>>> Function()>(
   (ref) => () => ref.read(settingsRepositoryProvider).listDeviceTokens(),
+);
+
+final strategyRemoteDataSourceProvider = Provider<StrategyRemoteDataSource>(
+  (ref) => StrategyRemoteDataSource(ref.watch(apiClientProvider)),
+);
+
+final strategyRepositoryProvider = Provider<TradingStrategyRepository>(
+  (ref) => TradingStrategyRepositoryImpl(ref.watch(strategyRemoteDataSourceProvider)),
 );

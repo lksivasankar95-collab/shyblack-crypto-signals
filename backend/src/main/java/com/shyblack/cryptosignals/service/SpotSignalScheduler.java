@@ -1,6 +1,7 @@
 package com.shyblack.cryptosignals.service;
 
 import com.shyblack.cryptosignals.entity.Signal;
+import com.shyblack.cryptosignals.entity.TradingStrategy;
 import com.shyblack.cryptosignals.entity.enums.MarketRegime;
 import com.shyblack.cryptosignals.entity.enums.PositionSide;
 import com.shyblack.cryptosignals.entity.enums.SignalGrade;
@@ -9,6 +10,7 @@ import com.shyblack.cryptosignals.entity.enums.TradingMode;
 import com.shyblack.cryptosignals.market.MarketBook;
 import com.shyblack.cryptosignals.market.MarketTicker;
 import com.shyblack.cryptosignals.repository.SignalRepository;
+import com.shyblack.cryptosignals.service.strategy.StrategyResolver;
 import com.shyblack.cryptosignals.signal.EntryCalculator;
 import com.shyblack.cryptosignals.signal.ScoreCard;
 import com.shyblack.cryptosignals.signal.SignalConstants;
@@ -37,12 +39,21 @@ public class SpotSignalScheduler {
     private final MarketBook marketBook;
     private final com.shyblack.cryptosignals.service.SignalNotificationService signalNotificationService;
     private final org.springframework.context.ApplicationEventPublisher eventPublisher;
+    private final StrategyResolver strategyResolver;
 
     @Scheduled(cron = SignalConstants.SIGNAL_CRON)
     @Transactional
     public void runSignalCycle() {
         log.info("[SignalCycle] Starting Spot signal analysis cycle");
         int generated = 0;
+
+        Optional<TradingStrategy> strategyOpt = strategyResolver.resolveActive(TradingMode.SPOT);
+        if (strategyOpt.isEmpty()) {
+            log.info("[SignalCycle] No active SPOT strategy — skipping signal generation");
+            return;
+        }
+        TradingStrategy activeStrategy = strategyOpt.get();
+        log.info("[SignalCycle] Using strategy: {} v{}", activeStrategy.getName(), activeStrategy.getVersion());
 
         try {
             MarketRegime regime = engine.detectMarketRegime();
@@ -82,7 +93,7 @@ public class SpotSignalScheduler {
                 // Only persist actionable signals
                 if (!candidate.valid()) continue;
 
-                Signal signal = buildSignal(symbol, candidate, ticker);
+                Signal signal = buildSignal(symbol, candidate, ticker, activeStrategy);
                 signalRepository.save(signal);
                 // Dispatch notification for actionable spot signals (idempotent inside service)
                 try {
@@ -114,7 +125,7 @@ public class SpotSignalScheduler {
         return existing.stream().anyMatch(s -> s.getCreatedAt() != null && s.getCreatedAt().isAfter(cutoff));
     }
 
-    private Signal buildSignal(String symbol, SpotSignalEngine.SignalCandidate candidate, MarketTicker ticker) {
+    private Signal buildSignal(String symbol, SpotSignalEngine.SignalCandidate candidate, MarketTicker ticker, TradingStrategy strategy) {
         ScoreCard card = candidate.scoreCard();
         EntryCalculator.EntryPlan plan = candidate.entryPlan();
         SignalGrade grade = card.grade();
@@ -137,6 +148,8 @@ public class SpotSignalScheduler {
         s.setRiskReward(bd(plan.riskReward(), 4));
         s.setSuggestedRiskPercent(new BigDecimal("2.00"));
         s.setStrategy("Spot Morning Plan — " + plan.entryType().name());
+        s.setStrategyId(strategy.getId());
+        s.setStrategyVersion(strategy.getVersion());
         s.setStrategyWinRate(winRate(grade));
         s.setTechnicalSummary(candidate.technicalSummary());
         s.setDisclaimer("This is not financial advice. Always do your own research.");

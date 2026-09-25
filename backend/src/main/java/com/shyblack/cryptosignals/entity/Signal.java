@@ -99,4 +99,10 @@ public class Signal extends BaseEntity {
 
 	@Column(precision = 10, scale = 4)
 	private BigDecimal riskReward;
+
+	@Column
+	private java.util.UUID strategyId;
+
+	@Column
+	private Integer strategyVersion;
 }

@@ -34,6 +34,9 @@ public record SignalResponse(
         MarketRegime marketRegime,
         BigDecimal targetPrice2,
         BigDecimal targetPrice3,
-        BigDecimal riskReward
+        BigDecimal riskReward,
+        // Strategy fields
+        UUID strategyId,
+        Integer strategyVersion
 ) {
 }
