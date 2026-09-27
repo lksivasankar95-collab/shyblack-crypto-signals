@@ -233,6 +233,10 @@ class _StrategyCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text('v${strategy.version} · ${strategy.tradingMode.name.toUpperCase()}',
               style: const TextStyle(color: AppColors.muted, fontSize: 11)),
+          if (strategy.config?.pullback != null) ...[
+            const SizedBox(height: 10),
+            _PullbackSummary(config: strategy.config!.pullback!),
+          ],
           const SizedBox(height: 12),
           Row(children: [
             if (!isActive)
@@ -283,4 +287,54 @@ class _StrategyCard extends StatelessWidget {
       child: Text(label, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w700)),
     );
   }
+}
+
+/// Read-only summary of a TREND_PULLBACK strategy's parameters, rendered from
+/// the strategy config returned by the backend — no hardcoded values.
+class _PullbackSummary extends StatelessWidget {
+  final PullbackConfig config;
+  const _PullbackSummary({required this.config});
+
+  @override
+  Widget build(BuildContext context) {
+    final zone = config.zoneMode == 'EMA20'
+        ? 'EMA${config.pullbackEma}'
+        : 'EMA${config.pullbackEma}-${config.entryEma}';
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFF2A2A2A)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text('TREND PULLBACK · SPOT · LONG ONLY',
+            style: TextStyle(color: AppColors.accent, fontSize: 10, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 6),
+        _row('Timeframes', '${config.htf} → ${config.entryTimeframe}'),
+        _row('Trend', 'EMA${config.emaFastHtf}/${config.emaSlowHtf} · ADX ≥ ${_n(config.minAdx)}'),
+        _row('Pullback', '$zone · RSI ${_n(config.rsiMin)}-${_n(config.rsiMax)}'),
+        _row('Risk', 'SL ${_n(config.slAtrBuffer)} ATR · max ${_n(config.maxSlAtr)} · R:R ≥ ${_n(config.minRR)}'),
+        _row('Targets', '${_n(config.tp1R)}R / ${_n(config.tp2R)}R / ${_n(config.tp3R)}R'),
+        _row('Volume', config.volumeFilterEnabled ? '≥ ${_n(config.minVolumeMultiplier)}×' : 'off'),
+        _row('Min score', '${config.minimumScore}/100'),
+      ]),
+    );
+  }
+
+  static Widget _row(String label, String value) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 1.5),
+        child: Row(children: [
+          SizedBox(
+            width: 78,
+            child: Text(label, style: const TextStyle(color: AppColors.muted, fontSize: 11)),
+          ),
+          Expanded(
+            child: Text(value,
+                style: const TextStyle(color: AppColors.onBackground, fontSize: 11, fontWeight: FontWeight.w600)),
+          ),
+        ]),
+      );
+
+  static String _n(double v) => v == v.roundToDouble() ? v.toInt().toString() : v.toString();
 }

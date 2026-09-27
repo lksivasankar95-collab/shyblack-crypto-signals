@@ -37,10 +37,44 @@ public class IndicatorEngine {
         public double lastVolumeMa()  { return volumeMa20[size - 1]; }
         public double prevMacdHist()  { return size >= 2 ? macdHist[size - 2] : 0; }
         public double prevRsi()       { return size >= 2 ? rsi[size - 2] : 0; }
+
+        // Generic aliases — the three EMA slots are fast/mid/slow of the
+        // requested {@link Params}, not necessarily 20/50/200.
+        public double[] fastEma() { return ema20; }
+        public double[] midEma()  { return ema50; }
+        public double[] slowEma() { return ema200; }
+        public double lastFastEma() { return ema20[size - 1]; }
+        public double lastMidEma()  { return ema50[size - 1]; }
+        public double lastSlowEma() { return ema200[size - 1]; }
+    }
+
+    /**
+     * Configurable indicator periods. Reuses the exact same formulas as the
+     * canonical {@link #compute(List)} — no second implementation exists.
+     */
+    public record Params(
+            int emaFast,
+            int emaMid,
+            int emaSlow,
+            int rsiPeriod,
+            int atrPeriod,
+            int adxPeriod,
+            int volumeMaPeriod
+    ) {
+        public static Params standard() {
+            return new Params(SignalConstants.EMA_FAST, SignalConstants.EMA_MID, SignalConstants.EMA_SLOW,
+                    SignalConstants.RSI_PERIOD, SignalConstants.ATR_PERIOD,
+                    SignalConstants.ADX_PERIOD, SignalConstants.VOLUME_MA_PERIOD);
+        }
     }
 
     /** Compute all indicators from a candle list (oldest first). */
     public static Indicators compute(List<KlineResponse> candles) {
+        return compute(candles, Params.standard());
+    }
+
+    /** Compute all indicators with caller-supplied periods. */
+    public static Indicators compute(List<KlineResponse> candles, Params params) {
         int n = candles.size();
         double[] close  = new double[n];
         double[] high   = new double[n];
@@ -54,13 +88,13 @@ public class IndicatorEngine {
             volume[i] = c.volume().doubleValue();
         }
 
-        double[] ema20  = ema(close, SignalConstants.EMA_FAST);
-        double[] ema50  = ema(close, SignalConstants.EMA_MID);
-        double[] ema200 = ema(close, SignalConstants.EMA_SLOW);
-        double[] rsi    = rsi(close, SignalConstants.RSI_PERIOD);
-        double[] atr    = atr(high, low, close, SignalConstants.ATR_PERIOD);
-        double[] adx    = adx(high, low, close, atr, SignalConstants.ADX_PERIOD);
-        double[] vma20  = sma(volume, SignalConstants.VOLUME_MA_PERIOD);
+        double[] ema20  = ema(close, params.emaFast());
+        double[] ema50  = ema(close, params.emaMid());
+        double[] ema200 = ema(close, params.emaSlow());
+        double[] rsi    = rsi(close, params.rsiPeriod());
+        double[] atr    = atr(high, low, close, params.atrPeriod());
+        double[] adx    = adx(high, low, close, atr, params.adxPeriod());
+        double[] vma20  = sma(volume, params.volumeMaPeriod());
 
         // MACD
         double[] ema12 = ema(close, SignalConstants.MACD_FAST);

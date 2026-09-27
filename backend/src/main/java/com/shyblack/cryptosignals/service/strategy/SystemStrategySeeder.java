@@ -28,13 +28,18 @@ public class SystemStrategySeeder implements ApplicationRunner {
     @Transactional
     public void run(ApplicationArguments args) {
         seedIfAbsent("EMA + RSI", "Spot Morning Plan — multi-timeframe EMA+RSI momentum strategy",
-                TradingMode.SPOT, StrategyConfigDto.spotDefaults());
+                TradingMode.SPOT, StrategyConfigDto.spotDefaults(), "SPOT_MORNING_PLAN");
         seedIfAbsent("EMA + RSI Futures", "Futures LONG/SHORT strategy using EMA+RSI momentum on USDT-M perpetuals",
-                TradingMode.FUTURES, StrategyConfigDto.futuresDefaults());
+                TradingMode.FUTURES, StrategyConfigDto.futuresDefaults(), "FUTURES_MOMENTUM");
+        seedIfAbsent("Trend Pullback", "HTF trend + pullback continuation (LONG-only SPOT). "
+                        + "Enters on a confirmed lower-timeframe reversal inside the EMA pullback zone.",
+                TradingMode.SPOT, StrategyConfigDto.trendPullbackDefaults(),
+                com.shyblack.cryptosignals.dto.strategy.TrendPullbackConfig.ENGINE_KEY);
         log.info("[StrategySeeder] System strategies initialized");
     }
 
-    private void seedIfAbsent(String name, String description, TradingMode mode, StrategyConfigDto config) {
+    private void seedIfAbsent(String name, String description, TradingMode mode,
+            StrategyConfigDto config, String engineKey) {
         if (strategyRepository.existsByNameAndTradingModeAndStrategyType(name, mode, StrategyType.SYSTEM)) {
             return;
         }
@@ -49,9 +54,10 @@ public class SystemStrategySeeder implements ApplicationRunner {
             s.setStatus(StrategyStatus.ACTIVE);
             s.setDeletable(false);
             s.setEditable(false);
+            s.setEngineKey(engineKey);
             s.setConfigJson(objectMapper.writeValueAsString(config));
             strategyRepository.save(s);
-            log.info("[StrategySeeder] Seeded SYSTEM strategy: {} ({})", name, mode);
+            log.info("[StrategySeeder] Seeded SYSTEM strategy: {} ({}) engine={}", name, mode, engineKey);
         } catch (Exception ex) {
             log.error("[StrategySeeder] Failed to seed {}: {}", name, ex.getMessage(), ex);
         }

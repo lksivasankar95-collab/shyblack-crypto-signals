@@ -27,6 +27,20 @@ public class BacktestStrategyRegistry {
 		return strategy;
 	}
 
+	/**
+	 * Returns the run-scoped strategy instance. Configurable strategies always
+	 * get a fresh instance (so per-run state such as the cooldown cursor can
+	 * never leak between runs or concurrent runs); other strategies share the
+	 * stateless singleton.
+	 */
+	public BacktestStrategy create(String id, String paramsJson) {
+		BacktestStrategy strategy = require(id);
+		if (strategy instanceof ConfigurableBacktestStrategy configurable) {
+			return configurable.create(paramsJson);
+		}
+		return strategy;
+	}
+
 	public List<StrategyDescriptor> list() {
 		return byId.values().stream()
 				.map(s -> new StrategyDescriptor(s.id(), s.version()))

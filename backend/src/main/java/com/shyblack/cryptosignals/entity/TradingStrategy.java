@@ -44,4 +44,11 @@ public class TradingStrategy extends BaseEntity {
 
     @Column(columnDefinition = "TEXT")
     private String configJson;
+
+    /**
+     * Discriminates which signal-generation engine consumes this strategy.
+     * Null = legacy Spot Morning Plan / futures momentum engine.
+     */
+    @Column
+    private String engineKey;
 }

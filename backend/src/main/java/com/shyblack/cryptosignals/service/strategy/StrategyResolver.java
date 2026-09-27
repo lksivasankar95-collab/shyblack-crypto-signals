@@ -1,7 +1,9 @@
 package com.shyblack.cryptosignals.service.strategy;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shyblack.cryptosignals.dto.strategy.StrategyConfigDto;
+import com.shyblack.cryptosignals.dto.strategy.TrendPullbackConfig;
 import com.shyblack.cryptosignals.entity.TradingStrategy;
 import com.shyblack.cryptosignals.entity.enums.StrategyStatus;
 import com.shyblack.cryptosignals.entity.enums.StrategyType;
@@ -63,5 +65,26 @@ public class StrategyResolver {
                     ? StrategyConfigDto.futuresDefaults()
                     : StrategyConfigDto.spotDefaults();
         }
+    }
+
+    /**
+     * Reads the {@code pullback} block of a TREND_PULLBACK strategy's config,
+     * falling back to built-in defaults for any missing field.
+     */
+    public TrendPullbackConfig parseTrendPullbackConfig(TradingStrategy strategy) {
+        if (strategy == null || strategy.getConfigJson() == null) {
+            return TrendPullbackConfig.defaults();
+        }
+        try {
+            JsonNode root = objectMapper.readTree(strategy.getConfigJson());
+            JsonNode pullback = root.get("pullback");
+            if (pullback != null && !pullback.isNull()) {
+                return objectMapper.treeToValue(pullback, TrendPullbackConfig.class);
+            }
+        } catch (Exception ex) {
+            log.warn("[StrategyResolver] Failed to parse trend-pullback config for strategy {}, using defaults: {}",
+                    strategy.getId(), ex.getMessage());
+        }
+        return TrendPullbackConfig.defaults();
     }
 }

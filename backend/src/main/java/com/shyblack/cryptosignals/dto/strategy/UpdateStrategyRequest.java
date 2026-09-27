@@ -6,5 +6,7 @@ public record UpdateStrategyRequest(
         String name,
         String description,
         StrategyStatus status,
-        StrategyConfigDto config
+        StrategyConfigDto config,
+        /** Optional signal-engine discriminator; null leaves the current value unchanged. */
+        String engineKey
 ) {}

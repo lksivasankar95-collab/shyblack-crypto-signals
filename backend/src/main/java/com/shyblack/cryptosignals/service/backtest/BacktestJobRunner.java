@@ -104,7 +104,7 @@ public class BacktestJobRunner {
 		BacktestRun run = markStarted(runId);
 		if (run == null) return;
 
-		BacktestStrategy strategy = strategyRegistry.require(config.strategyId());
+		BacktestStrategy strategy = strategyRegistry.create(config.strategyId(), config.strategyParams());
 		List<HistoricalCandle> candles = historicalDataProvider.load(
 				config.symbol(), config.timeframe(), config.startDate(), config.endDate());
 		if (candles.isEmpty()) {

@@ -20,9 +20,11 @@ class StrategyRemoteDataSource {
   Future<TradingStrategy> createStrategy({
     required String name, String? description,
     required String tradingMode, Map<String, dynamic>? config,
+    String? engineKey,
   }) async {
     final body = TradingStrategyModel.createToJson(
-        name: name, description: description, tradingMode: tradingMode, config: config);
+        name: name, description: description, tradingMode: tradingMode,
+        config: config, engineKey: engineKey);
     final resp = await _client.dio.post<Map<String, dynamic>>(ApiConstants.strategies, data: body);
     return TradingStrategyModel.fromJson(resp.data!);
   }

@@ -1,5 +1,6 @@
 package com.shyblack.cryptosignals.dto.backtest;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.shyblack.cryptosignals.entity.enums.BacktestExecutionModel;
 import com.shyblack.cryptosignals.entity.enums.BacktestSameCandlePolicy;
 import com.shyblack.cryptosignals.entity.enums.TradingMode;
@@ -21,7 +22,9 @@ public record BacktestConfigRequest(
 		@NotNull BigDecimal slippagePct,
 		Integer leverage,
 		BacktestExecutionModel executionModel,
-		BacktestSameCandlePolicy sameCandlePolicy
+		BacktestSameCandlePolicy sameCandlePolicy,
+		/** Optional per-strategy parameter object (e.g. trend-pullback config). */
+		JsonNode strategyParams
 ) {
 	public int leverageOrDefault() { return leverage == null ? 1 : leverage; }
 	public BacktestExecutionModel executionModelOrDefault() {

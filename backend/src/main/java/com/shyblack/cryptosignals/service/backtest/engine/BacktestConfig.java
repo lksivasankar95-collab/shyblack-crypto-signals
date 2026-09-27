@@ -27,8 +27,20 @@ public record BacktestConfig(
 		BigDecimal slippagePct,
 		int leverage,
 		BacktestExecutionModel executionModel,
-		BacktestSameCandlePolicy sameCandlePolicy
+		BacktestSameCandlePolicy sameCandlePolicy,
+		String strategyParams
 ) {
+
+	/** Backwards-compatible constructor — no per-run strategy parameters. */
+	public BacktestConfig(String strategyId, String symbol, String timeframe,
+			TradingMode tradingMode, Instant startDate, Instant endDate,
+			BigDecimal initialCapital, BigDecimal riskPerTradePct, BigDecimal feePct,
+			BigDecimal slippagePct, int leverage, BacktestExecutionModel executionModel,
+			BacktestSameCandlePolicy sameCandlePolicy) {
+		this(strategyId, symbol, timeframe, tradingMode, startDate, endDate,
+				initialCapital, riskPerTradePct, feePct, slippagePct, leverage,
+				executionModel, sameCandlePolicy, null);
+	}
 
 	public String hash() {
 		String canonical = String.join("|",
@@ -40,7 +52,8 @@ public record BacktestConfig(
 				slippagePct.toPlainString(),
 				Integer.toString(leverage),
 				executionModel.name(),
-				sameCandlePolicy.name());
+				sameCandlePolicy.name(),
+				strategyParams == null ? "" : strategyParams);
 		try {
 			MessageDigest md = MessageDigest.getInstance("SHA-256");
 			return HexFormat.of().formatHex(md.digest(canonical.getBytes(StandardCharsets.UTF_8)));

@@ -15,8 +15,13 @@ class TradingStrategyRepositoryImpl implements TradingStrategyRepository {
   @override
   Future<TradingStrategy> createStrategy({
     required String name, String? description, required StrategyTradingMode tradingMode,
+    StrategyConfig? config, String? engineKey,
   }) => _remote.createStrategy(
-      name: name, description: description, tradingMode: _modeStr(tradingMode));
+      name: name,
+      description: description,
+      tradingMode: _modeStr(tradingMode),
+      config: config?.pullback == null ? null : {'pullback': config!.pullback!.toJson()},
+      engineKey: engineKey);
 
   @override
   Future<void> deleteStrategy(String id) => _remote.deleteStrategy(id);

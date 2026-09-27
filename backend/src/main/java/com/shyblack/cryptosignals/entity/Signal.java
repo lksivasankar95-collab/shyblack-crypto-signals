@@ -105,4 +105,11 @@ public class Signal extends BaseEntity {
 
 	@Column
 	private Integer strategyVersion;
+
+	/**
+	 * Deterministic identifier of the setup that produced this signal
+	 * (trend + pullback window). Used to prevent emitting the same setup twice.
+	 */
+	@Column
+	private String setupId;
 }

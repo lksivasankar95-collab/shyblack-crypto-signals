@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
@@ -85,11 +86,33 @@ public class BinanceRestClient {
 		}
 	}
 
+	/** Binance's hard maximum candles per klines request. */
+	public static final int MAX_KLINES_PER_REQUEST = 1000;
+
 	public List<KlineResponse> klines(String symbol, String interval, int limit) {
+		return klines(symbol, interval, null, null, limit);
+	}
+
+	/**
+	 * Klines for {@code symbol}/{@code interval}, optionally bounded by an
+	 * inclusive {@code [startTime, endTime]} epoch-millis window. The
+	 * {@code limit} is clamped to {@link #MAX_KLINES_PER_REQUEST}. This is the
+	 * primitive the historical paginator uses; the 3-arg overload above is
+	 * unchanged for backward compatibility.
+	 */
+	public List<KlineResponse> klines(String symbol, String interval, Long startTime, Long endTime,
+			int limit) {
+		int capped = Math.max(1, Math.min(limit, MAX_KLINES_PER_REQUEST));
 		try {
 			String body = rest.get()
-					.uri("/api/v3/klines?symbol={symbol}&interval={interval}&limit={limit}",
-							MarketTickerStore.normalize(symbol), interval, limit)
+					.uri(uriBuilder -> uriBuilder
+							.path("/api/v3/klines")
+							.queryParam("symbol", MarketTickerStore.normalize(symbol))
+							.queryParam("interval", interval)
+							.queryParamIfPresent("startTime", Optional.ofNullable(startTime))
+							.queryParamIfPresent("endTime", Optional.ofNullable(endTime))
+							.queryParam("limit", capped)
+							.build())
 					.accept(MediaType.APPLICATION_JSON)
 					.retrieve()
 					.body(String.class);

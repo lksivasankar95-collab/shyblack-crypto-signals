@@ -13,6 +13,7 @@ class TradingStrategyModel {
       deletable: json['deletable'] as bool? ?? true,
       editable: json['editable'] as bool? ?? true,
       config: json['config'] != null ? _parseConfig(json['config'] as Map<String, dynamic>) : null,
+      engineKey: json['engineKey'] as String?,
     );
   }
 
@@ -29,12 +30,14 @@ class TradingStrategyModel {
   static Map<String, dynamic> createToJson({
     required String name, String? description,
     required String tradingMode, Map<String, dynamic>? config,
+    String? engineKey,
   }) {
     return {
       'name': name,
       'description': description,
       'tradingMode': tradingMode,
-      if (config != null) 'config': config,
+      'config': ?config,
+      'engineKey': ?engineKey,
     };
   }
 
@@ -57,7 +60,39 @@ class TradingStrategyModel {
     final fi = json['filters'] as Map<String, dynamic>?;
     final en = json['entry'] as Map<String, dynamic>?;
     final fu = json['futures'] as Map<String, dynamic>?;
+    final pb = json['pullback'] as Map<String, dynamic>?;
     return StrategyConfig(
+      pullback: pb != null ? PullbackConfig(
+        htf: pb['htf'] as String? ?? '1H',
+        entryTimeframe: pb['entryTimeframe'] as String? ?? '15M',
+        emaFastHtf: pb['emaFastHtf'] as int? ?? 50,
+        emaSlowHtf: pb['emaSlowHtf'] as int? ?? 200,
+        adxPeriod: pb['adxPeriod'] as int? ?? 14,
+        minAdx: (pb['minAdx'] as num?)?.toDouble() ?? 20,
+        requirePositiveSlope: pb['requirePositiveSlope'] as bool? ?? true,
+        pullbackEma: pb['pullbackEma'] as int? ?? 20,
+        entryEma: pb['entryEma'] as int? ?? 50,
+        zoneMode: pb['zoneMode'] as String? ?? 'EMA20_TO_EMA50',
+        maxPullbackDistanceAtr: (pb['maxPullbackDistanceAtr'] as num?)?.toDouble() ?? 1.5,
+        rsiPeriod: pb['rsiPeriod'] as int? ?? 14,
+        rsiMin: (pb['rsiMin'] as num?)?.toDouble() ?? 40,
+        rsiMax: (pb['rsiMax'] as num?)?.toDouble() ?? 60,
+        requireRecovery: pb['requireRecovery'] as bool? ?? true,
+        volumeFilterEnabled: pb['volumeFilterEnabled'] as bool? ?? true,
+        volumeSmaPeriod: pb['volumeSmaPeriod'] as int? ?? 20,
+        minVolumeMultiplier: (pb['minVolumeMultiplier'] as num?)?.toDouble() ?? 1.2,
+        atrPeriod: pb['atrPeriod'] as int? ?? 14,
+        slAtrBuffer: (pb['slAtrBuffer'] as num?)?.toDouble() ?? 0.2,
+        maxSlAtr: (pb['maxSlAtr'] as num?)?.toDouble() ?? 2.0,
+        minRR: (pb['minRR'] as num?)?.toDouble() ?? 1.5,
+        tp1R: (pb['tp1R'] as num?)?.toDouble() ?? 1.0,
+        tp2R: (pb['tp2R'] as num?)?.toDouble() ?? 2.0,
+        tp3R: (pb['tp3R'] as num?)?.toDouble() ?? 3.0,
+        maxSetupCandles: pb['maxSetupCandles'] as int? ?? 12,
+        cooldownCandles: pb['cooldownCandles'] as int? ?? 4,
+        candleConfirmationEnabled: pb['candleConfirmationEnabled'] as bool? ?? true,
+        minimumScore: pb['minimumScore'] as int? ?? 70,
+      ) : null,
       indicators: ind != null ? IndicatorConfig(
         emaFast: ind['emaFast'] as int? ?? 20,
         emaMid: ind['emaMid'] as int? ?? 50,

@@ -17,6 +17,7 @@ class _CreateStrategyScreenState extends ConsumerState<CreateStrategyScreen> {
   final _nameCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
   bool _saving = false;
+  bool _trendPullback = false;
 
   @override
   void dispose() {
@@ -35,8 +36,14 @@ class _CreateStrategyScreenState extends ConsumerState<CreateStrategyScreen> {
     }
     setState(() => _saving = true);
     try {
-      await ref.read(strategyTabProvider(widget.mode).notifier)
-          .createStrategy(name, _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim());
+      await ref.read(strategyTabProvider(widget.mode).notifier).createStrategy(
+            name,
+            _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
+            engineKey: _trendPullback ? 'TREND_PULLBACK' : null,
+            config: _trendPullback
+                ? const StrategyConfig(pullback: PullbackConfig())
+                : null,
+          );
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {
@@ -101,6 +108,26 @@ class _CreateStrategyScreenState extends ConsumerState<CreateStrategyScreen> {
               ]),
             ]),
           ),
+          if (widget.mode == StrategyTradingMode.spot) ...[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.card,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFF2A2A2A)),
+              ),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text('Signal Engine',
+                    style: TextStyle(color: AppColors.muted, fontSize: 12, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 8),
+                _engineOption('Default (EMA + RSI)', !_trendPullback,
+                    () => setState(() => _trendPullback = false)),
+                _engineOption('Trend Pullback (HTF pullback continuation)', _trendPullback,
+                    () => setState(() => _trendPullback = true)),
+              ]),
+            ),
+          ],
           const SizedBox(height: 24),
           Container(
             padding: const EdgeInsets.all(14),
@@ -113,18 +140,33 @@ class _CreateStrategyScreenState extends ConsumerState<CreateStrategyScreen> {
               const Text('Strategy Configuration',
                   style: TextStyle(color: AppColors.onBackground, fontWeight: FontWeight.w700, fontSize: 14)),
               const SizedBox(height: 6),
-              const Text(
-                'Your strategy will use the default EMA+RSI indicator configuration. '
-                'Advanced parameter customization is available after creation.',
-                style: TextStyle(color: AppColors.muted, fontSize: 12),
-              ),
-              const SizedBox(height: 12),
-              _configRow('EMA Periods', '20 / 50 / 200'),
-              _configRow('RSI Period', '14'),
-              _configRow('MACD', '12-26-9'),
-              _configRow('Min R:R', '1.5'),
-              if (widget.mode == StrategyTradingMode.futures)
-                _configRow('Default Leverage', '3x'),
+              if (_trendPullback) ...[
+                const Text(
+                  'Trend Pullback will run with its default configuration. You can '
+                  'tune parameters after creation via the strategy config.',
+                  style: TextStyle(color: AppColors.muted, fontSize: 12),
+                ),
+                const SizedBox(height: 12),
+                _configRow('Market', 'SPOT · LONG only'),
+                _configRow('Timeframes', '1H / 15M'),
+                _configRow('Trend', 'EMA 50/200 · ADX ≥ 20'),
+                _configRow('Pullback', 'EMA20-EMA50 · RSI 40-60'),
+                _configRow('Risk', 'R:R ≥ 1.5 · TP 1R/2R/3R'),
+                _configRow('Min score', '70/100'),
+              ] else ...[
+                const Text(
+                  'Your strategy will use the default EMA+RSI indicator configuration. '
+                  'Advanced parameter customization is available after creation.',
+                  style: TextStyle(color: AppColors.muted, fontSize: 12),
+                ),
+                const SizedBox(height: 12),
+                _configRow('EMA Periods', '20 / 50 / 200'),
+                _configRow('RSI Period', '14'),
+                _configRow('MACD', '12-26-9'),
+                _configRow('Min R:R', '1.5'),
+                if (widget.mode == StrategyTradingMode.futures)
+                  _configRow('Default Leverage', '3x'),
+              ],
             ]),
           ),
           const SizedBox(height: 28),
@@ -173,6 +215,26 @@ class _CreateStrategyScreenState extends ConsumerState<CreateStrategyScreen> {
       ),
     ),
   );
+
+  static Widget _engineOption(String label, bool selected, VoidCallback onTap) => InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Row(children: [
+            Icon(selected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+                color: selected ? AppColors.accent : AppColors.muted, size: 18),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(label,
+                  style: TextStyle(
+                      color: selected ? AppColors.onBackground : AppColors.muted,
+                      fontSize: 13,
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500)),
+            ),
+          ]),
+        ),
+      );
 
   static Widget _configRow(String label, String value) => Padding(
     padding: const EdgeInsets.symmetric(vertical: 4),

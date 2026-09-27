@@ -54,9 +54,16 @@ abstract class StrategyTabController
     }
   }
 
-  Future<void> createStrategy(String name, String? description) async {
+  Future<void> createStrategy(
+    String name,
+    String? description, {
+    String? engineKey,
+    StrategyConfig? config,
+  }) async {
     final repo = ref.read(strategyRepositoryProvider);
-    await repo.createStrategy(name: name, description: description, tradingMode: mode);
+    await repo.createStrategy(
+        name: name, description: description, tradingMode: mode,
+        engineKey: engineKey, config: config);
     state = await AsyncValue.guard(() => _load());
   }
 

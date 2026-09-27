@@ -17,6 +17,7 @@ public record TradingStrategyResponse(
         boolean deletable,
         boolean editable,
         StrategyConfigDto config,
+        String engineKey,
         Instant createdAt,
         Instant updatedAt
 ) {}

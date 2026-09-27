@@ -13,6 +13,7 @@ class TradingStrategy {
   final bool deletable;
   final bool editable;
   final StrategyConfig? config;
+  final String? engineKey;
 
   const TradingStrategy({
     required this.id,
@@ -25,6 +26,7 @@ class TradingStrategy {
     required this.deletable,
     required this.editable,
     this.config,
+    this.engineKey,
   });
 }
 
@@ -50,8 +52,106 @@ class StrategyConfig {
   final FilterConfig? filters;
   final EntryConfig? entry;
   final FuturesStrategyConfig? futures;
+  final PullbackConfig? pullback;
 
-  const StrategyConfig({this.indicators, this.scoring, this.filters, this.entry, this.futures});
+  const StrategyConfig({
+    this.indicators,
+    this.scoring,
+    this.filters,
+    this.entry,
+    this.futures,
+    this.pullback,
+  });
+}
+
+/// Configuration for the TREND_PULLBACK strategy (LONG-only SPOT).
+class PullbackConfig {
+  final String htf;
+  final String entryTimeframe;
+  final int emaFastHtf, emaSlowHtf;
+  final int adxPeriod;
+  final double minAdx;
+  final bool requirePositiveSlope;
+  final int pullbackEma, entryEma;
+  final String zoneMode;
+  final double maxPullbackDistanceAtr;
+  final int rsiPeriod;
+  final double rsiMin, rsiMax;
+  final bool requireRecovery;
+  final bool volumeFilterEnabled;
+  final int volumeSmaPeriod;
+  final double minVolumeMultiplier;
+  final int atrPeriod;
+  final double slAtrBuffer, maxSlAtr, minRR;
+  final double tp1R, tp2R, tp3R;
+  final int maxSetupCandles, cooldownCandles;
+  final bool candleConfirmationEnabled;
+  final int minimumScore;
+
+  const PullbackConfig({
+    this.htf = '1H',
+    this.entryTimeframe = '15M',
+    this.emaFastHtf = 50,
+    this.emaSlowHtf = 200,
+    this.adxPeriod = 14,
+    this.minAdx = 20,
+    this.requirePositiveSlope = true,
+    this.pullbackEma = 20,
+    this.entryEma = 50,
+    this.zoneMode = 'EMA20_TO_EMA50',
+    this.maxPullbackDistanceAtr = 1.5,
+    this.rsiPeriod = 14,
+    this.rsiMin = 40,
+    this.rsiMax = 60,
+    this.requireRecovery = true,
+    this.volumeFilterEnabled = true,
+    this.volumeSmaPeriod = 20,
+    this.minVolumeMultiplier = 1.2,
+    this.atrPeriod = 14,
+    this.slAtrBuffer = 0.2,
+    this.maxSlAtr = 2.0,
+    this.minRR = 1.5,
+    this.tp1R = 1.0,
+    this.tp2R = 2.0,
+    this.tp3R = 3.0,
+    this.maxSetupCandles = 12,
+    this.cooldownCandles = 4,
+    this.candleConfirmationEnabled = true,
+    this.minimumScore = 70,
+  });
+
+  /// Serializable form matching the backend TrendPullbackConfig.
+  Map<String, dynamic> toJson() => {
+        'htf': htf,
+        'entryTimeframe': entryTimeframe,
+        'emaFastHtf': emaFastHtf,
+        'emaSlowHtf': emaSlowHtf,
+        'adxPeriod': adxPeriod,
+        'minAdx': minAdx,
+        'requirePositiveSlope': requirePositiveSlope,
+        'pullbackEma': pullbackEma,
+        'entryEma': entryEma,
+        'zoneMode': zoneMode,
+        'maxPullbackDistanceAtr': maxPullbackDistanceAtr,
+        'rsiPeriod': rsiPeriod,
+        'rsiMin': rsiMin,
+        'rsiMax': rsiMax,
+        'requireRecovery': requireRecovery,
+        'volumeFilterEnabled': volumeFilterEnabled,
+        'volumeSmaPeriod': volumeSmaPeriod,
+        'minVolumeMultiplier': minVolumeMultiplier,
+        'atrPeriod': atrPeriod,
+        'slAtrBuffer': slAtrBuffer,
+        'maxSlAtr': maxSlAtr,
+        'minRR': minRR,
+        'tp1R': tp1R,
+        'tp2R': tp2R,
+        'tp3R': tp3R,
+        'maxSetupCandles': maxSetupCandles,
+        'cooldownCandles': cooldownCandles,
+        'candleConfirmationEnabled': candleConfirmationEnabled,
+        'minimumScore': minimumScore,
+      };
 }
 
 class IndicatorConfig {

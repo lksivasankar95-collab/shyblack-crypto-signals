@@ -71,7 +71,8 @@ public class SignalService {
                 s.getTargetPrice3(),
                 s.getRiskReward(),
                 s.getStrategyId(),
-                s.getStrategyVersion()
+                s.getStrategyVersion(),
+                s.getSetupId()
         );
     }
 }

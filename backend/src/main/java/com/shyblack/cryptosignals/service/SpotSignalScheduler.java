@@ -1,5 +1,6 @@
 package com.shyblack.cryptosignals.service;
 
+import com.shyblack.cryptosignals.dto.strategy.TrendPullbackConfig;
 import com.shyblack.cryptosignals.entity.Signal;
 import com.shyblack.cryptosignals.entity.TradingStrategy;
 import com.shyblack.cryptosignals.entity.enums.MarketRegime;
@@ -40,6 +41,7 @@ public class SpotSignalScheduler {
     private final com.shyblack.cryptosignals.service.SignalNotificationService signalNotificationService;
     private final org.springframework.context.ApplicationEventPublisher eventPublisher;
     private final StrategyResolver strategyResolver;
+    private final TrendPullbackSignalService trendPullbackSignalService;
 
     @Scheduled(cron = SignalConstants.SIGNAL_CRON)
     @Transactional
@@ -54,6 +56,13 @@ public class SpotSignalScheduler {
         }
         TradingStrategy activeStrategy = strategyOpt.get();
         log.info("[SignalCycle] Using strategy: {} v{}", activeStrategy.getName(), activeStrategy.getVersion());
+
+        // TREND_PULLBACK has its own multi-timeframe engine; the legacy path below is untouched.
+        if (TrendPullbackConfig.ENGINE_KEY.equals(activeStrategy.getEngineKey())) {
+            log.info("[SignalCycle] Routing to TREND_PULLBACK engine");
+            trendPullbackSignalService.runCycle(activeStrategy);
+            return;
+        }
 
         try {
             MarketRegime regime = engine.detectMarketRegime();

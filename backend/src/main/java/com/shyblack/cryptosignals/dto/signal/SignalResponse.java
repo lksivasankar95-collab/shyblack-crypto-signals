@@ -37,6 +37,7 @@ public record SignalResponse(
         BigDecimal riskReward,
         // Strategy fields
         UUID strategyId,
-        Integer strategyVersion
+        Integer strategyVersion,
+        String setupId
 ) {
 }

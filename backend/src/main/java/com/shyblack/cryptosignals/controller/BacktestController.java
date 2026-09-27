@@ -54,7 +54,8 @@ public class BacktestController {
 				request.feePct(), request.slippagePct(),
 				request.leverageOrDefault(),
 				request.executionModelOrDefault(),
-				request.sameCandlePolicyOrDefault());
+				request.sameCandlePolicyOrDefault(),
+				request.strategyParams() == null ? null : request.strategyParams().toString());
 		return toDto(service.startBacktest(currentUser(), cfg, request));
 	}
 

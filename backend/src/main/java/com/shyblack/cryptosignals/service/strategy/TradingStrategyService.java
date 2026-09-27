@@ -52,6 +52,7 @@ public class TradingStrategyService {
         s.setStatus(StrategyStatus.ACTIVE);
         s.setDeletable(true);
         s.setEditable(true);
+        s.setEngineKey(normalizeEngineKey(req.engineKey(), req.tradingMode()));
         StrategyConfigDto config = req.config() != null ? req.config()
                 : (req.tradingMode() == TradingMode.FUTURES
                         ? StrategyConfigDto.futuresDefaults()
@@ -71,6 +72,9 @@ public class TradingStrategyService {
         if (req.name() != null) s.setName(req.name());
         if (req.description() != null) s.setDescription(req.description());
         if (req.status() != null) s.setStatus(req.status());
+        if (req.engineKey() != null) {
+            s.setEngineKey(normalizeEngineKey(req.engineKey(), s.getTradingMode()));
+        }
         if (req.config() != null) {
             s.setConfigJson(serialize(req.config()));
             s.setVersion(s.getVersion() + 1); // bump version on config change
@@ -140,7 +144,26 @@ public class TradingStrategyService {
         }
         return new TradingStrategyResponse(s.getId(), s.getName(), s.getDescription(),
                 s.getTradingMode(), s.getStrategyType(), s.getVersion(), s.getStatus(),
-                s.isDeletable(), s.isEditable(), config, s.getCreatedAt(), s.getUpdatedAt());
+                s.isDeletable(), s.isEditable(), config, s.getEngineKey(),
+                s.getCreatedAt(), s.getUpdatedAt());
+    }
+
+    /**
+     * Validates and normalizes a requested engine key. Null/blank = legacy
+     * engine (unchanged behaviour). Unknown engines are rejected rather than
+     * persisted, and TREND_PULLBACK is SPOT-only.
+     */
+    private String normalizeEngineKey(String engineKey, TradingMode mode) {
+        if (engineKey == null || engineKey.isBlank()) {
+            return null;
+        }
+        if (!TrendPullbackConfig.ENGINE_KEY.equals(engineKey)) {
+            throw new BadRequestException("Unknown strategy engine: " + engineKey);
+        }
+        if (mode != TradingMode.SPOT) {
+            throw new BadRequestException("TREND_PULLBACK engine requires SPOT mode");
+        }
+        return engineKey;
     }
 
     private String serialize(StrategyConfigDto config) {

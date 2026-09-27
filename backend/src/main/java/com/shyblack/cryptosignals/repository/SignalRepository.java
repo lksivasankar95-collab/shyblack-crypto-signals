@@ -16,4 +16,7 @@ public interface SignalRepository extends JpaRepository<Signal, UUID> {
 
     List<Signal> findByTradingModeAndStatusIn(
             TradingMode mode, List<SignalStatus> statuses);
+
+    boolean existsBySymbolAndTradingModeAndSetupId(
+            String symbol, TradingMode mode, String setupId);
 }

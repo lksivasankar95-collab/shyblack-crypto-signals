@@ -8,5 +8,7 @@ public record CreateStrategyRequest(
         @NotBlank String name,
         String description,
         @NotNull TradingMode tradingMode,
-        StrategyConfigDto config
+        StrategyConfigDto config,
+        /** Optional signal-engine discriminator, e.g. TREND_PULLBACK. Null = legacy engine. */
+        String engineKey
 ) {}
