@@ -20,8 +20,19 @@ class TradingStrategyRepositoryImpl implements TradingStrategyRepository {
       name: name,
       description: description,
       tradingMode: _modeStr(tradingMode),
-      config: config?.pullback == null ? null : {'pullback': config!.pullback!.toJson()},
+      config: _configMap(config),
       engineKey: engineKey);
+
+  /// Serializes whichever strategy-engine sub-config is present.
+  static Map<String, dynamic>? _configMap(StrategyConfig? config) {
+    if (config == null) return null;
+    final map = <String, dynamic>{};
+    if (config.pullback != null) map['pullback'] = config.pullback!.toJson();
+    if (config.emaTrendFollowing != null) {
+      map['emaTrendFollowing'] = config.emaTrendFollowing!.toJson();
+    }
+    return map.isEmpty ? null : map;
+  }
 
   @override
   Future<void> deleteStrategy(String id) => _remote.deleteStrategy(id);

@@ -11,6 +11,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import org.slf4j.Logger;
@@ -108,7 +109,9 @@ public class BinanceRestClient {
 					.uri(uriBuilder -> uriBuilder
 							.path("/api/v3/klines")
 							.queryParam("symbol", MarketTickerStore.normalize(symbol))
-							.queryParam("interval", interval)
+							// Binance interval strings are lowercase ("1h"/"15m"); strategy
+							// configs use "1H"/"15M", which Binance rejects with HTTP 400.
+							.queryParam("interval", interval == null ? null : interval.toLowerCase(Locale.ROOT))
 							.queryParamIfPresent("startTime", Optional.ofNullable(startTime))
 							.queryParamIfPresent("endTime", Optional.ofNullable(endTime))
 							.queryParam("limit", capped)

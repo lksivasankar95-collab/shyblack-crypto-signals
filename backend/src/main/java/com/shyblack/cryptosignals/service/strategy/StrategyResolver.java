@@ -87,4 +87,27 @@ public class StrategyResolver {
         }
         return TrendPullbackConfig.defaults();
     }
+
+    /**
+     * Reads the {@code emaTrendFollowing} block of an EMA_TREND_FOLLOWING
+     * strategy's config, falling back to built-in defaults for missing fields.
+     */
+    public com.shyblack.cryptosignals.dto.strategy.EMATrendFollowingConfig parseEmaTrendFollowingConfig(
+            TradingStrategy strategy) {
+        if (strategy == null || strategy.getConfigJson() == null) {
+            return com.shyblack.cryptosignals.dto.strategy.EMATrendFollowingConfig.defaults();
+        }
+        try {
+            JsonNode root = objectMapper.readTree(strategy.getConfigJson());
+            JsonNode node = root.get("emaTrendFollowing");
+            if (node != null && !node.isNull()) {
+                return objectMapper.treeToValue(
+                        node, com.shyblack.cryptosignals.dto.strategy.EMATrendFollowingConfig.class);
+            }
+        } catch (Exception ex) {
+            log.warn("[StrategyResolver] Failed to parse EMA-trend-following config for strategy {}, using defaults: {}",
+                    strategy.getId(), ex.getMessage());
+        }
+        return com.shyblack.cryptosignals.dto.strategy.EMATrendFollowingConfig.defaults();
+    }
 }

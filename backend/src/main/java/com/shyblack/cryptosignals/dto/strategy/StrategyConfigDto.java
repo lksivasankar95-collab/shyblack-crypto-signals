@@ -6,7 +6,8 @@ public record StrategyConfigDto(
         FilterConfig filters,
         EntryConfig entry,
         FuturesConfig futures, // null for SPOT
-        TrendPullbackConfig pullback // null unless the strategy uses TREND_PULLBACK
+        TrendPullbackConfig pullback, // null unless the strategy uses TREND_PULLBACK
+        EMATrendFollowingConfig emaTrendFollowing // null unless the strategy uses EMA_TREND_FOLLOWING
 ) {
     public record IndicatorConfig(
             int emaFast, int emaMid, int emaSlow,
@@ -55,19 +56,26 @@ public record StrategyConfigDto(
     public static StrategyConfigDto spotDefaults() {
         return new StrategyConfigDto(
                 IndicatorConfig.defaults(), ScoringConfig.defaults(),
-                FilterConfig.defaults(), EntryConfig.defaults(), null, null);
+                FilterConfig.defaults(), EntryConfig.defaults(), null, null, null);
     }
 
     public static StrategyConfigDto futuresDefaults() {
         return new StrategyConfigDto(
                 IndicatorConfig.defaults(), ScoringConfig.defaults(),
-                FilterConfig.defaults(), EntryConfig.defaults(), FuturesConfig.defaults(), null);
+                FilterConfig.defaults(), EntryConfig.defaults(), FuturesConfig.defaults(), null, null);
     }
 
     public static StrategyConfigDto trendPullbackDefaults() {
         return new StrategyConfigDto(
                 IndicatorConfig.defaults(), ScoringConfig.defaults(),
                 FilterConfig.defaults(), EntryConfig.defaults(), null,
-                TrendPullbackConfig.defaults());
+                TrendPullbackConfig.defaults(), null);
+    }
+
+    public static StrategyConfigDto emaTrendFollowingDefaults() {
+        return new StrategyConfigDto(
+                IndicatorConfig.defaults(), ScoringConfig.defaults(),
+                FilterConfig.defaults(), EntryConfig.defaults(), null, null,
+                EMATrendFollowingConfig.defaults());
     }
 }

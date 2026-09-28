@@ -157,11 +157,13 @@ public class TradingStrategyService {
         if (engineKey == null || engineKey.isBlank()) {
             return null;
         }
-        if (!TrendPullbackConfig.ENGINE_KEY.equals(engineKey)) {
+        boolean trendPullback = com.shyblack.cryptosignals.dto.strategy.TrendPullbackConfig.ENGINE_KEY.equals(engineKey);
+        boolean emaTrendFollowing = com.shyblack.cryptosignals.dto.strategy.EMATrendFollowingConfig.ENGINE_KEY.equals(engineKey);
+        if (!trendPullback && !emaTrendFollowing) {
             throw new BadRequestException("Unknown strategy engine: " + engineKey);
         }
         if (mode != TradingMode.SPOT) {
-            throw new BadRequestException("TREND_PULLBACK engine requires SPOT mode");
+            throw new BadRequestException(engineKey + " engine requires SPOT mode");
         }
         return engineKey;
     }

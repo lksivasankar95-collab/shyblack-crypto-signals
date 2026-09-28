@@ -237,6 +237,10 @@ class _StrategyCard extends StatelessWidget {
             const SizedBox(height: 10),
             _PullbackSummary(config: strategy.config!.pullback!),
           ],
+          if (strategy.config?.emaTrendFollowing != null) ...[
+            const SizedBox(height: 10),
+            _EmaTrendSummary(config: strategy.config!.emaTrendFollowing!),
+          ],
           const SizedBox(height: 12),
           Row(children: [
             if (!isActive)
@@ -287,6 +291,43 @@ class _StrategyCard extends StatelessWidget {
       child: Text(label, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w700)),
     );
   }
+}
+
+/// Read-only summary of an EMA_TREND_FOLLOWING strategy's parameters.
+class _EmaTrendSummary extends StatelessWidget {
+  final EmaTrendFollowingConfig config;
+  const _EmaTrendSummary({required this.config});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFF2A2A2A)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text('EMA TREND FOLLOWING · SPOT · LONG ONLY',
+            style: TextStyle(color: AppColors.accent, fontSize: 10, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 6),
+        _row(context, 'Timeframes', '${config.htfTimeframe} → ${config.entryTimeframe}'),
+        _row(context, 'Trend', 'EMA${config.htfFastEma}/${config.htfSlowEma} · slope ${config.trendSlopeLookback}'),
+        _row(context, 'Entry', 'EMA${config.entryFastEma}/${config.entrySlowEma} · sep ≥ ${config.minimumEmaSeparationPct}%'),
+        _row(context, 'RSI', config.rsiFilterEnabled ? '${config.minimumRsiForLong}-${config.maximumRsiForLong}' : 'off'),
+        _row(context, 'Risk', 'R:R ≥ ${config.minRR} · TP ${config.tp1R}R/${config.tp2R}R/${config.tp3R}R'),
+        _row(context, 'Min score', '${config.minimumScore}/100'),
+      ]),
+    );
+  }
+
+  static Widget _row(BuildContext context, String label, String value) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 1.5),
+        child: Row(children: [
+          SizedBox(width: 78, child: Text(label, style: const TextStyle(color: AppColors.muted, fontSize: 11))),
+          Expanded(child: Text(value, style: const TextStyle(color: AppColors.onBackground, fontSize: 11, fontWeight: FontWeight.w600))),
+        ]),
+      );
 }
 
 /// Read-only summary of a TREND_PULLBACK strategy's parameters, rendered from

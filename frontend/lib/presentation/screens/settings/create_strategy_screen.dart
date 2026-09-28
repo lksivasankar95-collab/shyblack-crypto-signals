@@ -5,6 +5,9 @@ import '../../../core/theme/app_colors.dart';
 import '../../../domain/entities/trading_strategy.dart';
 import '../../providers/strategy_providers.dart';
 
+/// Selectable signal engines for a new SPOT strategy.
+enum _StrategyEngine { defaultEngine, trendPullback, emaTrendFollowing }
+
 class CreateStrategyScreen extends ConsumerStatefulWidget {
   final StrategyTradingMode mode;
   const CreateStrategyScreen({super.key, required this.mode});
@@ -17,7 +20,7 @@ class _CreateStrategyScreenState extends ConsumerState<CreateStrategyScreen> {
   final _nameCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
   bool _saving = false;
-  bool _trendPullback = false;
+  _StrategyEngine _engine = _StrategyEngine.defaultEngine;
 
   @override
   void dispose() {
@@ -39,10 +42,18 @@ class _CreateStrategyScreenState extends ConsumerState<CreateStrategyScreen> {
       await ref.read(strategyTabProvider(widget.mode).notifier).createStrategy(
             name,
             _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
-            engineKey: _trendPullback ? 'TREND_PULLBACK' : null,
-            config: _trendPullback
-                ? const StrategyConfig(pullback: PullbackConfig())
-                : null,
+            engineKey: switch (_engine) {
+              _StrategyEngine.trendPullback => 'TREND_PULLBACK',
+              _StrategyEngine.emaTrendFollowing => 'EMA_TREND_FOLLOWING',
+              _StrategyEngine.defaultEngine => null,
+            },
+            config: switch (_engine) {
+              _StrategyEngine.trendPullback =>
+                const StrategyConfig(pullback: PullbackConfig()),
+              _StrategyEngine.emaTrendFollowing =>
+                const StrategyConfig(emaTrendFollowing: EmaTrendFollowingConfig()),
+              _StrategyEngine.defaultEngine => null,
+            },
           );
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
@@ -121,10 +132,14 @@ class _CreateStrategyScreenState extends ConsumerState<CreateStrategyScreen> {
                 const Text('Signal Engine',
                     style: TextStyle(color: AppColors.muted, fontSize: 12, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 8),
-                _engineOption('Default (EMA + RSI)', !_trendPullback,
-                    () => setState(() => _trendPullback = false)),
-                _engineOption('Trend Pullback (HTF pullback continuation)', _trendPullback,
-                    () => setState(() => _trendPullback = true)),
+                _engineOption('Default (EMA + RSI)', _engine == _StrategyEngine.defaultEngine,
+                    () => setState(() => _engine = _StrategyEngine.defaultEngine)),
+                _engineOption('Trend Pullback (HTF pullback continuation)',
+                    _engine == _StrategyEngine.trendPullback,
+                    () => setState(() => _engine = _StrategyEngine.trendPullback)),
+                _engineOption('EMA Trend Following (HTF trend + entry EMA transition)',
+                    _engine == _StrategyEngine.emaTrendFollowing,
+                    () => setState(() => _engine = _StrategyEngine.emaTrendFollowing)),
               ]),
             ),
           ],
@@ -140,7 +155,7 @@ class _CreateStrategyScreenState extends ConsumerState<CreateStrategyScreen> {
               const Text('Strategy Configuration',
                   style: TextStyle(color: AppColors.onBackground, fontWeight: FontWeight.w700, fontSize: 14)),
               const SizedBox(height: 6),
-              if (_trendPullback) ...[
+              if (_engine == _StrategyEngine.trendPullback) ...[
                 const Text(
                   'Trend Pullback will run with its default configuration. You can '
                   'tune parameters after creation via the strategy config.',
@@ -152,6 +167,19 @@ class _CreateStrategyScreenState extends ConsumerState<CreateStrategyScreen> {
                 _configRow('Trend', 'EMA 50/200 · ADX ≥ 20'),
                 _configRow('Pullback', 'EMA20-EMA50 · RSI 40-60'),
                 _configRow('Risk', 'R:R ≥ 1.5 · TP 1R/2R/3R'),
+                _configRow('Min score', '70/100'),
+              ] else if (_engine == _StrategyEngine.emaTrendFollowing) ...[
+                const Text(
+                  'EMA Trend Following will run with its default configuration. You can '
+                  'tune parameters after creation via the strategy config.',
+                  style: TextStyle(color: AppColors.muted, fontSize: 12),
+                ),
+                const SizedBox(height: 12),
+                _configRow('Market', 'SPOT · LONG only'),
+                _configRow('Timeframes', '1H / 15M'),
+                _configRow('Trend', 'EMA 50/200 · slope + separation'),
+                _configRow('Entry', 'EMA20/50 transition · RSI 50-70'),
+                _configRow('Risk', 'R:R ≥ 1.5 · TP 1.5R/2.5R/4R'),
                 _configRow('Min score', '70/100'),
               ] else ...[
                 const Text(

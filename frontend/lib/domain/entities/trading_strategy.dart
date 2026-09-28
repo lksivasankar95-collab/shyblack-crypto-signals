@@ -53,6 +53,7 @@ class StrategyConfig {
   final EntryConfig? entry;
   final FuturesStrategyConfig? futures;
   final PullbackConfig? pullback;
+  final EmaTrendFollowingConfig? emaTrendFollowing;
 
   const StrategyConfig({
     this.indicators,
@@ -61,7 +62,99 @@ class StrategyConfig {
     this.entry,
     this.futures,
     this.pullback,
+    this.emaTrendFollowing,
   });
+}
+
+/// Configuration for the EMA_TREND_FOLLOWING strategy (LONG-only SPOT).
+class EmaTrendFollowingConfig {
+  final String htfTimeframe, entryTimeframe;
+  final int htfFastEma, htfSlowEma, trendSlopeLookback;
+  final int entryFastEma, entrySlowEma;
+  final double minimumEmaSeparationPct;
+  final bool rsiFilterEnabled;
+  final int rsiPeriod;
+  final double minimumRsiForLong, maximumRsiForLong;
+  final bool volumeFilterEnabled;
+  final int volumePeriod;
+  final double minimumVolumeRatio;
+  final bool atrFilterEnabled;
+  final int atrPeriod;
+  final double minimumAtrPct;
+  final double slAtrBuffer, minRR, tp1R, tp2R, tp3R;
+  final int cooldownCandles;
+  final int minimumScore;
+  final int weightTrendAlignment, weightEmaTransition, weightPriceConfirmation,
+      weightMomentum, weightVolume, weightVolatility;
+
+  const EmaTrendFollowingConfig({
+    this.htfTimeframe = '1H',
+    this.entryTimeframe = '15M',
+    this.htfFastEma = 50,
+    this.htfSlowEma = 200,
+    this.trendSlopeLookback = 5,
+    this.entryFastEma = 20,
+    this.entrySlowEma = 50,
+    this.minimumEmaSeparationPct = 0.10,
+    this.rsiFilterEnabled = true,
+    this.rsiPeriod = 14,
+    this.minimumRsiForLong = 50,
+    this.maximumRsiForLong = 70,
+    this.volumeFilterEnabled = true,
+    this.volumePeriod = 20,
+    this.minimumVolumeRatio = 1.20,
+    this.atrFilterEnabled = true,
+    this.atrPeriod = 14,
+    this.minimumAtrPct = 0.30,
+    this.slAtrBuffer = 1.5,
+    this.minRR = 1.5,
+    this.tp1R = 1.5,
+    this.tp2R = 2.5,
+    this.tp3R = 4.0,
+    this.cooldownCandles = 4,
+    this.minimumScore = 70,
+    this.weightTrendAlignment = 30,
+    this.weightEmaTransition = 20,
+    this.weightPriceConfirmation = 20,
+    this.weightMomentum = 15,
+    this.weightVolume = 10,
+    this.weightVolatility = 5,
+  });
+
+  /// Serializable form matching the backend EMATrendFollowingConfig.
+  Map<String, dynamic> toJson() => {
+        'htfTimeframe': htfTimeframe,
+        'entryTimeframe': entryTimeframe,
+        'htfFastEma': htfFastEma,
+        'htfSlowEma': htfSlowEma,
+        'trendSlopeLookback': trendSlopeLookback,
+        'entryFastEma': entryFastEma,
+        'entrySlowEma': entrySlowEma,
+        'minimumEmaSeparationPct': minimumEmaSeparationPct,
+        'rsiFilterEnabled': rsiFilterEnabled,
+        'rsiPeriod': rsiPeriod,
+        'minimumRsiForLong': minimumRsiForLong,
+        'maximumRsiForLong': maximumRsiForLong,
+        'volumeFilterEnabled': volumeFilterEnabled,
+        'volumePeriod': volumePeriod,
+        'minimumVolumeRatio': minimumVolumeRatio,
+        'atrFilterEnabled': atrFilterEnabled,
+        'atrPeriod': atrPeriod,
+        'minimumAtrPct': minimumAtrPct,
+        'slAtrBuffer': slAtrBuffer,
+        'minRR': minRR,
+        'tp1R': tp1R,
+        'tp2R': tp2R,
+        'tp3R': tp3R,
+        'cooldownCandles': cooldownCandles,
+        'minimumScore': minimumScore,
+        'weightTrendAlignment': weightTrendAlignment,
+        'weightEmaTransition': weightEmaTransition,
+        'weightPriceConfirmation': weightPriceConfirmation,
+        'weightMomentum': weightMomentum,
+        'weightVolume': weightVolume,
+        'weightVolatility': weightVolatility,
+      };
 }
 
 /// Configuration for the TREND_PULLBACK strategy (LONG-only SPOT).

@@ -35,6 +35,10 @@ public class SystemStrategySeeder implements ApplicationRunner {
                         + "Enters on a confirmed lower-timeframe reversal inside the EMA pullback zone.",
                 TradingMode.SPOT, StrategyConfigDto.trendPullbackDefaults(),
                 com.shyblack.cryptosignals.dto.strategy.TrendPullbackConfig.ENGINE_KEY);
+        seedIfAbsent("EMA Trend Following", "HTF EMA trend regime + entry EMA transition (LONG-only SPOT). "
+                        + "Buys a confirmed EMA20/EMA50 bullish transition with momentum/volume/volatility confirmation.",
+                TradingMode.SPOT, StrategyConfigDto.emaTrendFollowingDefaults(),
+                com.shyblack.cryptosignals.dto.strategy.EMATrendFollowingConfig.ENGINE_KEY);
         log.info("[StrategySeeder] System strategies initialized");
     }
 

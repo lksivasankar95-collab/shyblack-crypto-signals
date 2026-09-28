@@ -1,5 +1,6 @@
 package com.shyblack.cryptosignals.service;
 
+import com.shyblack.cryptosignals.dto.strategy.EMATrendFollowingConfig;
 import com.shyblack.cryptosignals.dto.strategy.TrendPullbackConfig;
 import com.shyblack.cryptosignals.entity.Signal;
 import com.shyblack.cryptosignals.entity.TradingStrategy;
@@ -42,6 +43,7 @@ public class SpotSignalScheduler {
     private final org.springframework.context.ApplicationEventPublisher eventPublisher;
     private final StrategyResolver strategyResolver;
     private final TrendPullbackSignalService trendPullbackSignalService;
+    private final EmaTrendFollowingSignalService emaTrendFollowingSignalService;
 
     @Scheduled(cron = SignalConstants.SIGNAL_CRON)
     @Transactional
@@ -61,6 +63,11 @@ public class SpotSignalScheduler {
         if (TrendPullbackConfig.ENGINE_KEY.equals(activeStrategy.getEngineKey())) {
             log.info("[SignalCycle] Routing to TREND_PULLBACK engine");
             trendPullbackSignalService.runCycle(activeStrategy);
+            return;
+        }
+        if (EMATrendFollowingConfig.ENGINE_KEY.equals(activeStrategy.getEngineKey())) {
+            log.info("[SignalCycle] Routing to EMA_TREND_FOLLOWING engine");
+            emaTrendFollowingSignalService.runCycle(activeStrategy);
             return;
         }
 

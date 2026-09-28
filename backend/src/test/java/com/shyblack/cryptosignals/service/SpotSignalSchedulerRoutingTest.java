@@ -36,13 +36,30 @@ class SpotSignalSchedulerRoutingTest {
     @Mock ApplicationEventPublisher eventPublisher;
     @Mock StrategyResolver strategyResolver;
     @Mock TrendPullbackSignalService trendPullbackSignalService;
+    @Mock EmaTrendFollowingSignalService emaTrendFollowingSignalService;
 
     private SpotSignalScheduler scheduler;
 
     @BeforeEach
     void setUp() {
         scheduler = new SpotSignalScheduler(engine, signalRepository, marketBook,
-                notificationService, eventPublisher, strategyResolver, trendPullbackSignalService);
+                notificationService, eventPublisher, strategyResolver,
+                trendPullbackSignalService, emaTrendFollowingSignalService);
+    }
+
+    @Test
+    void emaTrendFollowingStrategy_routesToService_andSkipsLegacyPath() {
+        TradingStrategy strategy = new TradingStrategy();
+        strategy.setName("EMA Trend Following");
+        strategy.setTradingMode(TradingMode.SPOT);
+        strategy.setEngineKey("EMA_TREND_FOLLOWING");
+        when(strategyResolver.resolveActive(TradingMode.SPOT)).thenReturn(Optional.of(strategy));
+
+        scheduler.runSignalCycle();
+
+        verify(emaTrendFollowingSignalService).runCycle(strategy);
+        verify(trendPullbackSignalService, never()).runCycle(any());
+        verifyNoInteractions(engine, marketBook, signalRepository);
     }
 
     @Test

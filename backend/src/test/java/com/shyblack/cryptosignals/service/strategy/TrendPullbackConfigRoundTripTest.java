@@ -75,7 +75,8 @@ class TrendPullbackConfigRoundTripTest {
                 StrategyConfigDto.FilterConfig.defaults(),
                 StrategyConfigDto.EntryConfig.defaults(),
                 null,
-                original);
+                original,
+                null);
 
         TradingStrategy strategy = new TradingStrategy();
         strategy.setConfigJson(MAPPER.writeValueAsString(dto));
@@ -103,7 +104,7 @@ class TrendPullbackConfigRoundTripTest {
     void defaults_surviveRoundTrip() throws Exception {
         TrendPullbackConfig original = TrendPullbackConfig.defaults();
         String json = MAPPER.writeValueAsString(
-                new StrategyConfigDto(null, null, null, null, null, original));
+                new StrategyConfigDto(null, null, null, null, null, original, null));
 
         TradingStrategy strategy = new TradingStrategy();
         strategy.setConfigJson(json);

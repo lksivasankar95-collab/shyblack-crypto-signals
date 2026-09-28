@@ -61,7 +61,9 @@ class TradingStrategyModel {
     final en = json['entry'] as Map<String, dynamic>?;
     final fu = json['futures'] as Map<String, dynamic>?;
     final pb = json['pullback'] as Map<String, dynamic>?;
+    final etf = json['emaTrendFollowing'] as Map<String, dynamic>?;
     return StrategyConfig(
+      emaTrendFollowing: etf != null ? _ema(etf) : null,
       pullback: pb != null ? PullbackConfig(
         htf: pb['htf'] as String? ?? '1H',
         entryTimeframe: pb['entryTimeframe'] as String? ?? '15M',
@@ -133,4 +135,38 @@ class TradingStrategyModel {
       ) : null,
     );
   }
+
+  static EmaTrendFollowingConfig _ema(Map<String, dynamic> j) => EmaTrendFollowingConfig(
+        htfTimeframe: j['htfTimeframe'] as String? ?? '1H',
+        entryTimeframe: j['entryTimeframe'] as String? ?? '15M',
+        htfFastEma: j['htfFastEma'] as int? ?? 50,
+        htfSlowEma: j['htfSlowEma'] as int? ?? 200,
+        trendSlopeLookback: j['trendSlopeLookback'] as int? ?? 5,
+        entryFastEma: j['entryFastEma'] as int? ?? 20,
+        entrySlowEma: j['entrySlowEma'] as int? ?? 50,
+        minimumEmaSeparationPct: (j['minimumEmaSeparationPct'] as num?)?.toDouble() ?? 0.10,
+        rsiFilterEnabled: j['rsiFilterEnabled'] as bool? ?? true,
+        rsiPeriod: j['rsiPeriod'] as int? ?? 14,
+        minimumRsiForLong: (j['minimumRsiForLong'] as num?)?.toDouble() ?? 50,
+        maximumRsiForLong: (j['maximumRsiForLong'] as num?)?.toDouble() ?? 70,
+        volumeFilterEnabled: j['volumeFilterEnabled'] as bool? ?? true,
+        volumePeriod: j['volumePeriod'] as int? ?? 20,
+        minimumVolumeRatio: (j['minimumVolumeRatio'] as num?)?.toDouble() ?? 1.20,
+        atrFilterEnabled: j['atrFilterEnabled'] as bool? ?? true,
+        atrPeriod: j['atrPeriod'] as int? ?? 14,
+        minimumAtrPct: (j['minimumAtrPct'] as num?)?.toDouble() ?? 0.30,
+        slAtrBuffer: (j['slAtrBuffer'] as num?)?.toDouble() ?? 1.5,
+        minRR: (j['minRR'] as num?)?.toDouble() ?? 1.5,
+        tp1R: (j['tp1R'] as num?)?.toDouble() ?? 1.5,
+        tp2R: (j['tp2R'] as num?)?.toDouble() ?? 2.5,
+        tp3R: (j['tp3R'] as num?)?.toDouble() ?? 4.0,
+        cooldownCandles: j['cooldownCandles'] as int? ?? 4,
+        minimumScore: j['minimumScore'] as int? ?? 70,
+        weightTrendAlignment: j['weightTrendAlignment'] as int? ?? 30,
+        weightEmaTransition: j['weightEmaTransition'] as int? ?? 20,
+        weightPriceConfirmation: j['weightPriceConfirmation'] as int? ?? 20,
+        weightMomentum: j['weightMomentum'] as int? ?? 15,
+        weightVolume: j['weightVolume'] as int? ?? 10,
+        weightVolatility: j['weightVolatility'] as int? ?? 5,
+      );
 }
