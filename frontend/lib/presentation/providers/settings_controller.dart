@@ -17,7 +17,24 @@ class SettingsController extends AsyncNotifier<AppSettings> {
     if (current == null) {
       return;
     }
-    await patch(current.copyWith(tradingMode: mode));
+    await patch(current.copyWith(tradingMode: mode, selectedTradingModes: [mode]));
+  }
+
+  /// Multi-select update. At least one mode must remain selected; the singular
+  /// [AppSettings.tradingMode] mirrors the first entry for legacy consumers.
+  Future<void> setSelectedTradingModes(List<TradingMode> modes) async {
+    if (modes.isEmpty) {
+      return;
+    }
+    final current = state.value;
+    if (current == null) {
+      return;
+    }
+    final normalized = [for (final mode in TradingMode.values) if (modes.contains(mode)) mode];
+    await patch(current.copyWith(
+      selectedTradingModes: List.unmodifiable(normalized),
+      tradingMode: normalized.first,
+    ));
   }
 
   Future<void> setTradingAccount(TradingAccount account) async {

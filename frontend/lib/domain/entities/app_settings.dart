@@ -55,6 +55,7 @@ class AppSettings {
     required this.memberSince,
     required this.membershipTier,
     required this.tradingMode,
+    this.selectedTradingModes = const [TradingMode.spot],
     required this.tradingAccount,
     required this.quoteCurrency,
     required this.riskProfile,
@@ -75,6 +76,10 @@ class AppSettings {
   final String memberSince;
   final String membershipTier;
   final TradingMode tradingMode;
+
+  /// Multi-select trading modes. Always non-empty; [tradingMode] mirrors the
+  /// first entry for backward compatibility with singular consumers.
+  final List<TradingMode> selectedTradingModes;
   final TradingAccount tradingAccount;
   final String quoteCurrency;
   final RiskProfile riskProfile;
@@ -95,6 +100,7 @@ class AppSettings {
     memberSince: '',
     membershipTier: 'Standard',
     tradingMode: TradingMode.spot,
+    selectedTradingModes: [TradingMode.spot],
     tradingAccount: TradingAccount.paper,
     quoteCurrency: 'USDT',
     riskProfile: RiskProfile.moderate,
@@ -116,6 +122,7 @@ class AppSettings {
     String? memberSince,
     String? membershipTier,
     TradingMode? tradingMode,
+    List<TradingMode>? selectedTradingModes,
     TradingAccount? tradingAccount,
     String? quoteCurrency,
     RiskProfile? riskProfile,
@@ -136,6 +143,7 @@ class AppSettings {
       memberSince: memberSince ?? this.memberSince,
       membershipTier: membershipTier ?? this.membershipTier,
       tradingMode: tradingMode ?? this.tradingMode,
+      selectedTradingModes: selectedTradingModes ?? this.selectedTradingModes,
       tradingAccount: tradingAccount ?? this.tradingAccount,
       quoteCurrency: quoteCurrency ?? this.quoteCurrency,
       riskProfile: riskProfile ?? this.riskProfile,

@@ -199,6 +199,62 @@ class SettingsServiceTest {
 		assertThat(credential.maskedApiKey()).doesNotContain("ciphertext-key-part");
 	}
 
+	@Test
+	void getFallsBackToLegacySingleModeForPreExistingUsers() {
+		when(settingsRepository.findByUser_Id(user.getId()))
+				.thenReturn(Optional.of(existingSettings()));
+
+		SettingsResponse response = service.get(principal);
+
+		// No multi-select stored -> legacy singular mode becomes a one-element list.
+		assertThat(response.selectedTradingModes()).containsExactly(TradingMode.SPOT);
+	}
+
+	@Test
+	void updateStoresMultipleModesAndKeepsLegacyFieldConsistent() {
+		when(settingsRepository.findByUser_Id(user.getId()))
+				.thenReturn(Optional.of(existingSettings()));
+
+		SettingsUpdateRequest request = new SettingsUpdateRequest(
+				null, null, null, null, null, null, null, null, null,
+				List.of(TradingMode.FUTURES, TradingMode.SPOT));
+
+		SettingsResponse response = service.update(principal, request);
+
+		assertThat(response.selectedTradingModes())
+				.containsExactly(TradingMode.SPOT, TradingMode.FUTURES);
+		assertThat(response.tradingMode()).isIn(TradingMode.SPOT, TradingMode.FUTURES);
+		verify(settingsRepository).save(any(UserSettings.class));
+		verify(userRepository).save(any(User.class));
+	}
+
+	@Test
+	void updateDeduplicatesSelectedModes() {
+		when(settingsRepository.findByUser_Id(user.getId()))
+				.thenReturn(Optional.of(existingSettings()));
+
+		SettingsUpdateRequest request = new SettingsUpdateRequest(
+				null, null, null, null, null, null, null, null, null,
+				List.of(TradingMode.SPOT, TradingMode.SPOT, TradingMode.FUTURES));
+
+		SettingsResponse response = service.update(principal, request);
+
+		assertThat(response.selectedTradingModes()).hasSize(2);
+	}
+
+	@Test
+	void updateRejectsEmptySelectedModes() {
+		when(settingsRepository.findByUser_Id(user.getId()))
+				.thenReturn(Optional.of(existingSettings()));
+
+		SettingsUpdateRequest request = new SettingsUpdateRequest(
+				null, null, null, null, null, null, null, null, null, List.of());
+
+		assertThatThrownBy(() -> service.update(principal, request))
+				.isInstanceOf(BadRequestException.class)
+				.hasMessageContaining("at least one mode");
+	}
+
 	private UserSettings existingSettings() {
 		UserSettings settings = new UserSettings();
 		settings.setUser(user);

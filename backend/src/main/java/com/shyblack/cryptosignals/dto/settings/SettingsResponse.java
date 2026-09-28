@@ -21,6 +21,7 @@ public record SettingsResponse(
 		String fullName,
 		AccountType accountType,
 		TradingMode tradingMode,
+		List<TradingMode> selectedTradingModes,
 		RiskProfile riskProfile,
 		RiskProfile riskProfileOverride,
 		QuoteCurrency quoteCurrency,

@@ -20,8 +20,10 @@ import com.shyblack.cryptosignals.exception.ResourceNotFoundException;
 import com.shyblack.cryptosignals.repository.UserRepository;
 import com.shyblack.cryptosignals.repository.UserSettingsRepository;
 import com.shyblack.cryptosignals.security.UserPrincipal;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -97,13 +99,20 @@ public class SettingsService {
 			changed = true;
 		}
 
-		if (changed) {
-			userSettingsRepository.save(settings);
-		}
-
 		boolean userChanged = false;
 		if (request.tradingMode() != null) {
 			user.setTradingMode(request.tradingMode());
+			userChanged = true;
+		}
+		if (request.selectedTradingModes() != null) {
+			Set<TradingMode> modes = new LinkedHashSet<>(request.selectedTradingModes());
+			if (modes.isEmpty()) {
+				throw new BadRequestException("selectedTradingModes must contain at least one mode");
+			}
+			settings.setSelectedTradingModes(modes);
+			// Keep the legacy singular field consistent with the primary selection.
+			user.setTradingMode(modes.iterator().next());
+			changed = true;
 			userChanged = true;
 		}
 		if (request.accountType() != null) {
@@ -112,6 +121,9 @@ public class SettingsService {
 		}
 		if (userChanged) {
 			userRepository.save(user);
+		}
+		if (changed) {
+			userSettingsRepository.save(settings);
 		}
 
 		return SettingsMappers.toSettingsResponse(

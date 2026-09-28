@@ -59,20 +59,19 @@ class SettingsScreen extends ConsumerWidget {
                   settings: settings,
                   onTap: () => _open(context, const ProfileScreen()),
                 ),
-                const SettingsSectionTitle('TRADING MODE'),
-                Row(
-                  children: [
-                    for (final mode in TradingMode.values) ...[
-                      if (mode != TradingMode.values.first) const SizedBox(width: 8),
-                      Expanded(
-                        child: _ModeCard(
+                const SettingsSectionTitle('TRADING MODES'),
+                SettingsCard(
+                  padding: EdgeInsets.zero,
+                  child: Column(
+                    children: [
+                      for (final mode in TradingMode.values)
+                        _ModeCheckTile(
                           mode: mode,
-                          selected: settings.tradingMode == mode,
-                          onTap: () => ref.read(settingsControllerProvider.notifier).setTradingMode(mode),
+                          selected: settings.selectedTradingModes.contains(mode),
+                          onToggle: () => _toggleMode(context, ref, settings, mode),
                         ),
-                      ),
                     ],
-                  ],
+                  ),
                 ),
                 const SettingsSectionTitle('TRADING ACCOUNT'),
                 SettingsCard(
@@ -259,6 +258,28 @@ class SettingsScreen extends ConsumerWidget {
     Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => screen));
   }
 
+  /// Toggle one trading mode. At least one mode must always remain selected.
+  static Future<void> _toggleMode(
+    BuildContext context,
+    WidgetRef ref,
+    AppSettings settings,
+    TradingMode mode,
+  ) async {
+    final current = List<TradingMode>.from(settings.selectedTradingModes);
+    if (current.contains(mode)) {
+      if (current.length == 1) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Select at least one trading mode')),
+        );
+        return;
+      }
+      current.remove(mode);
+    } else {
+      current.add(mode);
+    }
+    await ref.read(settingsControllerProvider.notifier).setSelectedTradingModes(current);
+  }
+
   static Future<void> _pickTheme(BuildContext context, WidgetRef ref, AppSettings settings) async {
     final next = await _choice(context, 'Theme', const ['dark', 'light', 'system'], settings.themeName);
     if (next != null) {
@@ -370,12 +391,16 @@ class _ProfileSummaryCard extends StatelessWidget {
   }
 }
 
-class _ModeCard extends StatelessWidget {
-  const _ModeCard({required this.mode, required this.selected, required this.onTap});
+class _ModeCheckTile extends StatelessWidget {
+  const _ModeCheckTile({
+    required this.mode,
+    required this.selected,
+    required this.onToggle,
+  });
 
   final TradingMode mode;
   final bool selected;
-  final VoidCallback onTap;
+  final VoidCallback onToggle;
 
   IconData get _icon => switch (mode) {
         TradingMode.spot => Icons.currency_bitcoin,
@@ -386,33 +411,33 @@ class _ModeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-        decoration: BoxDecoration(
-          color: AppColors.card,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: selected ? AppColors.accent : const Color(0xFF2A2A2A), width: selected ? 1.6 : 1),
-        ),
-        child: Column(
+      onTap: onToggle,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        child: Row(
           children: [
-            Icon(_icon, color: selected ? AppColors.accent : AppColors.muted, size: 22),
-            const SizedBox(height: 8),
-            Text(
-              mode.label,
-              style: TextStyle(
-                color: selected ? AppColors.onBackground : AppColors.muted,
-                fontWeight: FontWeight.w700,
-                fontSize: 12,
+            Icon(
+              _icon,
+              color: selected ? AppColors.accent : AppColors.muted,
+              size: 22,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                mode.label,
+                style: TextStyle(
+                  color: selected ? AppColors.onBackground : AppColors.muted,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                ),
               ),
             ),
-            const SizedBox(height: 6),
-            Icon(
-              selected ? Icons.check_circle : Icons.radio_button_unchecked,
-              size: 18,
-              color: selected ? AppColors.accent : AppColors.muted,
+            Checkbox(
+              value: selected,
+              onChanged: (_) => onToggle(),
+              activeColor: AppColors.accent,
+              checkColor: Colors.black,
+              side: const BorderSide(color: AppColors.accent, width: 1.4),
             ),
           ],
         ),
