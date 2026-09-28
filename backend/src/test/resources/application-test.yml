@@ -26,6 +26,10 @@ jwt:
 app:
   google:
     client-id: test-google-client-id
+  news:
+    # Keep the test suite offline: feeds are inherited from application.yml so
+    # configuration presence can be asserted, but the scheduler does not run.
+    enabled: false
   markets:
     websocket-enabled: false
     catalog-enabled: false

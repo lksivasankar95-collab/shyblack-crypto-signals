@@ -288,6 +288,10 @@ final getNewsContextProvider = Provider<GetNewsContext>(
 
 final pendingSignalProvider = StateProvider<String?>((ref) => null);
 
+/// Set when a push notification for a news article is tapped; MainShell
+/// consumes it to open the exact News Detail screen.
+final pendingNewsProvider = StateProvider<String?>((ref) => null);
+
 final paperTradingRemoteDataSourceProvider = Provider<PaperTradingRemoteDataSource>(
   (ref) => PaperTradingRemoteDataSource(ref.watch(apiClientProvider)),
 );

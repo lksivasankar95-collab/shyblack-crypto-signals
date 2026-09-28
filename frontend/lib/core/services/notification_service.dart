@@ -6,6 +6,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../di/providers.dart';
+import '../../presentation/providers/news_providers.dart';
 import '../../presentation/providers/notifications_controller.dart';
 
 final notificationServiceProvider = Provider<NotificationService>((ref) {
@@ -89,7 +90,9 @@ class NotificationService {
     final data = message.data;
     final title = message.notification?.title ?? data['title'] ?? '';
     final body = message.notification?.body ?? data['body'] ?? '';
-    final nid = data['notificationId'] as String? ?? data['signalId'] as String?;
+    final type = data['type'] as String?;
+    final newsId = data['newsId'] as String?;
+    final nid = newsId ?? data['notificationId'] as String? ?? data['signalId'] as String?;
 
     // prevent duplicate local presentation
     if (nid != null && _displayed.contains(nid)) return;
@@ -98,6 +101,13 @@ class NotificationService {
     try {
       await _ref.read(notificationsControllerProvider.notifier).refresh();
     } catch (_) {}
+
+    // News: insert the exact article at the top of the feed (dedup inside).
+    if (type == 'news' && newsId != null) {
+      try {
+        await _ref.read(newsFeedControllerProvider.notifier).prependById(newsId);
+      } catch (_) {}
+    }
 
     // Show local notification for foreground
     if (foreground) {
@@ -116,6 +126,15 @@ class NotificationService {
 
   void _handleTap(RemoteMessage message) {
     final data = message.data;
+    if ((data['type'] as String?) == 'news') {
+      final newsId = data['newsId'] as String?;
+      if (newsId != null) {
+        try {
+          _ref.read(pendingNewsProvider.notifier).state = newsId;
+        } catch (_) {}
+      }
+      return;
+    }
     final signalId = data['signalId'] as String?;
     if (signalId != null) {
       try {

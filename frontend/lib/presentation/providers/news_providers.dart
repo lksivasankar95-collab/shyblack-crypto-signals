@@ -57,6 +57,9 @@ class NewsFeedController extends AsyncNotifier<NewsFeedData> {
   }
 
   Future<void> refresh({bool silent = false}) async {
+    // Reloading page 0 resets the pagination cursor; otherwise a later
+    // loadMore() would request `stalePage + 1` and silently skip pages.
+    _page = 0;
     try {
       final result = await _fetch(0);
       state = AsyncData(
@@ -96,6 +99,33 @@ class NewsFeedController extends AsyncNotifier<NewsFeedData> {
       );
     } catch (_) {
       // Keep the current list; a later pull-to-refresh retries.
+    }
+  }
+
+  /// Real-time insertion: fetch the exact article by id and put it at the top.
+  /// No-op if it is already present. Does NOT touch [_page] or hasNext, so the
+  /// pagination cursor and loadMore() stay correct.
+  Future<void> prependById(String id) async {
+    final current = state.value;
+    if (current != null && current.articles.any((a) => a.id == id)) {
+      return;
+    }
+    try {
+      final detail = await ref.read(getNewsDetailProvider).call(id);
+      final article = detail.article;
+      final base = state.value ?? NewsFeedData.empty;
+      if (base.articles.any((a) => a.id == article.id)) {
+        return;
+      }
+      state = AsyncData(
+        NewsFeedData(
+          articles: [article, ...base.articles],
+          hasNext: base.hasNext,
+          lastUpdated: DateTime.now(),
+        ),
+      );
+    } catch (_) {
+      // Ignore: the next refresh/scroll will pick the article up.
     }
   }
 

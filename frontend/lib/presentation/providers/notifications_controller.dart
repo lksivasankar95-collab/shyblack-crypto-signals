@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/di/providers.dart';
 import '../../data/datasources/markets_websocket_client.dart';
 import '../../domain/entities/notification_item.dart';
+import 'news_providers.dart';
 
 class NotificationsController extends AsyncNotifier<List<NotificationItem>> {
   MarketsSocketSession? _session;
@@ -41,6 +42,15 @@ class NotificationsController extends AsyncNotifier<List<NotificationItem>> {
           final type = (payload['type'] as String?)?.toLowerCase();
           if (type == 'alert') {
             // backend persists notification history; refresh list
+            unawaited(refresh());
+          } else if (type == 'news') {
+            // Real-time news: prepend the exact article without resetting state.
+            final newsId = payload['newsId'] as String?;
+            if (newsId != null && newsId.isNotEmpty) {
+              unawaited(
+                ref.read(newsFeedControllerProvider.notifier).prependById(newsId),
+              );
+            }
             unawaited(refresh());
           }
         } catch (_) {}

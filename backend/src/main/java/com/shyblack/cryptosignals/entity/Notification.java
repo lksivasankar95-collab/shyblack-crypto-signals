@@ -21,7 +21,10 @@ import lombok.Setter;
 @NoArgsConstructor
 @Entity
 @Table(name = "notifications",
-	uniqueConstraints = @UniqueConstraint(name = "uk_notifications_user_signal", columnNames = {"user_id", "signal_id"}))
+	uniqueConstraints = {
+		@UniqueConstraint(name = "uk_notifications_user_signal", columnNames = {"user_id", "signal_id"}),
+		@UniqueConstraint(name = "uk_notifications_user_news", columnNames = {"user_id", "news_id"})
+	})
 public class Notification extends BaseEntity {
 
 	@ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -45,7 +48,10 @@ public class Notification extends BaseEntity {
     
 	// Link to a signal if this notification was generated for a signal
 	private UUID signalId;
-    
+
+	// Link to a news article if this notification was generated for news
+	private UUID newsId;
+
 	// e.g. SPOT
 	private String marketType;
 }

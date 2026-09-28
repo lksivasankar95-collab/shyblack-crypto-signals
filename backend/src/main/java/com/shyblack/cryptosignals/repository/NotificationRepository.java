@@ -15,4 +15,5 @@ public interface NotificationRepository extends JpaRepository<Notification, UUID
 
 	boolean existsBySignalId(UUID signalId);
 	boolean existsByUserAndSignalId(com.shyblack.cryptosignals.entity.User user, UUID signalId);
+	boolean existsByUserAndNewsId(com.shyblack.cryptosignals.entity.User user, UUID newsId);
 }

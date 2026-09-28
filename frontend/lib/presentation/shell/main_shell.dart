@@ -11,6 +11,7 @@ import '../providers/markets_controller.dart';
 import '../providers/signals_controller.dart';
 import '../screens/backtesting/backtesting_screen.dart';
 import '../screens/markets/markets_screen.dart';
+import '../screens/news/news_detail_screen.dart';
 import '../screens/news/news_screen.dart';
 import '../screens/portfolio/portfolio_screen.dart';
 import '../screens/signals/signal_details_screen.dart';
@@ -33,6 +34,22 @@ class MainShell extends ConsumerStatefulWidget {
 
 class _MainShellState extends ConsumerState<MainShell> {
   String? _processingPending;
+  String? _processingPendingNews;
+
+  /// News notification tapped -> open the exact News Detail for that id.
+  void _handlePendingNews(String? newsId) {
+    if (newsId == null || newsId == _processingPendingNews) return;
+    _processingPendingNews = newsId;
+    try {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => NewsDetailScreen(articleId: newsId)),
+      );
+    } finally {
+      final current = ref.read(pendingNewsProvider);
+      if (current == newsId) ref.read(pendingNewsProvider.notifier).state = null;
+      _processingPendingNews = null;
+    }
+  }
 
   void _handlePendingSignal(String? signalId) {
     if (signalId != null && signalId != _processingPending) {
@@ -90,6 +107,14 @@ class _MainShellState extends ConsumerState<MainShell> {
       },
     );
     _handlePendingSignal(ref.read(pendingSignalProvider));
+
+    ref.listen<String?>(
+      pendingNewsProvider,
+      (previous, next) {
+        _handlePendingNews(next);
+      },
+    );
+    _handlePendingNews(ref.read(pendingNewsProvider));
 
     final index = ref.watch(selectedTabProvider);
     ref.watch(marketsControllerProvider);

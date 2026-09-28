@@ -8,6 +8,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import org.mockito.ArgumentCaptor;
+
 import com.shyblack.cryptosignals.config.NewsProperties;
 import com.shyblack.cryptosignals.dto.news.NewsSyncResponse;
 import com.shyblack.cryptosignals.entity.NewsArticle;
@@ -34,6 +36,10 @@ class NewsIngestionServiceTest {
 	private NewsArticleRepository repository;
 	private NewsIngestionService service;
 	private NewsProvider provider;
+	private NewsProviderRegistry registry;
+	private final List<Object> publishedEvents = new java.util.ArrayList<>();
+	private final org.springframework.context.ApplicationEventPublisher eventPublisher =
+			publishedEvents::add;
 
 	@BeforeEach
 	void setUp() {
@@ -50,7 +56,7 @@ class NewsIngestionServiceTest {
 		provider = mock(NewsProvider.class);
 		when(provider.providerName()).thenReturn("rss");
 		when(provider.enabled()).thenReturn(true);
-		NewsProviderRegistry registry = new NewsProviderRegistry(List.of(provider));
+		registry = new NewsProviderRegistry(List.of(provider));
 
 		service = new NewsIngestionService(
 				registry,
@@ -62,7 +68,8 @@ class NewsIngestionServiceTest {
 				new ImpactClassifier(),
 				new NewsScorer(),
 				repository,
-				stubTransactionManager());
+				stubTransactionManager(),
+				eventPublisher);
 	}
 
 	@Test
@@ -91,6 +98,29 @@ class NewsIngestionServiceTest {
 		assertThat(response.failed()).isEqualTo(0);
 
 		verify(repository, times(1)).save(any(NewsArticle.class));
+
+		// Exactly one NewsCreatedEvent for the single new article; none for the
+		// duplicate or the rejected one.
+		assertThat(publishedEvents).hasSize(1);
+		assertThat(publishedEvents.get(0)).isInstanceOf(NewsCreatedEvent.class);
+	}
+
+	@Test
+	void newestArticlesAreKeptWhenSyncLimitExceeded() throws Exception {
+		// Provider returns feed order: oldest first.
+		when(provider.fetchLatest()).thenReturn(List.of(
+				raw("https://x.example/1", "Oldest", "2026-09-17T07:00:00Z"),
+				raw("https://x.example/2", "Middle", "2026-09-17T08:00:00Z"),
+				raw("https://x.example/3", "Newest", "2026-09-17T09:00:00Z")));
+
+		NewsIngestionService limited = serviceWithLimit(2);
+		NewsSyncResponse response = limited.sync(provider);
+
+		assertThat(response.articlesFetched()).isEqualTo(2);
+		ArgumentCaptor<NewsArticle> captor = ArgumentCaptor.forClass(NewsArticle.class);
+		verify(repository, times(2)).save(captor.capture());
+		assertThat(captor.getAllValues()).extracting(NewsArticle::getTitle)
+				.containsExactlyInAnyOrder("Middle", "Newest");
 	}
 
 	@Test
@@ -103,6 +133,21 @@ class NewsIngestionServiceTest {
 		assertThat(responses.get(0).failed()).isEqualTo(1);
 		assertThat(responses.get(0).inserted()).isEqualTo(0);
 		verify(repository, times(0)).save(any(NewsArticle.class));
+	}
+
+	private NewsIngestionService serviceWithLimit(int maxArticlesPerSync) {
+		NewsProperties properties = new NewsProperties(
+				true, "0 */15 * * * *", 10, 20, maxArticlesPerSync, 48, "", List.of("https://feed.example"));
+		return new NewsIngestionService(
+				registry, properties, new DuplicateDetector(repository),
+				new AssetExtractor(new MarketBook()), new CategoryClassifier(), new SentimentAnalyzer(),
+				new ImpactClassifier(), new NewsScorer(), repository, stubTransactionManager(),
+				eventPublisher);
+	}
+
+	private static RawNewsArticle raw(String url, String title, String publishedAt) {
+		return new RawNewsArticle(null, url, title, "summary", null, null, null, "CoinDesk",
+				Instant.parse(publishedAt), "EN", List.of());
 	}
 
 	private static PlatformTransactionManager stubTransactionManager() {

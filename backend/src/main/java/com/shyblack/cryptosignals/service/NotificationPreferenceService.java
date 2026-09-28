@@ -23,6 +23,10 @@ public class NotificationPreferenceService {
         return repo.findByUser(user).map(NotificationPreference::isSignalsEnabled).orElse(true);
     }
 
+    public boolean newsEnabledFor(User user) {
+        return repo.findByUser(user).map(NotificationPreference::isNewsAlertsEnabled).orElse(true);
+    }
+
     @Transactional(readOnly = true)
     public NotificationPreferenceResponse get(UserPrincipal principal) {
         User user = currentUser(principal);

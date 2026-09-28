@@ -90,6 +90,15 @@ class RssNewsProviderTest {
 	}
 
 	@Test
+	void effectiveTimeout_fallsBackWhenUnsetOrNonPositive() {
+		assertThat(RssNewsProvider.effectiveTimeoutSeconds(0))
+				.isEqualTo(RssNewsProvider.DEFAULT_TIMEOUT_SECONDS);
+		assertThat(RssNewsProvider.effectiveTimeoutSeconds(-5))
+				.isEqualTo(RssNewsProvider.DEFAULT_TIMEOUT_SECONDS);
+		assertThat(RssNewsProvider.effectiveTimeoutSeconds(15)).isEqualTo(15);
+	}
+
+	@Test
 	void parseDateSamples() {
 		assertThat(RssNewsProvider.parseDateOrNull("Thu, 17 Sep 2026 09:00:00 GMT"))
 				.isEqualTo(Instant.parse("2026-09-17T09:00:00Z"));

@@ -43,6 +43,14 @@ public class RssNewsProvider implements NewsProvider {
 	private static final Logger log = LoggerFactory.getLogger(RssNewsProvider.class);
 	private static final int MAX_RETRIES = 2;
 	private static final long RETRY_BACKOFF_MS = 1500;
+	/** Per-request timeout fallback when none (or a non-positive value) is configured. */
+	static final long DEFAULT_TIMEOUT_SECONDS = 10;
+	/**
+	 * A descriptive User-Agent is required by several publishers, which reject
+	 * requests with no/unknown agent (403). It also identifies our traffic.
+	 */
+	private static final String USER_AGENT =
+			"Mozilla/5.0 (compatible; ShyBlackNewsBot/1.0; +https://github.com/lksivasankar95-collab/shyblack-crypto-signals)";
 
 	private final NewsProperties properties;
 	private final List<FeedClient> feedClients;
@@ -97,12 +105,22 @@ public class RssNewsProvider implements NewsProvider {
 	}
 
 	private RestClient createRestClient(long timeoutSeconds) {
+		long effective = effectiveTimeoutSeconds(timeoutSeconds);
 		SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-		factory.setConnectTimeout(Duration.ofSeconds(timeoutSeconds));
-		factory.setReadTimeout(Duration.ofSeconds(timeoutSeconds));
+		factory.setConnectTimeout(Duration.ofSeconds(effective));
+		factory.setReadTimeout(Duration.ofSeconds(effective));
 		return RestClient.builder()
 				.requestFactory(factory)
 				.build();
+	}
+
+	/**
+	 * A non-positive configured timeout means "wait forever", which would let a
+	 * single slow/hung feed block every feed that follows it (the feed loop is
+	 * sequential). Clamp to a bounded default so one feed cannot stall the sync.
+	 */
+	static long effectiveTimeoutSeconds(long configured) {
+		return configured > 0 ? configured : DEFAULT_TIMEOUT_SECONDS;
 	}
 
 	/**
@@ -202,6 +220,7 @@ public class RssNewsProvider implements NewsProvider {
 			try {
 				body = rest.get()
 						.uri(url)
+						.header("User-Agent", USER_AGENT)
 						.accept(MediaType.APPLICATION_XML, MediaType.TEXT_XML, MediaType.TEXT_HTML)
 						.retrieve()
 						.body(String.class);

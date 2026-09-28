@@ -38,6 +38,32 @@ app:
     futures-stream-url: ${BINANCE_FUTURES_STREAM_URL:wss://fstream.binance.com/ws/!ticker@arr}
     quote-asset: ${BINANCE_QUOTE_ASSET:USDT}
     exchange-info-refresh-ms: ${BINANCE_EXCHANGE_INFO_REFRESH_MS:3600000}
+  news:
+    # RSS/Atom market-intelligence ingestion. The whole feed list can be
+    # overridden at deploy time with APP_NEWS_FEEDS (comma-separated URLs);
+    # the other knobs have NEWS_* environment overrides.
+    enabled: ${NEWS_ENABLED:true}
+    sync-cron: ${NEWS_SYNC_CRON:0 */15 * * * *}
+    request-timeout-seconds: ${NEWS_REQUEST_TIMEOUT_SECONDS:10}
+    page-size: ${NEWS_PAGE_SIZE:20}
+    max-articles-per-sync: ${NEWS_MAX_ARTICLES_PER_SYNC:200}
+    freshness-window-hours: ${NEWS_FRESHNESS_WINDOW_HOURS:48}
+    api-key: ${NEWS_API_KEY:}
+    feeds:
+      - https://cointelegraph.com/rss
+      - https://decrypt.co/feed
+      - https://bitcoinmagazine.com/feed
+      - https://www.theblock.co/rss.xml
+      - https://cryptoslate.com/feed/
+      - https://cryptobriefing.com/feed/
+      - https://ambcrypto.com/feed/
+      - https://u.today/rss
+  news-notification:
+    # Post-commit notification policy for newly ingested news. Articles below
+    # the floor are still persisted; only notifications are gated.
+    enabled: ${NEWS_NOTIFY_ENABLED:true}
+    min-impact: ${NEWS_NOTIFY_MIN_IMPACT:HIGH}
+    min-score: ${NEWS_NOTIFY_MIN_SCORE:0}
   settings:
     risk-per-trade-ceiling-pct: ${SETTINGS_RISK_PER_TRADE_CEILING_PCT:2.0}
     max-position-size-pct: ${SETTINGS_MAX_POSITION_SIZE_PCT:20.0}

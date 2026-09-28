@@ -20,9 +20,12 @@ import com.shyblack.cryptosignals.news.provider.NewsProviderRegistry;
 import com.shyblack.cryptosignals.news.provider.RawNewsArticle;
 import com.shyblack.cryptosignals.repository.NewsArticleRepository;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -56,6 +59,7 @@ public class NewsIngestionService {
 	private final NewsScorer newsScorer;
 	private final NewsArticleRepository repository;
 	private final TransactionTemplate transactionTemplate;
+	private final ApplicationEventPublisher eventPublisher;
 
 	public NewsIngestionService(
 			NewsProviderRegistry registry,
@@ -67,7 +71,8 @@ public class NewsIngestionService {
 			ImpactClassifier impactClassifier,
 			NewsScorer newsScorer,
 			NewsArticleRepository repository,
-			PlatformTransactionManager transactionManager
+			PlatformTransactionManager transactionManager,
+			ApplicationEventPublisher eventPublisher
 	) {
 		this.registry = registry;
 		this.properties = properties;
@@ -79,6 +84,7 @@ public class NewsIngestionService {
 		this.newsScorer = newsScorer;
 		this.repository = repository;
 		this.transactionTemplate = new TransactionTemplate(transactionManager);
+		this.eventPublisher = eventPublisher;
 	}
 
 	public List<NewsSyncResponse> syncAll() {
@@ -106,12 +112,19 @@ public class NewsIngestionService {
 		if (rawArticles == null) {
 			rawArticles = List.of();
 		}
+		// The provider returns articles in feed order, not by recency. When the
+		// per-sync cap is exceeded, keep the NEWEST so a verbose early feed can
+		// never push newer articles from later feeds out of the sync.
+		List<RawNewsArticle> ordered = new ArrayList<>(rawArticles);
+		ordered.sort(Comparator.comparing(
+				RawNewsArticle::publishedAt, Comparator.nullsLast(Comparator.reverseOrder())));
 		int limit = properties.maxArticlesPerSync();
-		fetched = rawArticles.size();
-		if (limit > 0 && rawArticles.size() > limit) {
-			rawArticles = rawArticles.subList(0, limit);
-			fetched = rawArticles.size();
+		fetched = ordered.size();
+		if (limit > 0 && ordered.size() > limit) {
+			ordered = ordered.subList(0, limit);
+			fetched = ordered.size();
 		}
+		rawArticles = ordered;
 
 		Instant now = Instant.now();
 		for (RawNewsArticle raw : rawArticles) {
@@ -203,7 +216,12 @@ public class NewsIngestionService {
 				.forEach(article::addAsset);
 
 		try {
-			transactionTemplate.executeWithoutResult(ts -> repository.save(article));
+			transactionTemplate.executeWithoutResult(ts -> {
+				repository.save(article);
+				// Published INSIDE the tx; @TransactionalEventListener(AFTER_COMMIT)
+				// consumers run only after the article is durably committed.
+				eventPublisher.publishEvent(new NewsCreatedEvent(article.getId()));
+			});
 			return Outcome.INSERTED;
 		} catch (DataIntegrityViolationException ex) {
 			log.debug("[News] Concurrent duplicate for {} ({})", canonicalUrl, dedup.reason());

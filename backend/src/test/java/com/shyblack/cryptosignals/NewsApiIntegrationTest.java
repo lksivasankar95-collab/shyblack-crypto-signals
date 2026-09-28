@@ -48,7 +48,11 @@ class NewsApiIntegrationTest {
 	@BeforeEach
 	void seed() {
 		newsArticleRepository.deleteAll();
-		now = Instant.parse("2026-09-17T12:00:00Z");
+		// Relative to real "now": the asset-context endpoint filters by
+		// now - windowHours, so a hardcoded calendar date silently ages out of
+		// the window once wall-clock time passes it (the previous 2026-09-17
+		// seed made assetContextAggregatesProcessedArticles time-bomb).
+		now = Instant.now();
 
 		NewsArticle btcEtf = article("Bitcoin ETF approved, record inflow", "BTC",
 				+8.0, 0.9, NewsImpact.HIGH, NewsCategory.ETF, now.minusSeconds(1800));
