@@ -128,3 +128,13 @@ Full Analysis module (Technical/On-Chain/Sentiment/Reports) → Backtesting → 
 4. Scaffold Flutter app with Clean Architecture folders (`core/data/domain/presentation`) and Riverpod providers before writing any screen UI.
 5. Build Phase 1 screens end-to-end (UI + wired to real backend, not mock data) before starting Phase 2.
 6. Apply the design system (colors above) globally via a theme file — do not hardcode colors per screen.
+
+---
+
+## 9. Related Docs
+
+- Trading modes, per-mode strategy selection, and user-scoped signal notification
+  filtering: `docs/TRADING_MODES_AND_SIGNAL_NOTIFICATIONS.md`
+- News intelligence (RSS ingestion, read API, realtime + notifications):
+  `docs/NEWS_INTELLIGENCE_MODULE.md`
+- Settings module: `docs/SETTINGS_MODULE.md`
