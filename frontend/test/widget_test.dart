@@ -25,6 +25,8 @@ import 'package:cryptosignals/domain/repositories/signal_repository.dart';
 import 'package:cryptosignals/presentation/providers/markets_controller.dart';
 import 'package:cryptosignals/presentation/screens/markets/markets_screen.dart';
 import 'package:cryptosignals/presentation/screens/settings/settings_screen.dart';
+import 'package:cryptosignals/presentation/screens/settings/profile_screen.dart';
+import 'package:cryptosignals/presentation/shell/main_shell.dart';
 import 'package:cryptosignals/presentation/screens/signals/signals_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -153,6 +155,223 @@ void main() {
     expect(find.text('TRADING MODES'), findsNothing);
     expect(find.text('Spot'), findsNothing);
     expect(find.text('Futures'), findsNothing);
+  });
+
+  testWidgets('settings screen shows a discoverable Back button', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          settingsRepositoryProvider.overrideWith(
+            (ref) => _FakeSettingsRepository(),
+          ),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.dark(),
+          darkTheme: AppTheme.dark(),
+          themeMode: ThemeMode.dark,
+          home: const SettingsScreen(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(SettingsScreen.backButtonKey), findsOneWidget);
+    expect(find.byIcon(Icons.arrow_back), findsOneWidget);
+    expect(find.text('App settings'), findsOneWidget);
+    // Existing settings content is unchanged.
+    expect(find.text('Paper Trading Account'), findsOneWidget);
+    expect(find.text('LOGOUT'), findsOneWidget);
+  });
+
+  testWidgets('settings Back pops to previous route without pushing a duplicate', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final observer = _RouteLog();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          settingsRepositoryProvider.overrideWith(
+            (ref) => _FakeSettingsRepository(),
+          ),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.dark(),
+          darkTheme: AppTheme.dark(),
+          themeMode: ThemeMode.dark,
+          navigatorObservers: [observer],
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
+                ),
+                child: const Text('OPEN_SETTINGS'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('OPEN_SETTINGS'));
+    await tester.pumpAndSettle();
+    expect(find.byType(SettingsScreen), findsOneWidget);
+    final depthAfterOpen = observer.pushed.length;
+
+    await tester.tap(find.byKey(SettingsScreen.backButtonKey));
+    await tester.pumpAndSettle();
+
+    // Back returns to the previous screen...
+    expect(find.byType(SettingsScreen), findsNothing);
+    expect(find.text('OPEN_SETTINGS'), findsOneWidget);
+    // ...by popping (no new route pushed / replaced).
+    expect(observer.pushed.length, depthAfterOpen);
+    expect(observer.replaced, isEmpty);
+  });
+
+  testWidgets('settings Back falls back to MainShell when nothing to pop', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authRepositoryProvider.overrideWith(
+            (ref) => _SessionAuthRepository(restored: true),
+          ),
+          marketRepositoryProvider.overrideWith((ref) => _FakeMarketRepository()),
+          signalRepositoryProvider.overrideWith(
+            (ref) => _EmptySignalRepository(),
+          ),
+          newsRepositoryProvider.overrideWith((ref) => _EmptyNewsRepository()),
+          marketsSocketConnectorProvider.overrideWith(
+            (ref) => const _IdleSocketConnector(),
+          ),
+          settingsRepositoryProvider.overrideWith(
+            (ref) => _FakeSettingsRepository(),
+          ),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.dark(),
+          darkTheme: AppTheme.dark(),
+          themeMode: ThemeMode.dark,
+          home: const SettingsScreen(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(SettingsScreen), findsOneWidget);
+
+    await tester.tap(find.byKey(SettingsScreen.backButtonKey));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(find.byType(SettingsScreen), findsNothing);
+    expect(find.byType(MainShell), findsOneWidget);
+  });
+
+  testWidgets('profile screen no longer shows trading preferences', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          settingsRepositoryProvider.overrideWith(
+            (ref) => _FakeSettingsRepository(),
+          ),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.dark(),
+          darkTheme: AppTheme.dark(),
+          themeMode: ThemeMode.dark,
+          home: const ProfileScreen(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Profile Information is unchanged...
+    expect(find.text('PROFILE INFORMATION'), findsOneWidget);
+    expect(find.text('Full Name'), findsOneWidget);
+    // ...but trading preferences no longer live here.
+    expect(find.text('TRADING PREFERENCES'), findsNothing);
+    expect(find.text('Default Quote Currency'), findsNothing);
+    expect(find.text('Risk Profile'), findsNothing);
+    expect(find.text('Default Leverage View'), findsNothing);
+  });
+
+  testWidgets('settings screen shows trading preferences with current values', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          settingsRepositoryProvider.overrideWith(
+            (ref) => _FakeSettingsRepository(),
+          ),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.dark(),
+          darkTheme: AppTheme.dark(),
+          themeMode: ThemeMode.dark,
+          home: const SettingsScreen(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('TRADING PREFERENCES'), findsOneWidget);
+    expect(find.text('Default Quote Currency'), findsOneWidget);
+    expect(find.text('Risk Profile'), findsOneWidget);
+    expect(find.text('Default Leverage View'), findsOneWidget);
+    // Existing values load correctly (AppSettings.defaults).
+    expect(find.text('USDT'), findsOneWidget);
+    expect(find.text('Moderate'), findsOneWidget);
+    expect(find.text('1x'), findsOneWidget);
+  });
+
+  testWidgets('settings trading preference edit flow updates the value', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          settingsRepositoryProvider.overrideWith(
+            (ref) => _FakeSettingsRepository(),
+          ),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.dark(),
+          darkTheme: AppTheme.dark(),
+          themeMode: ThemeMode.dark,
+          home: const SettingsScreen(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final quoteTile = find.text('Default Quote Currency');
+    await tester.ensureVisible(quoteTile);
+    await tester.pumpAndSettle();
+    await tester.tap(quoteTile);
+    await tester.pumpAndSettle();
+    // Picker dialog opened.
+    expect(find.text('Quote Currency'), findsOneWidget);
+    await tester.tap(find.text('USDC'));
+    await tester.pumpAndSettle();
+
+    // Selection is applied and reflected on the tile.
+    expect(find.text('USDC'), findsOneWidget);
+    expect(find.text('USDT'), findsNothing);
   });
 
   testWidgets('markets lists coins and searches (mode is application-controlled)', (
@@ -599,4 +818,22 @@ class _SessionAuthRepository implements AuthRepository {
 
   @override
   Future<void> logout() async {}
+}
+
+/// Records Navigator push/replace events so tests can assert pop-vs-push.
+class _RouteLog extends NavigatorObserver {
+  final List<Route<dynamic>> pushed = [];
+  final List<Route<dynamic>> replaced = [];
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    pushed.add(route);
+    super.didPush(route, previousRoute);
+  }
+
+  @override
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
+    if (newRoute != null) replaced.add(newRoute);
+    super.didReplace(newRoute: newRoute, oldRoute: oldRoute);
+  }
 }

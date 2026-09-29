@@ -75,6 +75,12 @@ Settings UI (Profile/Settings screens) is built with Riverpod:
 - Screens: `settings_screen.dart`, `profile_screen.dart`, widgets in
   `settings_widgets.dart`.
 
+Trading preferences (default quote currency, risk profile, default leverage
+view) are owned by the **Settings** screen's `TRADING PREFERENCES` section.
+The **Profile** screen holds profile information only (no trading configuration).
+Trading mode is application/strategy-controlled (see
+`docs/TRADING_MODES_AND_SIGNAL_NOTIFICATIONS.md`).
+
 Remote sync against the endpoints above is provided by adding an HTTP
 datasource implementing the same repository contract, then wiring it in a
 settings-scoped provider (kept out of the Google/News–dirty DI file). The

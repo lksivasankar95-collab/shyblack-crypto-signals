@@ -5,6 +5,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../domain/entities/app_settings.dart';
 import '../../providers/auth_session.dart';
 import '../../providers/settings_controller.dart';
+import '../../shell/main_shell.dart';
 import '../../widgets/settings_widgets.dart';
 import '../futures_trading/futures_trading_screen.dart';
 import '../live_trading/live_trading_screen.dart';
@@ -23,12 +24,24 @@ import 'subscription_screen.dart';
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
+  /// Stable key so the back affordance is discoverable by tests/semantics.
+  static const backButtonKey = Key('settings_back_button');
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final asyncSettings = ref.watch(settingsControllerProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      appBar: AppBar(
+        leading: IconButton(
+          key: backButtonKey,
+          icon: const Icon(Icons.arrow_back),
+          tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+          onPressed: () => _goBack(context),
+        ),
+        title: const Text('App settings'),
+      ),
       body: SafeArea(
         child: asyncSettings.when(
           loading: () => const Center(child: CircularProgressIndicator()),
@@ -50,11 +63,6 @@ class SettingsScreen extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text(
-                  'App settings',
-                  style: TextStyle(color: AppColors.onBackground, fontSize: 24, fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 14),
                 _ProfileSummaryCard(
                   settings: settings,
                   onTap: () => _open(context, const ProfileScreen()),
@@ -127,6 +135,32 @@ class SettingsScreen extends ConsumerWidget {
                         title: 'Strategy Build',
                         subtitle: 'Manage Spot & Futures strategies',
                         onTap: () => _open(context, const StrategyBuildScreen()),
+                      ),
+                    ],
+                  ),
+                ),
+                const SettingsSectionTitle('TRADING PREFERENCES'),
+                SettingsCard(
+                  padding: EdgeInsets.zero,
+                  child: Column(
+                    children: [
+                      SettingsNavTile(
+                        icon: Icons.attach_money,
+                        title: 'Default Quote Currency',
+                        subtitle: settings.quoteCurrency,
+                        onTap: () => _pickQuoteCurrency(context, ref, settings),
+                      ),
+                      SettingsNavTile(
+                        icon: Icons.speed,
+                        title: 'Risk Profile',
+                        subtitle: settings.riskProfile.label,
+                        onTap: () => _pickRiskProfile(context, ref, settings),
+                      ),
+                      SettingsNavTile(
+                        icon: Icons.layers_outlined,
+                        title: 'Default Leverage View',
+                        subtitle: settings.defaultLeverageView,
+                        onTap: () => _pickLeverageView(context, ref, settings),
                       ),
                     ],
                   ),
@@ -240,6 +274,19 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
+  /// Pop back to the previous route, or fall back to the application's main
+  /// Signals shell when Settings was opened as a root route (no route to pop).
+  static void _goBack(BuildContext context) {
+    final navigator = Navigator.of(context);
+    if (navigator.canPop()) {
+      navigator.pop();
+    } else {
+      navigator.pushReplacement(
+        MaterialPageRoute<void>(builder: (_) => const MainShell()),
+      );
+    }
+  }
+
   static void _open(BuildContext context, Widget screen) {
     Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => screen));
   }
@@ -256,6 +303,45 @@ class SettingsScreen extends ConsumerWidget {
     if (next != null) {
       await ref.read(settingsControllerProvider.notifier).patch(settings.copyWith(language: next));
     }
+  }
+
+  static Future<void> _pickQuoteCurrency(BuildContext context, WidgetRef ref, AppSettings settings) async {
+    final next = await _choice(context, 'Quote Currency', const ['USDT', 'USDC', 'BTC'], settings.quoteCurrency);
+    if (next != null) {
+      await ref.read(settingsControllerProvider.notifier).patch(settings.copyWith(quoteCurrency: next));
+    }
+  }
+
+  static Future<void> _pickLeverageView(BuildContext context, WidgetRef ref, AppSettings settings) async {
+    final next = await _choice(context, 'Leverage View', const ['Isolated', 'Cross'], settings.defaultLeverageView);
+    if (next != null) {
+      await ref.read(settingsControllerProvider.notifier).patch(settings.copyWith(defaultLeverageView: next));
+    }
+  }
+
+  static Future<void> _pickRiskProfile(BuildContext context, WidgetRef ref, AppSettings settings) async {
+    final next = await showDialog<RiskProfile>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.card,
+        title: const Text('Risk Profile'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final risk in RiskProfile.values)
+              ListTile(
+                title: Text(risk.label),
+                trailing: risk == settings.riskProfile ? const Icon(Icons.check, color: AppColors.accent) : null,
+                onTap: () => Navigator.pop(context, risk),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (next == null) {
+      return;
+    }
+    await ref.read(settingsControllerProvider.notifier).patch(settings.copyWith(riskProfile: next));
   }
 
   static Future<String?> _choice(BuildContext context, String title, List<String> options, String current) {

@@ -111,46 +111,6 @@ class ProfileScreen extends ConsumerWidget {
                   ],
                 ),
               ),
-              const SettingsSectionTitle('TRADING PREFERENCES'),
-              SettingsCard(
-                padding: EdgeInsets.zero,
-                child: Column(
-                  children: [
-                    SettingsNavTile(
-                      icon: Icons.attach_money,
-                      title: 'Default Quote Currency',
-                      subtitle: settings.quoteCurrency,
-                      onTap: () => _pickOption(
-                        context,
-                        ref,
-                        title: 'Quote Currency',
-                        options: const ['USDT', 'USDC', 'BTC'],
-                        current: settings.quoteCurrency,
-                        apply: (value) => settings.copyWith(quoteCurrency: value),
-                      ),
-                    ),
-                    SettingsNavTile(
-                      icon: Icons.speed,
-                      title: 'Risk Profile',
-                      subtitle: settings.riskProfile.label,
-                      onTap: () => _pickRisk(context, ref, settings),
-                    ),
-                    SettingsNavTile(
-                      icon: Icons.layers_outlined,
-                      title: 'Default Leverage View',
-                      subtitle: settings.defaultLeverageView,
-                      onTap: () => _pickOption(
-                        context,
-                        ref,
-                        title: 'Leverage View',
-                        options: const ['Isolated', 'Cross'],
-                        current: settings.defaultLeverageView,
-                        apply: (value) => settings.copyWith(defaultLeverageView: value),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
               const SettingsSectionTitle('QUICK ACTIONS'),
               GridView.count(
                 crossAxisCount: 2,
@@ -227,63 +187,6 @@ class ProfileScreen extends ConsumerWidget {
       return;
     }
     await ref.read(settingsControllerProvider.notifier).patch(onSave(next));
-  }
-
-  static Future<void> _pickOption(
-    BuildContext context,
-    WidgetRef ref, {
-    required String title,
-    required List<String> options,
-    required String current,
-    required AppSettings Function(String value) apply,
-  }) async {
-    final next = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.card,
-        title: Text(title),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final option in options)
-              ListTile(
-                title: Text(option),
-                trailing: option == current ? const Icon(Icons.check, color: AppColors.accent) : null,
-                onTap: () => Navigator.pop(context, option),
-              ),
-          ],
-        ),
-      ),
-    );
-    if (next == null) {
-      return;
-    }
-    await ref.read(settingsControllerProvider.notifier).patch(apply(next));
-  }
-
-  static Future<void> _pickRisk(BuildContext context, WidgetRef ref, AppSettings settings) async {
-    final next = await showDialog<RiskProfile>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.card,
-        title: const Text('Risk Profile'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final risk in RiskProfile.values)
-              ListTile(
-                title: Text(risk.label),
-                trailing: risk == settings.riskProfile ? const Icon(Icons.check, color: AppColors.accent) : null,
-                onTap: () => Navigator.pop(context, risk),
-              ),
-          ],
-        ),
-      ),
-    );
-    if (next == null) {
-      return;
-    }
-    await ref.read(settingsControllerProvider.notifier).patch(settings.copyWith(riskProfile: next));
   }
 }
 
