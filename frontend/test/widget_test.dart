@@ -23,7 +23,6 @@ import 'package:cryptosignals/domain/repositories/news_repository.dart';
 import 'package:cryptosignals/domain/repositories/settings_repository.dart';
 import 'package:cryptosignals/domain/repositories/signal_repository.dart';
 import 'package:cryptosignals/presentation/providers/markets_controller.dart';
-import 'package:cryptosignals/presentation/providers/settings_controller.dart';
 import 'package:cryptosignals/presentation/screens/markets/markets_screen.dart';
 import 'package:cryptosignals/presentation/screens/settings/settings_screen.dart';
 import 'package:cryptosignals/presentation/screens/signals/signals_screen.dart';
@@ -124,7 +123,7 @@ void main() {
     );
   });
 
-  testWidgets('settings shows profile and trading mode options', (
+  testWidgets('settings shows profile and account options (no user trading-mode selector)', (
     WidgetTester tester,
   ) async {
     SharedPreferences.setMockInitialValues({});
@@ -147,18 +146,16 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('My Account'), findsOneWidget);
-    expect(find.text('Spot'), findsOneWidget);
-    expect(find.text('Futures'), findsOneWidget);
-    expect(find.text('Options'), findsOneWidget);
     expect(find.text('Paper Trading Account'), findsOneWidget);
     expect(find.text('LOGOUT'), findsOneWidget);
 
-    await tester.tap(find.text('Futures'));
-    await tester.pumpAndSettle();
-    expect(find.text('Active'), findsWidgets);
+    // User-level trading-mode selection is gone.
+    expect(find.text('TRADING MODES'), findsNothing);
+    expect(find.text('Spot'), findsNothing);
+    expect(find.text('Futures'), findsNothing);
   });
 
-  testWidgets('markets lists coins, searches, and follows trading mode', (
+  testWidgets('markets lists coins and searches (mode is application-controlled)', (
     WidgetTester tester,
   ) async {
     SharedPreferences.setMockInitialValues({});
@@ -204,23 +201,10 @@ void main() {
     await tester.enterText(find.byType(TextField), '');
     await tester.pump();
 
-    await container
-        .read(settingsControllerProvider.notifier)
-        .setTradingMode(TradingMode.futures);
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 50));
+    // Markets use the application-controlled mode (Spot); there is no
+    // user-level trading-mode selector.
     expect(find.text('BTC'), findsOneWidget);
-    expect(find.text('ETH'), findsNothing);
-
-    await container
-        .read(settingsControllerProvider.notifier)
-        .setTradingMode(TradingMode.options);
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 50));
-    expect(
-      find.text("Options trading data isn't available yet"),
-      findsOneWidget,
-    );
+    expect(find.text('ETH'), findsOneWidget);
   });
 
   testWidgets('tapping a market opens coin detail', (

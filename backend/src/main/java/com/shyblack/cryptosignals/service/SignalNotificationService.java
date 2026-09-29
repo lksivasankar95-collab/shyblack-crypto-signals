@@ -6,11 +6,9 @@ import com.shyblack.cryptosignals.entity.Notification;
 import com.shyblack.cryptosignals.entity.NotificationPreference;
 import com.shyblack.cryptosignals.entity.Signal;
 import com.shyblack.cryptosignals.entity.enums.NotificationCategory;
-import com.shyblack.cryptosignals.entity.enums.TradingMode;
 import com.shyblack.cryptosignals.repository.DeviceTokenRepository;
 import com.shyblack.cryptosignals.repository.NotificationRepository;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -33,7 +31,6 @@ public class SignalNotificationService {
     private final FcmSenderService fcmSenderService;
     private final com.shyblack.cryptosignals.market.AlertsWebSocketHandler websocketHandler;
     private final SignalRepository signalRepository;
-    private final UserTradingModePreferenceService modePreferenceService;
 
     public void notifyForSignal(Signal signal) {
         UUID signalId = signal.getId();
@@ -66,17 +63,6 @@ public class SignalNotificationService {
             try {
                 if (!preferenceService.signalsEnabledFor(dt.getUser())) {
                     continue;
-                }
-                // user-scoped mode filter: only notify modes the user selected.
-                TradingMode signalMode = signal.getTradingMode();
-                if (signalMode != null) {
-                    Set<TradingMode> selectedModes =
-                            modePreferenceService.effectiveSelectedModes(dt.getUser());
-                    if (!selectedModes.contains(signalMode)) {
-                        log.info("[SignalNotify] skip user={} signal={} reason=TRADING_MODE_NOT_SELECTED signalMode={} selectedModes={}",
-                                dt.getUser().getId(), signalId, signalMode, selectedModes);
-                        continue;
-                    }
                 }
                 // per-user idempotency check
                 if (notificationRepository.existsByUserAndSignalId(dt.getUser(), signalId)) {

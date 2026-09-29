@@ -50,10 +50,9 @@ class HelpSupportScreen extends StatelessWidget {
                 _FaqItem(
                   question: 'How do I get started?',
                   answer: '1. Create your account and sign in.\n'
-                      '2. Review your trading mode (Spot/Futures).\n'
-                      '3. Set your risk profile in Settings.\n'
-                      '4. Enable signal notifications.\n'
-                      '5. Connect your exchange for live trading (optional).',
+                      '2. Review your risk profile in Settings.\n'
+                      '3. Enable signal notifications.\n'
+                      '4. Connect your exchange for live trading (optional).',
                 ),
                 _FaqItem(
                   question: 'What is Paper Trading?',

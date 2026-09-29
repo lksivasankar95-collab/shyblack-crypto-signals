@@ -32,6 +32,7 @@ public class BinanceRestClient {
 	public BinanceRestClient(MarketProperties properties) {
 		this.rest = RestClient.builder()
 				.baseUrl(properties.restBaseUrl())
+				.requestFactory(com.shyblack.cryptosignals.config.HttpClientFactory.withDefaultTimeouts())
 				.build();
 		this.quoteAsset = properties.quoteAssetOrUsdt();
 	}

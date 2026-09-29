@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
-import '../../../domain/entities/app_settings.dart';
 import '../../../domain/entities/signal.dart';
-import '../../providers/settings_controller.dart';
 import '../../providers/notifications_controller.dart';
 import '../../providers/signals_controller.dart';
 import '../../widgets/coin_letter_avatar.dart';
@@ -65,7 +63,6 @@ class _SignalsScreenState extends ConsumerState<SignalsScreen>
   @override
   Widget build(BuildContext context) {
     final asyncSignals = ref.watch(signalsControllerProvider);
-    final settings = ref.watch(settingsControllerProvider).value;
 
     return ColoredBox(
       color: AppColors.background,
@@ -80,7 +77,6 @@ class _SignalsScreenState extends ConsumerState<SignalsScreen>
                   _open(context, const NotificationsScreen()),
               onOpenProfile: () => _open(context, const ProfileScreen()),
             ),
-            if (settings != null) _TradingModeCard(settings: settings),
             _PageHeader(onHistory: () => _tabs.animateTo(2)),
             TabBar(
               controller: _tabs,
@@ -313,102 +309,6 @@ class _Dot extends StatelessWidget {
         shape: BoxShape.circle,
         border: Border.fromBorderSide(
           BorderSide(color: AppColors.background, width: 1.5),
-        ),
-      ),
-    );
-  }
-}
-
-class _TradingModeCard extends StatelessWidget {
-  const _TradingModeCard({required this.settings});
-
-  final AppSettings settings;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.accent.withValues(alpha: 0.35)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text(
-            'TRADING MODE',
-            style: TextStyle(
-              color: AppColors.muted,
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.1,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              for (final mode in TradingMode.values) ...[
-                if (mode != TradingMode.values.first) const SizedBox(width: 8),
-                _ModeChip(mode: mode, selected: settings.tradingMode == mode),
-              ],
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ModeChip extends ConsumerWidget {
-  const _ModeChip({required this.mode, required this.selected});
-
-  final TradingMode mode;
-  final bool selected;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Expanded(
-      child: InkWell(
-        onTap: () =>
-            ref.read(settingsControllerProvider.notifier).setTradingMode(mode),
-        borderRadius: BorderRadius.circular(10),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          decoration: BoxDecoration(
-            color: selected
-                ? AppColors.accent.withValues(alpha: 0.16)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: selected ? AppColors.accent : const Color(0xFF2A2A2A),
-              width: selected ? 1.4 : 1,
-            ),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                mode == TradingMode.spot
-                    ? Icons.currency_bitcoin
-                    : mode == TradingMode.futures
-                    ? Icons.trending_up
-                    : Icons.tune,
-                size: 16,
-                color: selected ? AppColors.accent : AppColors.muted,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                mode.label,
-                style: TextStyle(
-                  color: selected ? AppColors.onBackground : AppColors.muted,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );

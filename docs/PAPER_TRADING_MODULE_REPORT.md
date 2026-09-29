@@ -85,7 +85,7 @@
   - `close(...)` is idempotent: already-closed positions short-circuit.
   - Writes two lifecycle events per close (`SL_HIT|TP_HIT|MANUAL_CLOSE` + `CLOSED`).
 - `PaperTradingEngineService` — the orchestrator:
-  - `@TransactionalEventListener(AFTER_COMMIT)` on `SignalGeneratedEvent` → fan-out to all users with `AccountType=PAPER` and matching `TradingMode`.
+  - `@TransactionalEventListener(AFTER_COMMIT)` on `SignalGeneratedEvent` → fan-out to all enabled users with `AccountType=PAPER`. (Trading mode is no longer a user-level eligibility filter.)
   - `@PostConstruct` subscribes to `MarketBook.spotTickers().addBatchListener(...)` **and** `futuresTickers()`.
   - On every tick batch, looks up open positions for the symbol and evaluates SL / TP.
   - **SL wins on tie** (conservative): documented so back-office reports stay consistent.

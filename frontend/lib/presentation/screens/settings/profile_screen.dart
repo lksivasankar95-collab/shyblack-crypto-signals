@@ -117,12 +117,6 @@ class ProfileScreen extends ConsumerWidget {
                 child: Column(
                   children: [
                     SettingsNavTile(
-                      icon: Icons.swap_horiz,
-                      title: 'Trading Mode',
-                      subtitle: settings.tradingMode.label,
-                      onTap: () => _pickMode(context, ref, settings),
-                    ),
-                    SettingsNavTile(
                       icon: Icons.attach_money,
                       title: 'Default Quote Currency',
                       subtitle: settings.quoteCurrency,
@@ -265,31 +259,6 @@ class ProfileScreen extends ConsumerWidget {
       return;
     }
     await ref.read(settingsControllerProvider.notifier).patch(apply(next));
-  }
-
-  static Future<void> _pickMode(BuildContext context, WidgetRef ref, AppSettings settings) async {
-    final next = await showDialog<TradingMode>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.card,
-        title: const Text('Trading Mode'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final mode in TradingMode.values)
-              ListTile(
-                title: Text(mode.label),
-                trailing: mode == settings.tradingMode ? const Icon(Icons.check, color: AppColors.accent) : null,
-                onTap: () => Navigator.pop(context, mode),
-              ),
-          ],
-        ),
-      ),
-    );
-    if (next == null) {
-      return;
-    }
-    await ref.read(settingsControllerProvider.notifier).setTradingMode(next);
   }
 
   static Future<void> _pickRisk(BuildContext context, WidgetRef ref, AppSettings settings) async {

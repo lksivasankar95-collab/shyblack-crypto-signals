@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/constants/api_constants.dart';
 import '../../core/di/providers.dart';
 import '../../data/datasources/markets_websocket_client.dart';
 import '../../domain/entities/notification_item.dart';
@@ -33,7 +34,7 @@ class NotificationsController extends AsyncNotifier<List<NotificationItem>> {
     if (_session != null) return;
     try {
       final connector = ref.read(marketsSocketConnectorProvider);
-      final uri = Uri.parse('ws://localhost:8080/ws/private');
+      final uri = Uri.parse(ApiConstants.privateWsUrl);
       final session = connector.connect(uri);
       _session = session;
       _sub = session.stream.listen((raw) {

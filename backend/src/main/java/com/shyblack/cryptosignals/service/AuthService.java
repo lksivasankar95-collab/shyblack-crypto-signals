@@ -13,7 +13,6 @@ import com.shyblack.cryptosignals.entity.enums.AccountType;
 import com.shyblack.cryptosignals.entity.enums.AuthProvider;
 import com.shyblack.cryptosignals.entity.enums.RiskProfile;
 import com.shyblack.cryptosignals.entity.enums.Role;
-import com.shyblack.cryptosignals.entity.enums.TradingMode;
 import com.shyblack.cryptosignals.exception.DuplicateEmailException;
 import com.shyblack.cryptosignals.exception.GoogleAccountConflictException;
 import com.shyblack.cryptosignals.exception.InvalidCredentialsException;
@@ -53,7 +52,6 @@ public class AuthService {
 		user.setAuthProvider(AuthProvider.LOCAL);
 		user.setRole(Role.USER);
 		user.setAccountType(AccountType.PAPER);
-		user.setTradingMode(TradingMode.SPOT);
 		user.setRiskProfile(RiskProfile.MODERATE);
 		user.setTimezone("UTC");
 		user.setEnabled(true);
@@ -103,7 +101,6 @@ public class AuthService {
 			user.setAuthProvider(AuthProvider.GOOGLE);
 			user.setRole(Role.USER);
 			user.setAccountType(AccountType.PAPER);
-			user.setTradingMode(TradingMode.SPOT);
 			user.setRiskProfile(RiskProfile.MODERATE);
 			user.setTimezone("UTC");
 			user.setEnabled(true);

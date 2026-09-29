@@ -3,10 +3,8 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/di/providers.dart';
-import '../../domain/entities/app_settings.dart';
 import '../../domain/entities/signal.dart';
 import 'auth_session.dart';
-import 'settings_controller.dart';
 
 class SignalsStats {
   const SignalsStats({
@@ -31,13 +29,11 @@ class SignalsStats {
 
 class SignalsViewData {
   const SignalsViewData({
-    required this.mode,
     required this.all,
     required this.stats,
     this.lastUpdated,
   });
 
-  final TradingMode mode;
   final List<Signal> all;
   final SignalsStats stats;
   final DateTime? lastUpdated;
@@ -65,11 +61,6 @@ class SignalsController extends AsyncNotifier<SignalsViewData> {
   @override
   Future<SignalsViewData> build() async {
     final generation = ++_generation;
-    final mode = ref.watch(
-      settingsControllerProvider.select(
-        (async) => async.value?.tradingMode ?? TradingMode.spot,
-      ),
-    );
 
     ref.listen<AsyncValue<AuthStatus>>(authSessionProvider, (previous, next) {
       if (next.value == AuthStatus.authenticated) {
@@ -89,28 +80,18 @@ class SignalsController extends AsyncNotifier<SignalsViewData> {
     if (ref.read(authSessionProvider).value == AuthStatus.authenticated) {
       _startAutoRefresh(generation);
     }
-    return _toView(signals, mode);
+    return _toView(signals);
   }
 
   /// Test hook: publish a list of signals as if a refresh just completed.
   void ingestSignals(List<Signal> signals) {
-    final mode = ref.read(
-      settingsControllerProvider.select(
-        (async) => async.value?.tradingMode ?? TradingMode.spot,
-      ),
-    );
-    state = AsyncData(_toView(signals, mode));
+    state = AsyncData(_toView(signals));
   }
 
   Future<void> refresh({bool silent = false}) async {
     try {
       final signals = await _fetch();
-      final mode = ref.read(
-        settingsControllerProvider.select(
-          (async) => async.value?.tradingMode ?? TradingMode.spot,
-        ),
-      );
-      state = AsyncData(_toView(signals, mode));
+      state = AsyncData(_toView(signals));
     } catch (error, stack) {
       if (!silent) {
         state = AsyncError(error, stack);
@@ -120,11 +101,10 @@ class SignalsController extends AsyncNotifier<SignalsViewData> {
 
   Future<List<Signal>> _fetch() => ref.read(getSignalsProvider).call();
 
-  SignalsViewData _toView(List<Signal> signals, TradingMode mode) {
+  SignalsViewData _toView(List<Signal> signals) {
     final sorted = List<Signal>.of(signals)
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     return SignalsViewData(
-      mode: mode,
       all: sorted,
       stats: _computeStats(sorted),
       lastUpdated: DateTime.now(),

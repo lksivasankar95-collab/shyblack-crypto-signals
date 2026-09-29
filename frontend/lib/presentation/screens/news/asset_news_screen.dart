@@ -105,15 +105,8 @@ class _ContextCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final context = asyncContext.value;
-    if (context == null) {
-      return Container(
-        margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: AppColors.card,
-          borderRadius: BorderRadius.circular(12),
-        ),
+    return asyncContext.when(
+      loading: () => _shell(
         child: const Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -132,60 +125,70 @@ class _ContextCard extends ConsumerWidget {
             ),
           ],
         ),
-      );
-    }
+      ),
+      error: (_, _) => _shell(
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.info_outline, size: 16, color: AppColors.muted),
+            SizedBox(width: 10),
+            Text(
+              'News context unavailable',
+              style: TextStyle(color: AppColors.muted, fontSize: 12),
+            ),
+          ],
+        ),
+      ),
+      data: (ctx) => _shell(
+        bordered: true,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'NEWS CONTEXT',
+              style: TextStyle(
+                color: AppColors.muted,
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.8,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                _metric(
+                  label: 'News score',
+                  value: ctx.newsScore?.toStringAsFixed(1) ?? '—',
+                ),
+                _metric(label: 'Sentiment', value: ctx.sentiment.label),
+                _metric(label: 'Impact', value: ctx.impactLevel.label),
+                _metric(label: 'Articles', value: '${ctx.articleCount}'),
+                _metric(
+                  label: 'Confidence',
+                  value: (ctx.confidenceScore == null
+                      ? '—'
+                      : '${(ctx.confidenceScore! * 100).round()}%'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
+  Widget _shell({required Widget child, bool bordered = false}) {
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppColors.card,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppColors.accent.withValues(alpha: 0.25),
-        ),
+        border: bordered
+            ? Border.all(color: AppColors.accent.withValues(alpha: 0.25))
+            : null,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'NEWS CONTEXT',
-            style: TextStyle(
-              color: AppColors.muted,
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.8,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              _metric(
-                label: 'News score',
-                value: context.newsScore?.toStringAsFixed(1) ?? '—',
-              ),
-              _metric(
-                label: 'Sentiment',
-                value: context.sentiment.label,
-              ),
-              _metric(
-                label: 'Impact',
-                value: context.impactLevel.label,
-              ),
-              _metric(
-                label: 'Articles',
-                value: '${context.articleCount}',
-              ),
-              _metric(
-                label: 'Confidence',
-                value: (context.confidenceScore == null
-                    ? '—'
-                    : '${(context.confidenceScore! * 100).round()}%'),
-              ),
-            ],
-          ),
-        ],
-      ),
+      child: child,
     );
   }
 

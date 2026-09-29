@@ -112,6 +112,7 @@ public class TradingStrategyService {
                 strategy.getName(), strategy.getVersion(), true);
     }
 
+    @Transactional(readOnly = true)
     public ActiveStrategyResponse getActive(UserPrincipal principal, TradingMode mode) {
         Optional<UserStrategySelection> sel =
                 selectionRepository.findByUserIdAndTradingMode(principal.getId(), mode);

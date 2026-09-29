@@ -29,9 +29,12 @@ class NewsFeedController extends AsyncNotifier<NewsFeedData> {
   String? _source;
   String? _query;
   int _page = 0;
+  int _generation = 0;
+  bool _loadingMore = false;
 
   @override
   Future<NewsFeedData> build() async {
+    _generation++;
     _page = 0;
     final result = await _fetch(0);
     return NewsFeedData(
@@ -59,9 +62,11 @@ class NewsFeedController extends AsyncNotifier<NewsFeedData> {
   Future<void> refresh({bool silent = false}) async {
     // Reloading page 0 resets the pagination cursor; otherwise a later
     // loadMore() would request `stalePage + 1` and silently skip pages.
+    final gen = ++_generation;
     _page = 0;
     try {
       final result = await _fetch(0);
+      if (gen != _generation) return;
       state = AsyncData(
         NewsFeedData(
           articles: result.items,
@@ -70,6 +75,7 @@ class NewsFeedController extends AsyncNotifier<NewsFeedData> {
         ),
       );
     } catch (error, stack) {
+      if (gen != _generation) return;
       if (!silent) {
         state = AsyncError(error, stack);
       }
@@ -77,13 +83,19 @@ class NewsFeedController extends AsyncNotifier<NewsFeedData> {
   }
 
   Future<void> loadMore() async {
+    // Guard against overlapping scroll events firing concurrent requests.
+    if (_loadingMore) return;
     final current = state.value;
     if (current == null || !current.hasNext) {
       return;
     }
+    _loadingMore = true;
+    final gen = _generation;
     try {
       final nextPage = _page + 1;
       final result = await _fetch(nextPage);
+      // Discard if a refresh/filter change happened while this was in flight.
+      if (gen != _generation) return;
       _page = nextPage;
       final known = <String>{for (final item in current.articles) item.id};
       state = AsyncData(
@@ -99,6 +111,8 @@ class NewsFeedController extends AsyncNotifier<NewsFeedData> {
       );
     } catch (_) {
       // Keep the current list; a later pull-to-refresh retries.
+    } finally {
+      _loadingMore = false;
     }
   }
 

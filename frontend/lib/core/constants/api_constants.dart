@@ -1,10 +1,44 @@
+import 'package:flutter/foundation.dart';
+
+/// Single source of truth for API + WebSocket URLs.
+///
+/// Override at build/run time (no code change):
+///   --dart-define=API_BASE_URL=http://10.0.2.2:8080/api
+///   --dart-define=WS_BASE_URL=ws://10.0.2.2:8080
+///
+/// Defaults:
+///   Android emulator        -> 10.0.2.2 (host loopback)
+///   desktop / web / iOS sim -> localhost
+///
+/// Endpoint constants below must NOT repeat the `/api` prefix that already
+/// lives in [baseUrl].
 abstract final class ApiConstants {
-  static const String baseUrl = 'http://localhost:8080/api';
-  static const String marketsWsUrl = 'ws://localhost:8080/ws/markets';
+  static const String _apiBaseUrlOverride = String.fromEnvironment('API_BASE_URL');
+  static const String _wsBaseUrlOverride = String.fromEnvironment('WS_BASE_URL');
+
+  static String get baseUrl {
+    if (_apiBaseUrlOverride.isNotEmpty) return _apiBaseUrlOverride;
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      return 'http://10.0.2.2:8080/api';
+    }
+    return 'http://localhost:8080/api';
+  }
+
+  static String get wsBaseUrl {
+    if (_wsBaseUrlOverride.isNotEmpty) return _wsBaseUrlOverride;
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      return 'ws://10.0.2.2:8080';
+    }
+    return 'ws://localhost:8080';
+  }
+
   static const Duration connectTimeout = Duration(seconds: 15);
   static const Duration receiveTimeout = Duration(seconds: 15);
 
-  static const String users = '/v1/users';
+  static String get marketsWsUrl => '$wsBaseUrl/ws/markets';
+  static String get privateWsUrl => '$wsBaseUrl/ws/private';
+
+  static const String users = '/users';
   static const String portfolios = '/v1/portfolios';
   static const String positions = '/v1/positions';
   static const String transactions = '/v1/transactions';

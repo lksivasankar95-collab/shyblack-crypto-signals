@@ -94,7 +94,7 @@ Personal, production-grade Flutter app: crypto portfolio tracker + buy/sell sign
 
 ### H. Settings & Profile
 - Profile Screen (member since, membership tier, subscription validity, profile info, trading preferences — mode/quote currency/risk profile/leverage view, quick actions: change password/security/download data/delete account)
-- Settings Screen (trading mode selector, paper vs live account toggle, connect exchange accounts, signal preferences, notifications, theme, language, data management, help & support, about)
+- Settings Screen (paper vs live account toggle, connect exchange accounts, signal preferences, notifications, theme, language, data management, help & support, about)
 
 ### I. Misc
 - Error/Empty states (no internet, no data, no holdings)
@@ -133,8 +133,8 @@ Full Analysis module (Technical/On-Chain/Sentiment/Reports) → Backtesting → 
 
 ## 9. Related Docs
 
-- Trading modes, per-mode strategy selection, and user-scoped signal notification
-  filtering: `docs/TRADING_MODES_AND_SIGNAL_NOTIFICATIONS.md`
+- Trading modes (application/strategy-controlled), per-mode strategy selection, and
+  application-driven signal notification filtering: `docs/TRADING_MODES_AND_SIGNAL_NOTIFICATIONS.md`
 - News intelligence (RSS ingestion, read API, realtime + notifications):
   `docs/NEWS_INTELLIGENCE_MODULE.md`
 - Settings module: `docs/SETTINGS_MODULE.md`

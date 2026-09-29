@@ -187,8 +187,7 @@ the guardrail, the trade is **rejected**, never silently exceeded.
 
 `LiveTradingEngineService.onSignalGenerated` — a
 `@TransactionalEventListener(AFTER_COMMIT)` on `SignalGeneratedEvent`. For
-every enabled + not-killed live account whose user's `tradingMode` matches
-the signal:
+every enabled + not-killed live account (this engine handles the SPOT universe; trading mode is not a user preference):
 
 1. Risk check.
 2. Fetch `SymbolRules` from the adapter.

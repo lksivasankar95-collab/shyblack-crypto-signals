@@ -52,7 +52,9 @@ public class BinanceLiveTradingAdapter implements ExchangeTradingAdapter {
 
 	private final LiveTradingProperties props;
 	private final ExchangeCredentialEncryptor encryptor;
-	private final RestClient rest = RestClient.builder().build();
+	private final RestClient rest = RestClient.builder()
+			.requestFactory(com.shyblack.cryptosignals.config.HttpClientFactory.withDefaultTimeouts())
+			.build();
 
 	/** exchangeInfo cache — refreshed lazily on first miss. */
 	private final Map<String, SymbolRules> rulesCache = new ConcurrentHashMap<>();

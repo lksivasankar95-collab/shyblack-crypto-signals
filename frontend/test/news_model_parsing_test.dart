@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:cryptosignals/core/constants/api_constants.dart';
@@ -92,8 +93,22 @@ void main() {
     expect(params['from'], '2026-01-01T00:00:00.000Z');
   });
 
-  test('news endpoint resolves to /api/v1/news', () {
+  test('news endpoint resolves to /api/v1/news with a single /api prefix', () {
+    debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+
+    expect(ApiConstants.baseUrl, 'http://localhost:8080/api');
+    expect(ApiConstants.news, '/v1/news');
     expect('${ApiConstants.baseUrl}${ApiConstants.news}',
         'http://localhost:8080/api/v1/news');
+  });
+
+  test('Android default uses 10.0.2.2 host without doubling /api', () {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+
+    expect(ApiConstants.baseUrl, 'http://10.0.2.2:8080/api');
+    expect('${ApiConstants.baseUrl}${ApiConstants.news}',
+        'http://10.0.2.2:8080/api/v1/news');
   });
 }

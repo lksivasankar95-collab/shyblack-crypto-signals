@@ -22,9 +22,10 @@ porcelain = 0, branch = main.
 
 ## Honest status per mandated module
 
-- Trading Mode (Spot/Futures/Options): **functional** — mode persisted + validated backend-side,
-  safe PAPER default, LIVE requires explicit confirmation + backend validation. No fake live
-  execution; live is only offered if a REAL trading path exists.
+- Trading Mode: **removed as a user preference** — controlled by the application/strategy
+  per mode (see `docs/TRADING_MODES_AND_SIGNAL_NOTIFICATIONS.md`). No user-level mode selector
+  remains in Signals, Profile, or Settings. Safe PAPER default retained; LIVE still requires
+  explicit confirmation + backend validation. No fake live execution.
 - Trading Account (Paper/Live): **functional** — account mode selector; live gated. Paper default.
   No fabricated connection status.
 - Profile: **functional** — reuse existing authenticated user, never a client-supplied userId

@@ -48,7 +48,9 @@ public class BinanceFuturesLiveAdapter implements FuturesExchangeAdapter {
 
 	private final FuturesTradingProperties props;
 	private final ExchangeCredentialEncryptor encryptor;
-	private final RestClient rest = RestClient.builder().build();
+	private final RestClient rest = RestClient.builder()
+			.requestFactory(com.shyblack.cryptosignals.config.HttpClientFactory.withDefaultTimeouts())
+			.build();
 	private final Map<String, SymbolRules> rulesCache = new ConcurrentHashMap<>();
 
 	@Override public ExchangeName exchange() { return ExchangeName.BINANCE; }

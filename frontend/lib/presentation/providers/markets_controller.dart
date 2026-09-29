@@ -9,7 +9,6 @@ import '../../data/models/markets_ws_payload.dart';
 import '../../domain/entities/app_settings.dart';
 import '../../domain/entities/market_ticker.dart';
 import 'auth_session.dart';
-import 'settings_controller.dart';
 
 class MarketsViewData {
   const MarketsViewData({
@@ -35,8 +34,6 @@ class MarketsViewData {
   final List<MarketTicker> losers;
   final bool connected;
   final bool reconnecting;
-
-  bool get isOptionsUnavailable => mode == TradingMode.options;
 
   MarketsViewData copyWith({
     TradingMode? mode,
@@ -146,11 +143,8 @@ class MarketsController extends AsyncNotifier<MarketsViewData> {
   @override
   Future<MarketsViewData> build() async {
     final generation = ++_generation;
-    final mode = ref.watch(
-      settingsControllerProvider.select(
-        (async) => async.value?.tradingMode ?? TradingMode.spot,
-      ),
-    );
+    // Trading mode is application-controlled, not a user preference.
+    const mode = kAppMarketMode;
 
     ref.listen<AsyncValue<AuthStatus>>(authSessionProvider, (previous, next) {
       if (next.value == AuthStatus.unauthenticated) {
@@ -186,11 +180,7 @@ class MarketsController extends AsyncNotifier<MarketsViewData> {
   }
 
   Future<void> refresh({bool silent = false}) async {
-    final mode = ref.read(
-      settingsControllerProvider.select(
-        (async) => async.value?.tradingMode ?? TradingMode.spot,
-      ),
-    );
+    const mode = kAppMarketMode;
     try {
       final next = await _fetch(mode);
       final current = state.value;

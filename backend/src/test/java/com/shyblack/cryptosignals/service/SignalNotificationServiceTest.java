@@ -9,20 +9,22 @@ import com.shyblack.cryptosignals.entity.DeviceToken;
 import com.shyblack.cryptosignals.entity.Notification;
 import com.shyblack.cryptosignals.entity.Signal;
 import com.shyblack.cryptosignals.entity.User;
-import com.shyblack.cryptosignals.entity.UserSettings;
 import com.shyblack.cryptosignals.entity.enums.SignalGrade;
 import com.shyblack.cryptosignals.entity.enums.TradingMode;
 import com.shyblack.cryptosignals.repository.DeviceTokenRepository;
 import com.shyblack.cryptosignals.repository.NotificationRepository;
-import com.shyblack.cryptosignals.repository.UserSettingsRepository;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
+/**
+ * Notification delivery is application-driven: a user with signal notifications
+ * enabled receives every application-generated signal, independent of any
+ * user-level trading-mode preference.
+ */
 class SignalNotificationServiceTest {
 
     private NotificationRepository notificationRepository;
@@ -31,8 +33,6 @@ class SignalNotificationServiceTest {
     private FcmSenderService fcmSenderService;
     private com.shyblack.cryptosignals.market.AlertsWebSocketHandler websocketHandler;
     private com.shyblack.cryptosignals.repository.SignalRepository signalRepository;
-    private UserSettingsRepository userSettingsRepository;
-    private UserTradingModePreferenceService modePreferenceService;
     private SignalNotificationService service;
 
     @BeforeEach
@@ -43,9 +43,7 @@ class SignalNotificationServiceTest {
         fcmSenderService = Mockito.mock(FcmSenderService.class);
         websocketHandler = Mockito.mock(com.shyblack.cryptosignals.market.AlertsWebSocketHandler.class);
         signalRepository = Mockito.mock(com.shyblack.cryptosignals.repository.SignalRepository.class);
-        userSettingsRepository = Mockito.mock(UserSettingsRepository.class);
-        modePreferenceService = new UserTradingModePreferenceService(userSettingsRepository);
-        service = new SignalNotificationService(notificationRepository, deviceTokenRepository, preferenceService, fcmSenderService, websocketHandler, signalRepository, modePreferenceService);
+        service = new SignalNotificationService(notificationRepository, deviceTokenRepository, preferenceService, fcmSenderService, websocketHandler, signalRepository);
     }
 
     private Signal buildSignal(SignalGrade grade) {
@@ -63,11 +61,11 @@ class SignalNotificationServiceTest {
         return s;
     }
 
-    private void userHasModes(User user, TradingMode... modes) {
-        UserSettings settings = new UserSettings();
-        settings.setUser(user);
-        settings.setSelectedTradingModes(List.of(modes));
-        when(userSettingsRepository.findByUser_Id(user.getId())).thenReturn(Optional.of(settings));
+    private User userWithMode(TradingMode mode) {
+        User u = new User();
+        u.setId(UUID.randomUUID());
+        u.setTradingMode(mode);
+        return u;
     }
 
     private DeviceToken deviceTokenFor(User u, String token) {
@@ -178,13 +176,12 @@ class SignalNotificationServiceTest {
         verify(notificationRepository, never()).save(any());
     }
 
-    // ── User-scoped trading-mode filtering ─────────────────────────────────
+    // ── Application-driven delivery: no user-level trading-mode eligibility ──
 
     @Test
-    void spot_signal_notifies_spot_user() {
+    void spot_signal_notifies_user_whose_user_mode_is_futures() {
         Signal s = buildSignal(SignalGrade.BUY, TradingMode.SPOT);
-        User u = new User(); u.setId(UUID.randomUUID());
-        userHasModes(u, TradingMode.SPOT);
+        User u = userWithMode(TradingMode.FUTURES);
         DeviceToken dt = deviceTokenFor(u, "spot-tok");
 
         when(deviceTokenRepository.findByActiveTrue()).thenReturn(List.of(dt));
@@ -199,93 +196,57 @@ class SignalNotificationServiceTest {
     }
 
     @Test
-    void spot_signal_skips_futures_only_user_without_fcm_or_history() {
-        Signal s = buildSignal(SignalGrade.BUY, TradingMode.SPOT);
-        User u = new User(); u.setId(UUID.randomUUID());
-        userHasModes(u, TradingMode.FUTURES);
+    void futures_signal_notifies_user_whose_user_mode_is_spot() {
+        Signal s = buildSignal(SignalGrade.BUY, TradingMode.FUTURES);
+        User u = userWithMode(TradingMode.SPOT);
         DeviceToken dt = deviceTokenFor(u, "fut-tok");
 
         when(deviceTokenRepository.findByActiveTrue()).thenReturn(List.of(dt));
         when(preferenceService.signalsEnabledFor(u)).thenReturn(true);
-
-        service.notifyForSignal(s);
-
-        verify(fcmSenderService, never()).sendToToken(any(), any(), any(), any());
-        verify(notificationRepository, never()).save(any());
-        // Mode filter short-circuits before the dedup lookup.
-        verify(notificationRepository, never()).existsByUserAndSignalId(any(), any());
-    }
-
-    @Test
-    void futures_signal_notifies_futures_user_and_skips_spot_only_user() {
-        Signal s = buildSignal(SignalGrade.BUY, TradingMode.FUTURES);
-        User uSpot = new User(); uSpot.setId(UUID.randomUUID());
-        userHasModes(uSpot, TradingMode.SPOT);
-        User uFut = new User(); uFut.setId(UUID.randomUUID());
-        userHasModes(uFut, TradingMode.FUTURES);
-        DeviceToken dtSpot = deviceTokenFor(uSpot, "spot-tok");
-        DeviceToken dtFut = deviceTokenFor(uFut, "fut-tok");
-
-        when(deviceTokenRepository.findByActiveTrue()).thenReturn(List.of(dtSpot, dtFut));
-        when(preferenceService.signalsEnabledFor(any())).thenReturn(true);
-        when(notificationRepository.existsByUserAndSignalId(any(), eq(s.getId()))).thenReturn(false);
+        when(notificationRepository.existsByUserAndSignalId(u, s.getId())).thenReturn(false);
         when(fcmSenderService.sendToToken(eq("fut-tok"), any(), any(), any(JsonObject.class))).thenReturn(true);
 
         service.notifyForSignal(s);
 
-        verify(fcmSenderService, never()).sendToToken(eq("spot-tok"), any(), any(), any());
         verify(fcmSenderService, times(1)).sendToToken(eq("fut-tok"), any(), any(), any());
         verify(notificationRepository, times(1)).save(any());
     }
 
     @Test
-    void multi_mode_user_receives_spot_and_futures_once_each() {
-        User u = new User(); u.setId(UUID.randomUUID());
-        userHasModes(u, TradingMode.SPOT, TradingMode.FUTURES);
-        DeviceToken dt = deviceTokenFor(u, "both-tok");
-
-        when(deviceTokenRepository.findByActiveTrue()).thenReturn(List.of(dt));
-        when(preferenceService.signalsEnabledFor(u)).thenReturn(true);
-        when(notificationRepository.existsByUserAndSignalId(any(), any())).thenReturn(false);
-        when(fcmSenderService.sendToToken(any(), any(), any(), any(JsonObject.class))).thenReturn(true);
-
-        service.notifyForSignal(buildSignal(SignalGrade.BUY, TradingMode.SPOT));
-        service.notifyForSignal(buildSignal(SignalGrade.BUY, TradingMode.FUTURES));
-
-        verify(fcmSenderService, times(2)).sendToToken(any(), any(), any(), any());
-        verify(notificationRepository, times(2)).save(any());
-    }
-
-    @Test
-    void legacy_user_without_selected_modes_uses_singular_mode() {
-        // User.tradingMode defaults to SPOT; no UserSettings row present.
-        User u = new User(); u.setId(UUID.randomUUID());
-        DeviceToken dt = deviceTokenFor(u, "legacy-tok");
-        when(deviceTokenRepository.findByActiveTrue()).thenReturn(List.of(dt));
-        when(preferenceService.signalsEnabledFor(u)).thenReturn(true);
-        when(notificationRepository.existsByUserAndSignalId(any(), any())).thenReturn(false);
-        when(fcmSenderService.sendToToken(any(), any(), any(), any(JsonObject.class))).thenReturn(true);
-
-        service.notifyForSignal(buildSignal(SignalGrade.BUY, TradingMode.SPOT));
-        service.notifyForSignal(buildSignal(SignalGrade.BUY, TradingMode.FUTURES));
-
-        // SPOT delivered once; FUTURES skipped because legacy mode is SPOT.
-        verify(fcmSenderService, times(1)).sendToToken(any(), any(), any(), any());
-    }
-
-    @Test
-    void dedup_still_applies_for_eligible_mode() {
+    void delivery_does_not_depend_on_user_trading_mode_for_any_recipient() {
         Signal s = buildSignal(SignalGrade.BUY, TradingMode.SPOT);
-        User u = new User(); u.setId(UUID.randomUUID());
-        userHasModes(u, TradingMode.SPOT);
-        DeviceToken dt = deviceTokenFor(u, "tok");
-        when(deviceTokenRepository.findByActiveTrue()).thenReturn(List.of(dt));
-        when(preferenceService.signalsEnabledFor(u)).thenReturn(true);
-        when(notificationRepository.existsByUserAndSignalId(u, s.getId())).thenReturn(true);
+        User uSpot = userWithMode(TradingMode.SPOT);
+        User uFut = userWithMode(TradingMode.FUTURES);
+        User uOpt = userWithMode(TradingMode.OPTIONS);
+        DeviceToken d1 = deviceTokenFor(uSpot, "a");
+        DeviceToken d2 = deviceTokenFor(uFut, "b");
+        DeviceToken d3 = deviceTokenFor(uOpt, "c");
+
+        when(deviceTokenRepository.findByActiveTrue()).thenReturn(List.of(d1, d2, d3));
+        when(preferenceService.signalsEnabledFor(any())).thenReturn(true);
+        when(notificationRepository.existsByUserAndSignalId(any(), eq(s.getId()))).thenReturn(false);
+        when(fcmSenderService.sendToToken(any(), any(), any(), any(JsonObject.class))).thenReturn(true);
 
         service.notifyForSignal(s);
 
-        verify(fcmSenderService, never()).sendToToken(any(), any(), any(), any());
-        verify(notificationRepository, never()).save(any());
+        verify(fcmSenderService, times(3)).sendToToken(any(), any(), any(), any());
+        verify(notificationRepository, times(3)).save(any());
+    }
+
+    @Test
+    void marketType_reflects_signal_mode_for_futures() {
+        Signal s = buildSignal(SignalGrade.BUY, TradingMode.FUTURES);
+        User u = new User(); u.setId(UUID.randomUUID());
+        DeviceToken dt = deviceTokenFor(u, "fut-market");
+        when(deviceTokenRepository.findByActiveTrue()).thenReturn(List.of(dt));
+        when(preferenceService.signalsEnabledFor(u)).thenReturn(true);
+        when(notificationRepository.existsByUserAndSignalId(u, s.getId())).thenReturn(false);
+        when(fcmSenderService.sendToToken(any(), any(), any(), any(JsonObject.class))).thenReturn(true);
+
+        service.notifyForSignal(s);
+
+        ArgumentCaptor<Notification> cap = ArgumentCaptor.forClass(Notification.class);
+        verify(notificationRepository).save(cap.capture());
+        assert cap.getValue().getMarketType().equals("FUTURES");
     }
 }

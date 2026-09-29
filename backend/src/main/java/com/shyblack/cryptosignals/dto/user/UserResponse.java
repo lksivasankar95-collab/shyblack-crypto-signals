@@ -3,7 +3,6 @@ package com.shyblack.cryptosignals.dto.user;
 import com.shyblack.cryptosignals.entity.User;
 import com.shyblack.cryptosignals.entity.enums.AccountType;
 import com.shyblack.cryptosignals.entity.enums.RiskProfile;
-import com.shyblack.cryptosignals.entity.enums.TradingMode;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -15,7 +14,6 @@ public record UserResponse(
 		String country,
 		String timezone,
 		AccountType accountType,
-		TradingMode tradingMode,
 		RiskProfile riskProfile,
 		Instant createdAt,
 		Instant updatedAt
@@ -30,7 +28,6 @@ public record UserResponse(
 				user.getCountry(),
 				user.getTimezone(),
 				user.getAccountType(),
-				user.getTradingMode(),
 				user.getRiskProfile(),
 				user.getCreatedAt(),
 				user.getUpdatedAt()

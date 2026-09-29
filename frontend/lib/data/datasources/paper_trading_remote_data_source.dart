@@ -8,14 +8,14 @@ class PaperTradingRemoteDataSource {
 
   Future<Map<String, dynamic>> getAccount() async {
     final res = await _api.dio.get<Map<String, dynamic>>(
-      '/api${ApiConstants.paperAccount}',
+      ApiConstants.paperAccount,
     );
     return res.data ?? const {};
   }
 
   Future<List<Map<String, dynamic>>> listOpenPositions() async {
     final res = await _api.dio.get<List<dynamic>>(
-      '/api${ApiConstants.paperPositions}',
+      ApiConstants.paperPositions,
     );
     return (res.data ?? const [])
         .whereType<Map<String, dynamic>>()
@@ -24,7 +24,7 @@ class PaperTradingRemoteDataSource {
 
   Future<List<Map<String, dynamic>>> listHistory() async {
     final res = await _api.dio.get<List<dynamic>>(
-      '/api${ApiConstants.paperHistory}',
+      ApiConstants.paperHistory,
     );
     return (res.data ?? const [])
         .whereType<Map<String, dynamic>>()
@@ -33,21 +33,21 @@ class PaperTradingRemoteDataSource {
 
   Future<Map<String, dynamic>> getPerformance() async {
     final res = await _api.dio.get<Map<String, dynamic>>(
-      '/api${ApiConstants.paperPerformance}',
+      ApiConstants.paperPerformance,
     );
     return res.data ?? const {};
   }
 
   Future<Map<String, dynamic>> closePosition(String id) async {
     final res = await _api.dio.post<Map<String, dynamic>>(
-      '/api${ApiConstants.paperClose(id)}',
+      ApiConstants.paperClose(id),
     );
     return res.data ?? const {};
   }
 
   Future<Map<String, dynamic>> resetAccount() async {
     final res = await _api.dio.delete<Map<String, dynamic>>(
-      '/api${ApiConstants.paperAccount}',
+      ApiConstants.paperAccount,
     );
     return res.data ?? const {};
   }

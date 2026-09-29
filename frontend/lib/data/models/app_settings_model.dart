@@ -20,9 +20,6 @@ class AppSettingsModel {
     final createdAtRaw = profileJson['createdAt'] as String?;
     final memberSince = _formatCreatedAt(createdAtRaw);
 
-    final legacyMode = _mode(settingsJson['tradingMode'] as String?);
-    final selectedModes = _modes(settingsJson['selectedTradingModes'], legacyMode);
-
     return AppSettingsModel(
       AppSettings(
         fullName: settingsJson['fullName'] as String? ?? profileJson['fullName'] as String? ?? '',
@@ -33,8 +30,6 @@ class AppSettingsModel {
         memberId: memberId,
         memberSince: memberSince,
         membershipTier: 'Standard',
-        tradingMode: legacyMode,
-        selectedTradingModes: selectedModes,
         tradingAccount: _account(settingsJson['accountType'] as String?),
         quoteCurrency: settingsJson['quoteCurrency'] as String? ?? 'USDT',
         riskProfile: _risk(settingsJson['riskProfile'] as String?),
@@ -50,8 +45,6 @@ class AppSettingsModel {
 
   /// Builds from local SharedPreferences cache (offline/fallback).
   factory AppSettingsModel.fromJson(Map<String, dynamic> json) {
-    final legacyMode = _mode(json['tradingMode'] as String?);
-    final selectedModes = _modes(json['selectedTradingModes'], legacyMode);
     return AppSettingsModel(
       AppSettings(
         fullName: json['fullName'] as String? ?? AppSettings.defaults.fullName,
@@ -62,8 +55,6 @@ class AppSettingsModel {
         memberId: json['memberId'] as String? ?? AppSettings.defaults.memberId,
         memberSince: json['memberSince'] as String? ?? AppSettings.defaults.memberSince,
         membershipTier: json['membershipTier'] as String? ?? AppSettings.defaults.membershipTier,
-        tradingMode: legacyMode,
-        selectedTradingModes: selectedModes,
         tradingAccount: _account(json['tradingAccount'] as String?),
         quoteCurrency: json['quoteCurrency'] as String? ?? AppSettings.defaults.quoteCurrency,
         riskProfile: _risk(json['riskProfile'] as String?),
@@ -86,8 +77,6 @@ class AppSettingsModel {
         'memberId': settings.memberId,
         'memberSince': settings.memberSince,
         'membershipTier': settings.membershipTier,
-        'tradingMode': settings.tradingMode.name,
-        'selectedTradingModes': [for (final mode in settings.selectedTradingModes) mode.name],
         'tradingAccount': settings.tradingAccount.name,
         'quoteCurrency': settings.quoteCurrency,
         'riskProfile': settings.riskProfile.name,
@@ -107,10 +96,6 @@ class AppSettingsModel {
         'defaultLeverageView': settings.defaultLeverageView,
         'themeName': settings.themeName,
         'languageCode': _languageCode(settings.language),
-        'tradingMode': settings.tradingMode.name.toUpperCase(),
-        'selectedTradingModes': [
-          for (final mode in settings.selectedTradingModes) mode.name.toUpperCase(),
-        ],
         'accountType': settings.tradingAccount == TradingAccount.paper ? 'PAPER' : 'LIVE',
       };
 
@@ -121,30 +106,6 @@ class AppSettingsModel {
         'country': settings.country.isEmpty ? null : settings.country,
         'timezone': settings.timezone.isEmpty ? null : settings.timezone,
       };
-
-  static TradingMode _mode(String? value) => _modeOrNull(value) ?? TradingMode.spot;
-
-  static TradingMode? _modeOrNull(String? value) {
-    if (value == null) return null;
-    for (final mode in TradingMode.values) {
-      if (mode.name.toUpperCase() == value.toUpperCase()) return mode;
-    }
-    return null;
-  }
-
-  /// Multi-select parse with backward compatibility: a legacy response with
-  /// only `tradingMode` (no list) becomes a single-element selection.
-  static List<TradingMode> _modes(dynamic raw, TradingMode fallback) {
-    if (raw is List && raw.isNotEmpty) {
-      final result = <TradingMode>[];
-      for (final entry in raw) {
-        final mode = _modeOrNull(entry?.toString());
-        if (mode != null && !result.contains(mode)) result.add(mode);
-      }
-      if (result.isNotEmpty) return result;
-    }
-    return [fallback];
-  }
 
   static TradingAccount _account(String? value) {
     if (value == null) return TradingAccount.paper;

@@ -5,7 +5,6 @@ import '../../domain/entities/app_settings.dart';
 import '../../domain/entities/kline_candle.dart';
 import '../../domain/entities/market_ticker.dart';
 import 'markets_controller.dart';
-import 'settings_controller.dart';
 
 enum ChartTimeframe {
   h1('1h', '1h'),
@@ -48,12 +47,8 @@ class LocalWatchlist extends Notifier<Set<String>> {
 
 final localWatchlistProvider = NotifierProvider<LocalWatchlist, Set<String>>(LocalWatchlist.new);
 
-TradingMode _mode(Ref ref) => ref.watch(
-      settingsControllerProvider.select((async) => async.value?.tradingMode ?? TradingMode.spot),
-    );
-
 final coinTickerRestProvider = FutureProvider.autoDispose.family<MarketTicker, String>((ref, symbol) async {
-  final mode = _mode(ref);
+  const mode = kAppMarketMode;
   return ref.read(getMarketTickerProvider).call(symbol, mode);
 });
 
@@ -69,7 +64,7 @@ final coinTickerProvider = Provider.autoDispose.family<AsyncValue<MarketTicker>,
 
 final coinKlinesProvider =
     FutureProvider.autoDispose.family<List<KlineCandle>, KlineQuery>((ref, query) async {
-  final mode = _mode(ref);
+  const mode = kAppMarketMode;
   return ref.read(getKlinesProvider).call(
         symbol: query.symbol,
         interval: query.interval,

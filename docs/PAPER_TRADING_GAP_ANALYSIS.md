@@ -103,7 +103,7 @@ Once GAP 1 is fixed, the REST response must expose these fields so the Flutter c
 | `PaperTradingSizingService` — risk-based qty, scale-down when notional > balance | COMPLETE |
 | `PaperTradingExecutionService` — open/close idempotency, PESSIMISTIC_WRITE, lifecycle events | COMPLETE |
 | `PaperTradingQueryService` — live price from MarketBook, unrealized P&L | COMPLETE |
-| `PaperTradingEngineService` — fan-out by user.tradingMode, tick listener wired at startup | COMPLETE |
+| `PaperTradingEngineService` — fan-out to enabled PAPER users (application-driven, no user trading mode), tick listener wired at startup | COMPLETE |
 | `PaperTradingController` — 7 endpoints, IDOR-safe, all auth from SecurityContext | COMPLETE |
 | `Portfolio` accounting — available, invested, realizedPnl, fees, win/loss counts | COMPLETE |
 | Concurrency — PESSIMISTIC_WRITE on portfolio, unique(portfolio_id, signal_id) | COMPLETE |

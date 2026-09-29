@@ -7,44 +7,44 @@ class BacktestingRemoteDataSource {
   final ApiClient _api;
 
   Future<List<Map<String, dynamic>>> listRuns() async {
-    final r = await _api.dio.get<List<dynamic>>('/api${ApiConstants.backtests}');
+    final r = await _api.dio.get<List<dynamic>>(ApiConstants.backtests);
     return (r.data ?? const []).whereType<Map<String, dynamic>>().toList();
   }
 
   Future<Map<String, dynamic>> getRun(String id) async {
-    final r = await _api.dio.get<Map<String, dynamic>>('/api${ApiConstants.backtest(id)}');
+    final r = await _api.dio.get<Map<String, dynamic>>(ApiConstants.backtest(id));
     return r.data ?? const {};
   }
 
   Future<Map<String, dynamic>> startRun(Map<String, dynamic> body) async {
     final r = await _api.dio.post<Map<String, dynamic>>(
-      '/api${ApiConstants.backtests}',
+      ApiConstants.backtests,
       data: body,
     );
     return r.data ?? const {};
   }
 
   Future<List<Map<String, dynamic>>> getTrades(String id) async {
-    final r = await _api.dio.get<List<dynamic>>('/api${ApiConstants.backtestTrades(id)}');
+    final r = await _api.dio.get<List<dynamic>>(ApiConstants.backtestTrades(id));
     return (r.data ?? const []).whereType<Map<String, dynamic>>().toList();
   }
 
   Future<List<Map<String, dynamic>>> getEquity(String id) async {
-    final r = await _api.dio.get<List<dynamic>>('/api${ApiConstants.backtestEquity(id)}');
+    final r = await _api.dio.get<List<dynamic>>(ApiConstants.backtestEquity(id));
     return (r.data ?? const []).whereType<Map<String, dynamic>>().toList();
   }
 
   Future<Map<String, dynamic>> cancelRun(String id) async {
-    final r = await _api.dio.post<Map<String, dynamic>>('/api${ApiConstants.backtestCancel(id)}');
+    final r = await _api.dio.post<Map<String, dynamic>>(ApiConstants.backtestCancel(id));
     return r.data ?? const {};
   }
 
   Future<void> deleteRun(String id) async {
-    await _api.dio.delete<Map<String, dynamic>>('/api${ApiConstants.backtest(id)}');
+    await _api.dio.delete<Map<String, dynamic>>(ApiConstants.backtest(id));
   }
 
   Future<List<Map<String, dynamic>>> listStrategies() async {
-    final r = await _api.dio.get<List<dynamic>>('/api${ApiConstants.backtestStrategies}');
+    final r = await _api.dio.get<List<dynamic>>(ApiConstants.backtestStrategies);
     return (r.data ?? const []).whereType<Map<String, dynamic>>().toList();
   }
 }

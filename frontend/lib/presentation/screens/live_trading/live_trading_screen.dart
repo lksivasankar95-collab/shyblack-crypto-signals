@@ -372,7 +372,7 @@ class _SafetyPanel extends StatelessWidget {
         title: const Text('Enable live trading?'),
         content: const Text(
           'This account will begin placing REAL orders on the exchange when '
-          'signals match your trading mode. You are responsible for any funds '
+          'application signals match this account. You are responsible for any funds '
           'lost. Confirm you understand this before continuing.',
         ),
         actions: [

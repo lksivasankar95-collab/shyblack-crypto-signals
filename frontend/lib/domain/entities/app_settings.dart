@@ -1,5 +1,13 @@
 enum TradingMode { spot, futures, options }
 
+/// Application-controlled market view mode.
+///
+/// Trading mode is NOT a user preference. Signal generation and strategy
+/// selection are driven by the application's active strategy per mode
+/// (SPOT -> Trend Pullback / EMA Trend Following, FUTURES -> Futures engine).
+/// The market browser defaults to the application's primary (Spot) universe.
+const TradingMode kAppMarketMode = TradingMode.spot;
+
 enum TradingAccount { paper, live }
 
 enum RiskProfile { conservative, moderate, aggressive }
@@ -54,8 +62,6 @@ class AppSettings {
     required this.memberId,
     required this.memberSince,
     required this.membershipTier,
-    required this.tradingMode,
-    this.selectedTradingModes = const [TradingMode.spot],
     required this.tradingAccount,
     required this.quoteCurrency,
     required this.riskProfile,
@@ -75,11 +81,6 @@ class AppSettings {
   final String memberId;
   final String memberSince;
   final String membershipTier;
-  final TradingMode tradingMode;
-
-  /// Multi-select trading modes. Always non-empty; [tradingMode] mirrors the
-  /// first entry for backward compatibility with singular consumers.
-  final List<TradingMode> selectedTradingModes;
   final TradingAccount tradingAccount;
   final String quoteCurrency;
   final RiskProfile riskProfile;
@@ -99,8 +100,6 @@ class AppSettings {
     memberId: '',
     memberSince: '',
     membershipTier: 'Standard',
-    tradingMode: TradingMode.spot,
-    selectedTradingModes: [TradingMode.spot],
     tradingAccount: TradingAccount.paper,
     quoteCurrency: 'USDT',
     riskProfile: RiskProfile.moderate,
@@ -121,8 +120,6 @@ class AppSettings {
     String? memberId,
     String? memberSince,
     String? membershipTier,
-    TradingMode? tradingMode,
-    List<TradingMode>? selectedTradingModes,
     TradingAccount? tradingAccount,
     String? quoteCurrency,
     RiskProfile? riskProfile,
@@ -142,8 +139,6 @@ class AppSettings {
       memberId: memberId ?? this.memberId,
       memberSince: memberSince ?? this.memberSince,
       membershipTier: membershipTier ?? this.membershipTier,
-      tradingMode: tradingMode ?? this.tradingMode,
-      selectedTradingModes: selectedTradingModes ?? this.selectedTradingModes,
       tradingAccount: tradingAccount ?? this.tradingAccount,
       quoteCurrency: quoteCurrency ?? this.quoteCurrency,
       riskProfile: riskProfile ?? this.riskProfile,

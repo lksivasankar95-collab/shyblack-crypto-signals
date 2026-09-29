@@ -124,27 +124,6 @@ class _MarketsBody extends StatelessWidget {
   }
 
   Widget _buildList(BuildContext context) {
-    if (data.isOptionsUnavailable) {
-      return RefreshIndicator(
-        color: AppColors.accent,
-        backgroundColor: AppColors.card,
-        onRefresh: onRefresh,
-        child: const CustomScrollView(
-          physics: AlwaysScrollableScrollPhysics(),
-          slivers: [
-            SliverFillRemaining(
-              hasScrollBody: false,
-              child: _EmptyState(
-                icon: Icons.tune,
-                title: "Options trading data isn't available yet",
-                subtitle: 'Switch Trading Mode in Settings to Spot or Futures to see live USDT markets.',
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
     final tickers = switch (tabIndex) {
       0 => const <MarketTicker>[],
       1 => _filter(data.all, query),

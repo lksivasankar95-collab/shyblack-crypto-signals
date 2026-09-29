@@ -13,6 +13,7 @@ import com.shyblack.cryptosignals.entity.enums.LiveOrderType;
 import com.shyblack.cryptosignals.entity.enums.LiveTradingRiskReason;
 import com.shyblack.cryptosignals.entity.enums.ProtectionStatus;
 import com.shyblack.cryptosignals.entity.enums.SignalStatus;
+import com.shyblack.cryptosignals.entity.enums.TradingMode;
 import com.shyblack.cryptosignals.repository.LiveOrderRepository;
 import com.shyblack.cryptosignals.exchange.ExchangeTradingAdapter;
 import com.shyblack.cryptosignals.exchange.SymbolRules;
@@ -85,8 +86,9 @@ public class LiveTradingEngineService {
 
 	private void processForAccount(LiveTradingAccount account, Signal signal) {
 		User user = account.getUser();
-		// Only route signals for the trading mode this account matches.
-		if (signal.getTradingMode() != user.getTradingMode()) return;
+		// This live engine executes the SPOT strategy universe only; mode is a
+		// system/strategy concern, not a user preference.
+		if (signal.getTradingMode() != TradingMode.SPOT) return;
 
 		LiveTradingRiskReason risk = riskService.check(user, account, signal);
 		if (risk != LiveTradingRiskReason.OK) {

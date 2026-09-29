@@ -80,12 +80,12 @@ public class PaperTradingEngineService {
 	}
 
 	private void fanOutForSignal(Signal signal) {
-		// Every user with an active PAPER account whose tradingMode matches the signal gets a trade.
+		// Application-generated signals fan out to every enabled PAPER account.
+		// Trading mode is no longer a user-level eligibility preference.
 		List<User> users = userRepository.findAll();
 		for (User user : users) {
 			if (!user.isEnabled()) continue;
 			if (user.getAccountType() != AccountType.PAPER) continue;
-			if (user.getTradingMode() != signal.getTradingMode()) continue;
 			try {
 				openForUser(user, signal);
 			} catch (Exception ex) {

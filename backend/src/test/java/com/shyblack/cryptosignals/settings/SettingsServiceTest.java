@@ -21,7 +21,6 @@ import com.shyblack.cryptosignals.entity.enums.ExchangeName;
 import com.shyblack.cryptosignals.entity.enums.PositionSizingMode;
 import com.shyblack.cryptosignals.entity.enums.QuoteCurrency;
 import com.shyblack.cryptosignals.entity.enums.RiskProfile;
-import com.shyblack.cryptosignals.entity.enums.TradingMode;
 import com.shyblack.cryptosignals.exception.BadRequestException;
 import com.shyblack.cryptosignals.repository.UserRepository;
 import com.shyblack.cryptosignals.repository.UserSettingsRepository;
@@ -57,7 +56,6 @@ class SettingsServiceTest {
 		user.setEmail("trader@example.com");
 		user.setFullName("Test Trader");
 		user.setAccountType(AccountType.PAPER);
-		user.setTradingMode(TradingMode.SPOT);
 		user.setRiskProfile(RiskProfile.MODERATE);
 		principal = new UserPrincipal(user);
 
@@ -110,7 +108,7 @@ class SettingsServiceTest {
 				.thenReturn(Optional.of(existingSettings()));
 
 		SettingsUpdateRequest request = new SettingsUpdateRequest(
-				null, null, null, "5x", "light", "de", null, null, null);
+				null, null, null, "5x", "light", "de", null, null);
 		SettingsResponse response = service.update(principal, request);
 
 		assertThat(response.defaultLeverageView()).isEqualTo("5x");
@@ -128,7 +126,7 @@ class SettingsServiceTest {
 				.thenReturn(Optional.of(existingSettings()));
 
 		SettingsUpdateRequest request = new SettingsUpdateRequest(
-				null, null, null, null, null, null, true, null, null);
+				null, null, null, null, null, null, true, null);
 
 		assertThatThrownBy(() -> service.update(principal, request))
 				.isInstanceOf(BadRequestException.class)
@@ -142,7 +140,7 @@ class SettingsServiceTest {
 				QuoteCurrency.USDT, PositionSizingMode.FIXED_PERCENT);
 		service = new SettingsService(settingsRepository, userRepository, properties, exchangeCredentialService);
 		SettingsUpdateRequest request = new SettingsUpdateRequest(
-				null, null, RiskProfile.AGGRESSIVE, null, null, null, null, null, null);
+				null, null, RiskProfile.AGGRESSIVE, null, null, null, null, null);
 
 		assertThatThrownBy(() -> service.update(principal, request))
 				.isInstanceOf(BadRequestException.class)
@@ -155,7 +153,7 @@ class SettingsServiceTest {
 				.thenReturn(Optional.of(existingSettings()));
 
 		SettingsUpdateRequest request = new SettingsUpdateRequest(
-				null, null, RiskProfile.CONSERVATIVE, null, null, null, null, null, null);
+				null, null, RiskProfile.CONSERVATIVE, null, null, null, null, null);
 		SettingsResponse response = service.update(principal, request);
 
 		assertThat(response.riskProfileOverride()).isEqualTo(RiskProfile.CONSERVATIVE);
@@ -197,62 +195,6 @@ class SettingsServiceTest {
 		assertThat(masked.maskedSecret()).doesNotContain("ciphertext-secret-part");
 		assertThat(credential.maskedSecret()).doesNotContain("secret-part");
 		assertThat(credential.maskedApiKey()).doesNotContain("ciphertext-key-part");
-	}
-
-	@Test
-	void getFallsBackToLegacySingleModeForPreExistingUsers() {
-		when(settingsRepository.findByUser_Id(user.getId()))
-				.thenReturn(Optional.of(existingSettings()));
-
-		SettingsResponse response = service.get(principal);
-
-		// No multi-select stored -> legacy singular mode becomes a one-element list.
-		assertThat(response.selectedTradingModes()).containsExactly(TradingMode.SPOT);
-	}
-
-	@Test
-	void updateStoresMultipleModesAndKeepsLegacyFieldConsistent() {
-		when(settingsRepository.findByUser_Id(user.getId()))
-				.thenReturn(Optional.of(existingSettings()));
-
-		SettingsUpdateRequest request = new SettingsUpdateRequest(
-				null, null, null, null, null, null, null, null, null,
-				List.of(TradingMode.FUTURES, TradingMode.SPOT));
-
-		SettingsResponse response = service.update(principal, request);
-
-		assertThat(response.selectedTradingModes())
-				.containsExactly(TradingMode.SPOT, TradingMode.FUTURES);
-		assertThat(response.tradingMode()).isIn(TradingMode.SPOT, TradingMode.FUTURES);
-		verify(settingsRepository).save(any(UserSettings.class));
-		verify(userRepository).save(any(User.class));
-	}
-
-	@Test
-	void updateDeduplicatesSelectedModes() {
-		when(settingsRepository.findByUser_Id(user.getId()))
-				.thenReturn(Optional.of(existingSettings()));
-
-		SettingsUpdateRequest request = new SettingsUpdateRequest(
-				null, null, null, null, null, null, null, null, null,
-				List.of(TradingMode.SPOT, TradingMode.SPOT, TradingMode.FUTURES));
-
-		SettingsResponse response = service.update(principal, request);
-
-		assertThat(response.selectedTradingModes()).hasSize(2);
-	}
-
-	@Test
-	void updateRejectsEmptySelectedModes() {
-		when(settingsRepository.findByUser_Id(user.getId()))
-				.thenReturn(Optional.of(existingSettings()));
-
-		SettingsUpdateRequest request = new SettingsUpdateRequest(
-				null, null, null, null, null, null, null, null, null, List.of());
-
-		assertThatThrownBy(() -> service.update(principal, request))
-				.isInstanceOf(BadRequestException.class)
-				.hasMessageContaining("at least one mode");
 	}
 
 	private UserSettings existingSettings() {
