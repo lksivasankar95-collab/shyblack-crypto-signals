@@ -42,7 +42,12 @@ public class PaperTradingAccountService {
 	}
 
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
-	public Portfolio reset(Portfolio portfolio) {
+	public Portfolio reset(Portfolio portfolioRef) {
+		// Re-load under a pessimistic lock: closing open positions (also a
+		// REQUIRES_NEW tx) bumps the Portfolio @Version, so the reference passed
+		// in by the caller is stale and would fail with StaleObjectStateException.
+		Portfolio portfolio = portfolioRepository.findByIdForUpdate(portfolioRef.getId())
+				.orElseThrow(() -> new BadRequestException("Paper account not found"));
 		BigDecimal initial = props.initialBalance();
 		portfolio.setInitialBalance(initial);
 		portfolio.setTotalBalance(initial);

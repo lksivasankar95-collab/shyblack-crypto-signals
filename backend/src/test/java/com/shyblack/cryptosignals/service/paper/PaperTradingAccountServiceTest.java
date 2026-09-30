@@ -150,4 +150,33 @@ class PaperTradingAccountServiceTest {
 				.isInstanceOf(BadRequestException.class)
 				.hasMessageContaining("reset the account");
 	}
+
+	@Test
+	void resetReloadsLockedPortfolioAndRestoresDefaults() {
+		// The caller's reference is stale (e.g. after reset closed an open
+		// position and bumped @Version); reset must re-load under lock.
+		Portfolio stale = portfolioWith(3, new BigDecimal("50"), new BigDecimal("1.5"));
+		stale.setInitialBalance(new BigDecimal("10000"));
+		Portfolio fresh = portfolioWith(3, new BigDecimal("50"), new BigDecimal("1.5"));
+		fresh.setId(stale.getId());
+		when(repository.findByIdForUpdate(stale.getId())).thenReturn(Optional.of(fresh));
+
+		Portfolio saved = service.reset(stale);
+
+		assertThat(saved).isSameAs(fresh);
+		assertThat(saved.getInitialBalance()).isEqualByComparingTo("100");
+		assertThat(saved.getAvailableBalance()).isEqualByComparingTo("100");
+		assertThat(saved.getInvested()).isEqualByComparingTo("0");
+		assertThat(saved.getRealizedPnl()).isEqualByComparingTo("0");
+		assertThat(saved.getTotalTrades()).isZero();
+	}
+
+	@Test
+	void resetFailsWhenPortfolioMissing() {
+		Portfolio p = portfolioWith(0, BigDecimal.ZERO, BigDecimal.ZERO);
+		when(repository.findByIdForUpdate(p.getId())).thenReturn(Optional.empty());
+
+		assertThatThrownBy(() -> service.reset(p))
+				.isInstanceOf(BadRequestException.class);
+	}
 }

@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -30,7 +31,10 @@ class PaperTradingScreen extends ConsumerWidget {
               length: 3,
               child: Column(
                 children: [
-                  _AccountHeader(account: view.account),
+                  _AccountHeader(
+                    account: view.account,
+                    openPositions: view.openPositions.length,
+                  ),
                   const TabBar(
                     labelColor: AppColors.accent,
                     unselectedLabelColor: AppColors.muted,
@@ -61,8 +65,9 @@ class PaperTradingScreen extends ConsumerWidget {
 }
 
 class _AccountHeader extends ConsumerWidget {
-  const _AccountHeader({required this.account});
+  const _AccountHeader({required this.account, required this.openPositions});
   final PaperAccount account;
+  final int openPositions;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -210,14 +215,39 @@ class _AccountHeader extends ConsumerWidget {
         const SnackBar(content: Text('Paper account reset')),
       );
     } catch (e) {
+      debugPrint('paper account reset failed: $e');
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Reset failed: $e'), backgroundColor: AppColors.loss),
+        const SnackBar(
+          content: Text('Unable to reset the paper account. Please try again.'),
+          backgroundColor: AppColors.loss,
+        ),
       );
     }
   }
 
+  /// True when the account already has trading activity, so the backend will (by
+  /// design) refuse a direct initial-capital change.
+  bool get _hasTradingActivity =>
+      account.totalTrades > 0 ||
+      openPositions > 0 ||
+      account.realizedPnl != 0 ||
+      account.invested > 0;
+
+  static const _capitalLockedMessage =
+      "Initial capital can't be changed after trading activity.\n\n"
+      'Reset the paper account first to start with a new capital amount.';
+
+  static bool _isCapitalValidationError(Object error) =>
+      error is DioException && error.response?.statusCode == 400;
+
   Future<void> _editCapital(BuildContext context, WidgetRef ref) async {
+    // Backend validation is authoritative; this is only an early, friendly guard.
+    if (_hasTradingActivity) {
+      await _showCapitalLockedDialog(context, ref);
+      return;
+    }
+
     final entered = await showDialog<String>(
       context: context,
       builder: (_) => _CapitalDialog(
@@ -242,10 +272,52 @@ class _AccountHeader extends ConsumerWidget {
         const SnackBar(content: Text('Initial capital updated')),
       );
     } catch (e) {
+      // Keep the raw cause in debug logs only — never render it to the user.
+      debugPrint('paper capital update failed: $e');
+      if (!context.mounted) return;
+      if (_isCapitalValidationError(e)) {
+        // Known backend rule: trading activity already exists.
+        await _showCapitalLockedDialog(context, ref);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Unable to update initial capital. Please try again.'),
+            backgroundColor: AppColors.loss,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _showCapitalLockedDialog(BuildContext context, WidgetRef ref) async {
+    final reset = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.card,
+        title: const Text("Can't change initial capital"),
+        content: const Text(_capitalLockedMessage),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Reset Account'),
+          ),
+        ],
+      ),
+    );
+    if (reset != true) return;
+    try {
+      await ref.read(paperTradingControllerProvider.notifier).resetAccount();
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Could not update capital: $e'),
+        const SnackBar(content: Text('Paper account reset — set your new initial capital')),
+      );
+    } catch (e) {
+      debugPrint('paper account reset failed: $e');
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unable to reset the paper account. Please try again.'),
           backgroundColor: AppColors.loss,
         ),
       );

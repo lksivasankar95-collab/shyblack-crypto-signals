@@ -76,7 +76,7 @@
 
 ## 4. Domain / Services
 
-- `PaperTradingAccountService` — lazy `getOrCreate` of a per-user `Portfolio(PAPER)`; `reset` restores the initial balance; `updateInitialCapital` changes the starting capital **only before any trading** (no trades, no open positions, no realized P&L). All mutations use `@Transactional(propagation = REQUIRES_NEW)` so a Portfolio created from the `AFTER_COMMIT` listener commits independently and is visible to the execution transaction (previously it joined the completed tx and was never committed → `Portfolio missing`).
+- `PaperTradingAccountService` — lazy `getOrCreate` of a per-user `Portfolio(PAPER)`; `reset` restores the initial balance; `updateInitialCapital` changes the starting capital **only before any trading** (no trades, no open positions, no realized P&L). All mutations use `@Transactional(propagation = REQUIRES_NEW)` so a Portfolio created from the `AFTER_COMMIT` listener commits independently and is visible to the execution transaction (previously it joined the completed tx and was never committed → `Portfolio missing`). `reset` re-locks the portfolio (`findByIdForUpdate`) before saving because closing open positions bumps `@Version` and a stale reference would fail with `StaleObjectStateException` (HTTP 500).
 - `PaperTradingSizingService` — risk-based sizing: `qty = (available * riskPct / 100) / |entry - stop|`; when the risk-based notional would exceed free balance it scales down so that `notional + entryFee <= available` (fee-aware cap; the pre-cap version rejected such trades with `INSUFFICIENT_BALANCE`); rejects invalid stops.
 - `PaperTradingPnLService` — authoritative math for gross, net, fees, slippage, %-return. Same primitives used for unrealized and realized P&L (no divergence across screens).
 - `PaperTradingExecutionService` — the **only** path that opens/closes positions:
@@ -110,6 +110,7 @@
 - `PaperTradingController` (AsyncNotifier) — parallel-fetches account/open/history/performance; 10 s auto-refresh timer; optimistic refresh after manual close/reset.
 - Repository/data-source pattern matches existing modules; dio interceptor supplies the JWT.
 - Live prices come from the same Binance stream the backend uses — no duplicate WS.
+- The account header shows **Initial Capital** with an Edit action. The edit is guarded client-side (blocked when the account already has trades/open positions/realized P&L/invested) and, if the backend still returns its intentional `400` (capital locked after trading), it is mapped to a friendly message with a **Reset Account** action — the raw `DioException` is only written to debug logs, never rendered.
 
 ## 7. Guarantees
 
@@ -191,7 +192,9 @@ default capital 100, `PATCH /account/capital`, fee-aware sizing cap):
 | Item | Result |
 | ---- | ------ |
 | Paper account API | ✅ `GET /paper-trading/account` 200; fresh account `initialBalance=100.00`; existing account value preserved |
-| Capital API | ✅ `PATCH /account/capital`: valid → 200; `0`/negative/`null`/non-numeric → 400; `DELETE /account` → reset to 100; read never resets |
+| Capital API | ✅ `PATCH /account/capital`: valid on a clean account → 200 (`250`, `123.45`); `0`/negative/`null`/non-numeric → 400; `DELETE /account` → reset to 100; read never resets |
+| Capital lock (intentional 400) | ✅ changing capital once trades/open positions exist → 400 with `"Initial capital cannot be changed once the paper account has trades or open positions; reset the account instead"`; frontend maps this to a friendly message, no raw `DioException` |
+| Reset flow | ✅ `DELETE /account` after an open position → 200 (previously 500 `StaleObjectStateException`); fresh account `initial=100 available=100 invested=0 realized=0 trades=0`, then `PATCH 250` → 200 |
 | Genuine signal | ✅ real `FuturesSignalScheduler` signals (e.g. `SOONUSDT`, `ARXUSDT`) |
 | Automatic execution | ✅ `SignalGeneratedEvent` → engine → **14 positions** (one per PAPER portfolio), no UI; `Portfolio missing` = 0 |
 | Position | ✅ `ARXUSDT` LONG — signalId/entry/SL/TP1-3/notional/entryFee/status = OPEN |
@@ -215,6 +218,11 @@ and `PaperTradingExecutionService.openFromSignal/close` all use
 `@Transactional(propagation = REQUIRES_NEW)`, so the Portfolio commits before the
 execution transaction reads it. No `LazyInitializationException`, detached-entity,
 or "Portfolio missing" errors are observed live.
+
+`PaperTradingAccountService.reset` additionally re-locks the portfolio
+(`findByIdForUpdate`) before saving, because the reset close loop bumps the
+Portfolio `@Version`; without the re-lock `DELETE /account` returned HTTP 500
+(`StaleObjectStateException`) whenever an open position existed.
 
 ## 12. Known limitations
 
