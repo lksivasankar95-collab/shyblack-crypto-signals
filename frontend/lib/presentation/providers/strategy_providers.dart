@@ -35,14 +35,18 @@ abstract class StrategyTabController
 
   Future<StrategyTabState> _load() async {
     final repo = ref.read(strategyRepositoryProvider);
-    final results = await Future.wait([
-      repo.listStrategies(mode),
-      repo.getActiveStrategy(mode),
-    ]);
-    return StrategyTabState(
-      strategies: results[0] as List<TradingStrategy>,
-      activeInfo: results[1] as ActiveStrategyInfo?,
-    );
+    // The strategy list is the primary payload — a failure here is a real error.
+    final strategies = await repo.listStrategies(mode);
+    // The active-strategy lookup is supplementary metadata: it must never
+    // block the list (e.g. a transient 5xx on /strategies/active). If it
+    // fails, fall back to "no active strategy" instead of failing the tab.
+    ActiveStrategyInfo? activeInfo;
+    try {
+      activeInfo = await repo.getActiveStrategy(mode);
+    } catch (_) {
+      activeInfo = null;
+    }
+    return StrategyTabState(strategies: strategies, activeInfo: activeInfo);
   }
 
   Future<void> setActive(String strategyId) async {
