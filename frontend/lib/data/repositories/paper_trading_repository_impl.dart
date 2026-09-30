@@ -47,4 +47,10 @@ class PaperTradingRepositoryImpl implements PaperTradingRepository {
     final json = await _remote.resetAccount();
     return PaperAccountModel.fromJson(json).account;
   }
+
+  @override
+  Future<PaperAccount> updateInitialCapital(double initialCapital) async {
+    final json = await _remote.updateInitialCapital(initialCapital);
+    return PaperAccountModel.fromJson(json).account;
+  }
 }

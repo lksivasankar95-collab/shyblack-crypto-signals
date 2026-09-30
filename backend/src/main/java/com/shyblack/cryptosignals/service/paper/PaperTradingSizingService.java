@@ -15,12 +15,15 @@ import org.springframework.stereotype.Service;
  * qty        = riskAmount / |entry - stopLoss|
  *
  * Then constrained by:
- *   - notional <= availableBalance (a paper trader cannot deploy more capital than they have)
+ *   - notional + entry fee <= availableBalance (a paper trader cannot deploy more
+ *     capital than they have, and the debit includes the entry commission)
  *   - qty > 0, finite, non-NaN
  *
- * If the resulting notional exceeds the free balance we scale the position
- * down to what the balance can afford (leaves risk% unchanged but caps size).
- * Returns null when a valid non-zero size cannot be computed.
+ * If the resulting notional exceeds what the free balance can afford we scale
+ * the position down to fit (leaves risk% unchanged but caps size). The cap
+ * reserves room for the entry fee so the subsequent debit cannot be rejected
+ * as INSUFFICIENT_BALANCE. Returns null when a valid non-zero size cannot be
+ * computed.
  */
 @Service
 @RequiredArgsConstructor
@@ -56,10 +59,16 @@ public class PaperTradingSizingService {
 		BigDecimal qty = riskAmount.divide(stopDistance, QTY_SCALE, RoundingMode.DOWN);
 		if (qty.signum() <= 0) return null;
 
+		// Largest notional whose debit (notional + fee) still fits the free balance.
+		BigDecimal feeRate = props.feeRatePct() == null ? BigDecimal.ZERO : props.feeRatePct();
+		BigDecimal feeMultiplier = BigDecimal.ONE.add(
+				feeRate.divide(BigDecimal.valueOf(100), MONEY_SCALE, RoundingMode.HALF_UP));
+		BigDecimal maxNotional = available.divide(feeMultiplier, MONEY_SCALE, RoundingMode.DOWN);
+
 		BigDecimal notional = qty.multiply(entryPrice).setScale(MONEY_SCALE, RoundingMode.HALF_UP);
-		if (notional.compareTo(available) > 0) {
-			// Cannot deploy more than free balance — scale down qty to fit.
-			qty = available.divide(entryPrice, QTY_SCALE, RoundingMode.DOWN);
+		if (notional.compareTo(maxNotional) > 0) {
+			// Scale qty down so the fee-inclusive debit fits the free balance.
+			qty = maxNotional.divide(entryPrice, QTY_SCALE, RoundingMode.DOWN);
 			if (qty.signum() <= 0) return null;
 			notional = qty.multiply(entryPrice).setScale(MONEY_SCALE, RoundingMode.HALF_UP);
 		}

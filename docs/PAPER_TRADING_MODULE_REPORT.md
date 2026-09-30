@@ -20,7 +20,7 @@
                     │  @TransactionalEvent-     │
                     │  Listener                 │
                     └────────────┬──────────────┘
-        fan-out per user (paper account + matching mode)
+        fan-out per enabled PAPER account (no user trading-mode filter)
                                  ▼
                     ┌───────────────────────────┐
                     │  ExecutionService         │
@@ -69,15 +69,15 @@
 | --------------------- | --------- | ----------------------------------- |
 | `fee-rate-pct`        | `0.10`    | Per-side commission (%)             |
 | `slippage-pct`        | `0.05`    | Adverse-price slippage (%)          |
-| `initial-balance`     | `10000.00`| Starting equity for a new account   |
+| `initial-balance`     | `100.00`  | Starting equity for a new account   |
 | `max-active-positions`| `10`      | Safety cap per user                 |
 | `risk-per-trade-pct`  | `2.00`    | Fallback risk % (signal wins)       |
 | `default-quote-currency` | `USDT` | Portfolio currency                  |
 
 ## 4. Domain / Services
 
-- `PaperTradingAccountService` — lazy `getOrCreate` of a per-user `Portfolio(PAPER)`; `reset` restores the initial balance.
-- `PaperTradingSizingService` — risk-based sizing: `qty = (available * riskPct / 100) / |entry - stop|`; scales down when notional exceeds free balance; rejects invalid stops.
+- `PaperTradingAccountService` — lazy `getOrCreate` of a per-user `Portfolio(PAPER)`; `reset` restores the initial balance; `updateInitialCapital` changes the starting capital **only before any trading** (no trades, no open positions, no realized P&L). All mutations use `@Transactional(propagation = REQUIRES_NEW)` so a Portfolio created from the `AFTER_COMMIT` listener commits independently and is visible to the execution transaction (previously it joined the completed tx and was never committed → `Portfolio missing`).
+- `PaperTradingSizingService` — risk-based sizing: `qty = (available * riskPct / 100) / |entry - stop|`; when the risk-based notional would exceed free balance it scales down so that `notional + entryFee <= available` (fee-aware cap; the pre-cap version rejected such trades with `INSUFFICIENT_BALANCE`); rejects invalid stops.
 - `PaperTradingPnLService` — authoritative math for gross, net, fees, slippage, %-return. Same primitives used for unrealized and realized P&L (no divergence across screens).
 - `PaperTradingExecutionService` — the **only** path that opens/closes positions:
   - Portfolio locked `PESSIMISTIC_WRITE` for every mutation.
@@ -100,6 +100,7 @@
 | GET    | `/api/v1/paper-trading/positions/{id}`      | Single owned position       |
 | GET    | `/api/v1/paper-trading/history`             | Closed positions            |
 | GET    | `/api/v1/paper-trading/performance`         | Aggregate stats             |
+| PATCH  | `/api/v1/paper-trading/account/capital`      | Set initial capital (pre-trade only; `> 0`) |
 | POST   | `/api/v1/paper-trading/positions/{id}/close`| Manual close at market      |
 | DELETE | `/api/v1/paper-trading/account`             | Reset — closes all, restores initial balance |
 
@@ -137,14 +138,16 @@ The engine consumes last-trade prices (Binance `!ticker@arr`, ~1 s cadence). Thi
 
 - **Backend** (`service/paper/*Test.java`, JUnit + Mockito):
   - `PaperTradingPnLServiceTest` — 12 tests on gross/net/fees/slippage/%-return, incl. null-safety and shorts.
-  - `PaperTradingSizingServiceTest` — 6 tests: risk sizing, notional cap, zero-balance rejection, stop=entry rejection, missing SL, zero entry.
-  - `PaperTradingExecutionServiceTest` — 7 tests: idempotent open, debit-and-book, sizing rejection, idempotent close, TP wins/increments, SL loss increment, missing-position returns empty.
+  - `PaperTradingSizingServiceTest` — risk sizing, fee-aware notional cap, zero-balance rejection, stop=entry rejection, missing SL, zero entry.
+  - `PaperTradingExecutionServiceTest` — idempotent open, debit-and-book, sizing rejection, idempotent close, TP wins/increments, SL loss increment, missing-position returns empty.
+  - `PaperTradingAccountServiceTest` — default 100 USDT, existing account preserved, capital `> 0`, decimal support, reject zero/negative/null, reject once the account has trades/open positions.
+  - `PaperTradingEngineServiceTest` — ACTIVE signal → enabled PAPER opens; disabled/LIVE skipped; non-ACTIVE/unknown ignored; max-active cap; one signal → every eligible account.
 - **Frontend** (`test/paper_trading_test.dart`):
   - Renders account, open, history, stats tabs from a fake repo.
   - Manual close flow: dialog → confirm → repo `.closePosition('p1')` invoked → snackbar shown.
+  - Initial Capital shown; edit updates the value; non-positive rejected without a backend call.
 
-Backend results: **20 new paper-trading tests, all green**; 162 / 163 tests pass overall.
-The one failing test (`NewsApiIntegrationTest.assetContextAggregatesProcessedArticles`) fails on `main` before this branch — pre-existing flake unrelated to paper trading.
+Backend suite: **392 passed / 0 failed / 0 errors / 2 skipped**. Flutter suite: **58 passed / 0 failed / 2 skipped**. `flutter analyze`: 7 pre-existing info lints.
 
 ## 11. Verification ledger (Phase-42 gate)
 
@@ -152,8 +155,8 @@ The one failing test (`NewsApiIntegrationTest.assetContextAggregatesProcessedArt
 | ----------------------------- | ----------------------------------- |
 | Signal integration            | ✅ `@TransactionalEventListener(AFTER_COMMIT)` |
 | Paper account                 | ✅ `Portfolio(accountType=PAPER)` per user |
-| Initial balance               | ✅ `app.paper-trading.initial-balance` |
-| Position sizing               | ✅ `PaperTradingSizingService`      |
+| Initial balance               | ✅ `app.paper-trading.initial-balance` (default **100** USDT; existing accounts not reset) |
+| Position sizing               | ✅ `PaperTradingSizingService` (risk-based + fee-aware notional cap) |
 | Paper order → position        | ✅ `openFromSignal(...)`            |
 | Entry execution               | ✅ market-fill @ signal entry + slippage |
 | Live price monitoring         | ✅ `MarketBook.addBatchListener`    |
@@ -176,9 +179,42 @@ The one failing test (`NewsApiIntegrationTest.assetContextAggregatesProcessedArt
 | Authorization                 | ✅ endpoint-level ownership checks   |
 | Backend tests                 | ✅ 20 new tests, all green           |
 | Flutter tests                 | ✅ 2 new tests + 11 existing, all green |
-| Runtime verification          | NOT VERIFIED — Binance/backend not booted in this run; module compiles, unit-tests pass, wiring reviewed. |
+| Runtime verification          | ✅ Live (see §13) — genuine signal → automatic positions → balance debit → close/PnL on 8080 |
 | Documentation                 | ✅ this file                         |
-| Regression verification       | ✅ existing tests still pass; NewsApiIntegrationTest flake was already failing on main |
+| Regression verification       | ✅ existing tests still pass; News RSS fetch failures are environmental (network) |
+
+## 13. Live end-to-end verification (2026-09-29/30, port 8080, PID 24984)
+
+Verified against the **current** running build (paper `REQUIRES_NEW` portfolio fix,
+default capital 100, `PATCH /account/capital`, fee-aware sizing cap):
+
+| Item | Result |
+| ---- | ------ |
+| Paper account API | ✅ `GET /paper-trading/account` 200; fresh account `initialBalance=100.00`; existing account value preserved |
+| Capital API | ✅ `PATCH /account/capital`: valid → 200; `0`/negative/`null`/non-numeric → 400; `DELETE /account` → reset to 100; read never resets |
+| Genuine signal | ✅ real `FuturesSignalScheduler` signals (e.g. `SOONUSDT`, `ARXUSDT`) |
+| Automatic execution | ✅ `SignalGeneratedEvent` → engine → **14 positions** (one per PAPER portfolio), no UI; `Portfolio missing` = 0 |
+| Position | ✅ `ARXUSDT` LONG — signalId/entry/SL/TP1-3/notional/entryFee/status = OPEN |
+| Balance debit | ✅ `availableBalance` −= `notional + entryFee` on open |
+| Duplicate protection | ✅ `UNIQUE(portfolio_id, signal_id)` intact; 0 duplicate `(portfolio,signal)` rows |
+| Trading-mode regression | ✅ only the retained legacy `UserSettings.selectedTradingModesCsv` column remains |
+| Notification regression | ✅ `SignalNotificationServiceTest` green (mode-independent, dedup, FCM-failure isolation, `marketType`) |
+
+Historical evidence (build immediately prior to PID 24984, identical close logic):
+`SOONUSDT` auto-opened across the same 14 PAPER portfolios and closed by
+**TAKE_PROFIT** (`CREATED→OPENED→TP_HIT→CLOSED`, realized +20.2366 on 100 /
++2023.66 on 10000). On PID 24984 the natural SL/TP close was **not observed within
+the verification window** (the `ARXUSDT` batch remained OPEN; the only close on this
+PID was `close_reason=RESET` via the supported `DELETE /account` API).
+
+## 14. Transaction safety (AFTER_COMMIT → portfolio → open)
+
+The `AFTER_COMMIT` listener runs while the original (completed) transaction is still
+bound to the thread. `PaperTradingAccountService.getOrCreate/reset/updateInitialCapital`
+and `PaperTradingExecutionService.openFromSignal/close` all use
+`@Transactional(propagation = REQUIRES_NEW)`, so the Portfolio commits before the
+execution transaction reads it. No `LazyInitializationException`, detached-entity,
+or "Portfolio missing" errors are observed live.
 
 ## 12. Known limitations
 
@@ -187,3 +223,5 @@ The one failing test (`NewsApiIntegrationTest.assetContextAggregatesProcessedArt
 3. **Options mode:** signals with `TradingMode.OPTIONS` are ignored (there is no ticker store).
 4. **Short positions:** the engine supports SHORT math end-to-end, but the current spot signal engine only emits LONG signals — SHORT is exercised only in unit tests.
 5. **Paper-trade FCM:** we intentionally did not add a second notification pipeline; the existing signal notification announces the trade opportunity.
+6. **SL/TP gap:** the engine closes at the triggering tick's last price, so a tick that gaps past TP realizes more than the nominal TP distance (observed live on `SOONUSDT`). This is existing behavior, not a regression.
+7. **Current-build SL/TP close:** on PID 24984 the natural SL/TP close was not observed within the verification window; the batch remained OPEN and the only close on that PID was `RESET`. See §13.

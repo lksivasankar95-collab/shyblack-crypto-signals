@@ -82,20 +82,84 @@ void main() {
     expect(repo.closeCalled, 'p1');
     expect(find.text('BTCUSDT closed'), findsOneWidget);
   });
+
+  testWidgets('initial capital is shown and can be edited', (WidgetTester tester) async {
+    final repo = _FakePaperTradingRepository();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          paperTradingRepositoryProvider.overrideWith((ref) => repo),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.dark(),
+          darkTheme: AppTheme.dark(),
+          themeMode: ThemeMode.dark,
+          home: const PaperTradingScreen(),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    // Initial capital is displayed with the account currency.
+    expect(find.text('Initial Capital'), findsOneWidget);
+    expect(find.textContaining('10000.00'), findsWidgets);
+
+    // Edit -> enter a new value -> save.
+    await tester.tap(find.byKey(const Key('paper_capital_edit')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '250');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    expect(repo.capitalSet, 250);
+    expect(find.textContaining('250.00'), findsWidgets);
+  });
+
+  testWidgets('initial capital rejects non-positive input without calling the backend',
+      (WidgetTester tester) async {
+    final repo = _FakePaperTradingRepository();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          paperTradingRepositoryProvider.overrideWith((ref) => repo),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.dark(),
+          darkTheme: AppTheme.dark(),
+          themeMode: ThemeMode.dark,
+          home: const PaperTradingScreen(),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    await tester.tap(find.byKey(const Key('paper_capital_edit')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '0');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    expect(repo.capitalSet, isNull);
+    expect(find.text('Enter a positive amount'), findsOneWidget);
+  });
 }
 
 class _FakePaperTradingRepository implements PaperTradingRepository {
   String? closeCalled;
   bool resetCalled = false;
+  double? capitalSet;
+  double initial = 10000;
 
   @override
-  Future<PaperAccount> getAccount() async => const PaperAccount(
+  Future<PaperAccount> getAccount() async => PaperAccount(
         id: 'acc1',
         quoteCurrency: 'USDT',
-        initialBalance: 10000,
+        initialBalance: initial,
         availableBalance: 8000,
         invested: 2000,
-        totalBalance: 10000,
+        totalBalance: initial,
         equity: 10050,
         realizedPnl: 25,
         unrealizedPnl: 25,
@@ -181,6 +245,13 @@ class _FakePaperTradingRepository implements PaperTradingRepository {
   @override
   Future<PaperAccount> resetAccount() async {
     resetCalled = true;
+    return getAccount();
+  }
+
+  @override
+  Future<PaperAccount> updateInitialCapital(double initialCapital) async {
+    capitalSet = initialCapital;
+    initial = initialCapital;
     return getAccount();
   }
 }

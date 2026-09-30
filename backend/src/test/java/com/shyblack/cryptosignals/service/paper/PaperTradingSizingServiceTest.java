@@ -41,6 +41,22 @@ class PaperTradingSizingServiceTest {
 	}
 
 	@Test
+	void scalesDown_leavesRoomForEntryFee() {
+		// A tight-stop signal makes the risk-based notional far exceed the balance.
+		// The scaled-down notional must still fit WITH the entry fee, otherwise the
+		// execution debit would be rejected as INSUFFICIENT_BALANCE.
+		Portfolio portfolio = portfolio(new BigDecimal("100"));
+		Signal signal = signal(new BigDecimal("100"), new BigDecimal("99"), new BigDecimal("2.00"));
+
+		PaperTradingSizingService.Sizing s = sizing.size(portfolio, signal, new BigDecimal("100"));
+		assertThat(s).isNotNull();
+		BigDecimal fee = s.notional()
+				.multiply(new BigDecimal("0.10"))
+				.divide(new BigDecimal("100"), 8, java.math.RoundingMode.HALF_UP);
+		assertThat(s.notional().add(fee)).isLessThanOrEqualTo(new BigDecimal("100"));
+	}
+
+	@Test
 	void returnsNull_whenZeroBalance() {
 		Portfolio portfolio = portfolio(BigDecimal.ZERO);
 		Signal signal = signal(new BigDecimal("100"), new BigDecimal("95"), new BigDecimal("2.00"));

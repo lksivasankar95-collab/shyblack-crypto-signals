@@ -99,6 +99,7 @@ abstract final class ApiConstants {
 
   // Paper Trading
   static const String paperAccount = '/v1/paper-trading/account';
+  static const String paperAccountCapital = '/v1/paper-trading/account/capital';
   static const String paperPositions = '/v1/paper-trading/positions';
   static const String paperHistory = '/v1/paper-trading/history';
   static const String paperPerformance = '/v1/paper-trading/performance';

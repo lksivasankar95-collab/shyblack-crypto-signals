@@ -71,6 +71,14 @@ class PaperTradingController extends AsyncNotifier<PaperTradingViewData> {
     await refresh(silent: false);
   }
 
+  /// Change the paper account's initial capital. Backend rejects this once the
+  /// account has trades or open positions (surfaced to the caller as an error).
+  Future<void> updateInitialCapital(double initialCapital) async {
+    final repo = ref.read(paperTradingRepositoryProvider);
+    await repo.updateInitialCapital(initialCapital);
+    await refresh(silent: false);
+  }
+
   void _startAutoRefresh() {
     _refreshTimer?.cancel();
     _refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {

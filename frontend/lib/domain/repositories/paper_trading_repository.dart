@@ -9,4 +9,5 @@ abstract class PaperTradingRepository {
   Future<PaperPerformance> getPerformance();
   Future<PaperPosition> closePosition(String id);
   Future<PaperAccount> resetAccount();
+  Future<PaperAccount> updateInitialCapital(double initialCapital);
 }

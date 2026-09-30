@@ -98,22 +98,22 @@ Once GAP 1 is fixed, the REST response must expose these fields so the Flutter c
 
 | Component | Status |
 |-----------|--------|
-| `PaperTradingAccountService` — lazy portfolio creation, reset | COMPLETE |
+| `PaperTradingAccountService` — lazy portfolio creation (`REQUIRES_NEW`), reset, pre-trade initial-capital change | COMPLETE |
 | `PaperTradingPnLService` — notional, fee, slippage, grossPnl (LONG+SHORT), netPnl, pctReturn | COMPLETE |
-| `PaperTradingSizingService` — risk-based qty, scale-down when notional > balance | COMPLETE |
+| `PaperTradingSizingService` — risk-based qty, fee-aware scale-down (notional + entryFee ≤ balance) | COMPLETE |
 | `PaperTradingExecutionService` — open/close idempotency, PESSIMISTIC_WRITE, lifecycle events | COMPLETE |
 | `PaperTradingQueryService` — live price from MarketBook, unrealized P&L | COMPLETE |
 | `PaperTradingEngineService` — fan-out to enabled PAPER users (application-driven, no user trading mode), tick listener wired at startup | COMPLETE |
-| `PaperTradingController` — 7 endpoints, IDOR-safe, all auth from SecurityContext | COMPLETE |
+| `PaperTradingController` — 8 endpoints (incl. `PATCH /account/capital`), IDOR-safe, all auth from SecurityContext | COMPLETE |
 | `Portfolio` accounting — available, invested, realizedPnl, fees, win/loss counts | COMPLETE |
 | Concurrency — PESSIMISTIC_WRITE on portfolio, unique(portfolio_id, signal_id) | COMPLETE |
 | SL/TP evaluation — LONG (SL ≤ price, TP ≥ price), SHORT (SL ≥ price, TP ≤ price) | COMPLETE |
 | Fee simulation — 0.10% per side, configurable via `PaperTradingProperties` | COMPLETE |
 | Slippage — adverse direction, 0.05%, configurable | COMPLETE |
-| Flutter UI — 3-tab (Open/History/Stats), account header, position cards, manual close | COMPLETE |
-| Flutter provider — 10s auto-refresh, optimistic close, reset | COMPLETE |
-| REST DTOs — PaperAccountResponse, PaperPerformanceResponse, PaperPositionResponse | COMPLETE (after gap fix) |
-| Tests — PnL (10), Sizing (5), Execution (6 — plus gaps above) | COMPLETE (after gap fix) |
+| Flutter UI — 3-tab (Open/History/Stats), account header + Initial Capital edit, position cards, manual close | COMPLETE |
+| Flutter provider — 10s auto-refresh, optimistic close, reset, capital update | COMPLETE |
+| REST DTOs — PaperAccountResponse, PaperPerformanceResponse, PaperPositionResponse, PaperCapitalUpdateRequest | COMPLETE (after gap fix) |
+| Tests — PnL, Sizing, Execution, Account (default 100 + capital rules), Engine (fan-out eligibility) | COMPLETE (after gap fix) |
 
 ---
 

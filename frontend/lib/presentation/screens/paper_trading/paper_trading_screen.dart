@@ -149,6 +149,34 @@ class _AccountHeader extends ConsumerWidget {
                 _Kpi(label: 'Win %', value: account.winRatePct.toStringAsFixed(1)),
               ],
             ),
+            const SizedBox(height: 10),
+            const Divider(height: 1, color: Color(0xFF2A2A2A)),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                const Text('Initial Capital',
+                    style: TextStyle(color: AppColors.muted, fontSize: 11)),
+                const SizedBox(width: 8),
+                Text(
+                  '${account.initialBalance.toStringAsFixed(2)} ${account.quoteCurrency}',
+                  style: const TextStyle(
+                      color: AppColors.onBackground,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13),
+                ),
+                const Spacer(),
+                TextButton.icon(
+                  key: const Key('paper_capital_edit'),
+                  onPressed: () => _editCapital(context, ref),
+                  icon: const Icon(Icons.edit, size: 16),
+                  label: const Text('Edit'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.accent,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),
@@ -187,6 +215,88 @@ class _AccountHeader extends ConsumerWidget {
         SnackBar(content: Text('Reset failed: $e'), backgroundColor: AppColors.loss),
       );
     }
+  }
+
+  Future<void> _editCapital(BuildContext context, WidgetRef ref) async {
+    final entered = await showDialog<String>(
+      context: context,
+      builder: (_) => _CapitalDialog(
+        initial: account.initialBalance,
+        currency: account.quoteCurrency,
+      ),
+    );
+    if (entered == null) return;
+
+    final value = double.tryParse(entered);
+    if (value == null || !value.isFinite || value <= 0) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a positive amount'), backgroundColor: AppColors.loss),
+      );
+      return;
+    }
+    try {
+      await ref.read(paperTradingControllerProvider.notifier).updateInitialCapital(value);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Initial capital updated')),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not update capital: $e'),
+          backgroundColor: AppColors.loss,
+        ),
+      );
+    }
+  }
+}
+
+/// Owns its [TextEditingController] so disposal happens only after the dialog
+/// route is fully removed (not during its exit transition).
+class _CapitalDialog extends StatefulWidget {
+  const _CapitalDialog({required this.initial, required this.currency});
+
+  final double initial;
+  final String currency;
+
+  @override
+  State<_CapitalDialog> createState() => _CapitalDialogState();
+}
+
+class _CapitalDialogState extends State<_CapitalDialog> {
+  late final TextEditingController _controller =
+      TextEditingController(text: widget.initial.toStringAsFixed(2));
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: AppColors.card,
+      title: const Text('Initial Capital'),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        decoration: InputDecoration(
+          hintText: 'e.g. 100.00',
+          suffixText: widget.currency,
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        TextButton(
+          onPressed: () => Navigator.pop(context, _controller.text.trim()),
+          child: const Text('Save'),
+        ),
+      ],
+    );
   }
 }
 

@@ -51,4 +51,12 @@ class PaperTradingRemoteDataSource {
     );
     return res.data ?? const {};
   }
+
+  Future<Map<String, dynamic>> updateInitialCapital(double initialCapital) async {
+    final res = await _api.dio.patch<Map<String, dynamic>>(
+      ApiConstants.paperAccountCapital,
+      data: {'initialCapital': initialCapital},
+    );
+    return res.data ?? const {};
+  }
 }

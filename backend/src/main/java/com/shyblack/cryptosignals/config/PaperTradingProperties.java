@@ -26,7 +26,7 @@ public record PaperTradingProperties(
 	public PaperTradingProperties {
 		if (feeRatePct == null) feeRatePct = new BigDecimal("0.10");
 		if (slippagePct == null) slippagePct = new BigDecimal("0.05");
-		if (initialBalance == null) initialBalance = new BigDecimal("10000.00");
+		if (initialBalance == null) initialBalance = new BigDecimal("100.00");
 		if (maxActivePositions <= 0) maxActivePositions = 10;
 		if (riskPerTradePct == null) riskPerTradePct = new BigDecimal("2.00");
 		if (defaultQuoteCurrency == null || defaultQuoteCurrency.isBlank()) defaultQuoteCurrency = "USDT";

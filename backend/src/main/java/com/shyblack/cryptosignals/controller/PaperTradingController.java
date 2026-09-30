@@ -1,6 +1,7 @@
 package com.shyblack.cryptosignals.controller;
 
 import com.shyblack.cryptosignals.dto.paper.PaperAccountResponse;
+import com.shyblack.cryptosignals.dto.paper.PaperCapitalUpdateRequest;
 import com.shyblack.cryptosignals.dto.paper.PaperPerformanceResponse;
 import com.shyblack.cryptosignals.dto.paper.PaperPositionResponse;
 import com.shyblack.cryptosignals.entity.Portfolio;
@@ -18,6 +19,7 @@ import com.shyblack.cryptosignals.service.paper.PaperTradingQueryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Comparator;
@@ -28,8 +30,10 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -55,6 +59,15 @@ public class PaperTradingController {
 		User user = currentUser();
 		PaperTradingQueryService.AccountView view = queryService.loadAccount(user);
 		return toAccountDto(view);
+	}
+
+	@Operation(summary = "Update paper account initial capital (allowed only before any trades)")
+	@PatchMapping("/account/capital")
+	public PaperAccountResponse updateCapital(@Valid @RequestBody PaperCapitalUpdateRequest request) {
+		User user = currentUser();
+		Portfolio portfolio = accountService.getOrCreate(user);
+		accountService.updateInitialCapital(portfolio, request.initialCapital());
+		return toAccountDto(queryService.loadAccount(user));
 	}
 
 	@Operation(summary = "List open paper positions")

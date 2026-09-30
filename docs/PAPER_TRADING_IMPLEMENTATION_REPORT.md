@@ -4,6 +4,15 @@
 **Based on:** PAPER_TRADING_GAP_ANALYSIS.md  
 **Status:** All gaps implemented, tests passing, flutter analyze clean.
 
+> **Update (2026-09-29/30):** see `PAPER_TRADING_MODULE_REPORT.md` §13–14 for the
+> later changes now in the running build — default initial capital **100 USDT**,
+> `PATCH /api/v1/paper-trading/account/capital` (pre-trade only, `> 0`),
+> `REQUIRES_NEW` on `PaperTradingAccountService.getOrCreate/reset` (fixes the
+> `Portfolio missing` failure when the portfolio was created from the `AFTER_COMMIT`
+> listener), and a fee-aware paper sizing cap. Live E2E: genuine FUTURES signals
+> auto-created positions in 14 PAPER portfolios; the `SOONUSDT` batch closed via
+> `TAKE_PROFIT` with realized P&L. See §13 of the module report.
+
 ---
 
 ## Summary
