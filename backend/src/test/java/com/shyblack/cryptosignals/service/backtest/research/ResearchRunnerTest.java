@@ -92,6 +92,16 @@ class ResearchRunnerTest {
 	}
 
 	@Test
+	void outOfSample_runsSingleHeldOutWindowWithFrozenConfig() {
+		List<HistoricalCandle> candles = candles(240, 1);
+		Instant end = START.plus(10, ChronoUnit.DAYS);
+		ResearchWindowResult oos = OutOfSampleRunner.run(base(end), new FixedStrategy(), candles, List.of());
+		assertThat(oos.label()).isEqualTo("OOS");
+		assertThat(oos.trades()).isGreaterThanOrEqualTo(1);
+		assertThat(oos.start()).isEqualTo(START);
+	}
+
+	@Test
 	void emptyCandles_producesEmptyResult_noException() {
 		Instant end = START.plus(3, ChronoUnit.DAYS);
 		assertThat(WalkForwardEngine.run(base(end), FixedStrategy::new, List.of(), List.of(), 1, 1))
