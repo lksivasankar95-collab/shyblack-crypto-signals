@@ -14,6 +14,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.NoHandlerFoundException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
@@ -77,6 +78,23 @@ public class GlobalExceptionHandler {
 				.map(violation -> violation.getPropertyPath() + ": " + violation.getMessage())
 				.toList();
 		return build(HttpStatus.BAD_REQUEST, "Validation failed", request, details);
+	}
+
+	@ExceptionHandler(MethodArgumentTypeMismatchException.class)
+	public ResponseEntity<ApiError> handleTypeMismatch(
+			MethodArgumentTypeMismatchException ex, HttpServletRequest request) {
+		// An unparseable enum or numeric parameter is a client error. Without this it falls through
+		// to the generic handler and surfaces as 500, which would be both wrong and unpredictable.
+		String required = ex.getRequiredType() == null
+				? "a supported value"
+				: java.util.Arrays.stream(ex.getRequiredType().getEnumConstants())
+						.map(String::valueOf)
+						.reduce((a, b) -> a + ", " + b)
+						.orElse("a supported value");
+		return build(HttpStatus.BAD_REQUEST,
+				"Invalid value for '" + ex.getName() + "'; expected one of " + required,
+				request,
+				List.of());
 	}
 
 	@ExceptionHandler(HttpMessageNotReadableException.class)

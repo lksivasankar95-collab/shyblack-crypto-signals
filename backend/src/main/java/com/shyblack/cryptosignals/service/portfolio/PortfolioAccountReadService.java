@@ -1,6 +1,8 @@
 package com.shyblack.cryptosignals.service.portfolio;
 
 import com.shyblack.cryptosignals.dto.portfolio.PortfolioAccountView;
+import com.shyblack.cryptosignals.dto.portfolio.PortfolioPositionView;
+import com.shyblack.cryptosignals.dto.portfolio.PortfolioPositionsResponse;
 import com.shyblack.cryptosignals.entity.LiveOrder;
 import com.shyblack.cryptosignals.entity.LiveTradingAccount;
 import com.shyblack.cryptosignals.entity.FuturesTradingAccount;
@@ -9,6 +11,7 @@ import com.shyblack.cryptosignals.entity.PortfolioAccountConnection;
 import com.shyblack.cryptosignals.entity.PortfolioExchangeBalance;
 import com.shyblack.cryptosignals.entity.PortfolioExchangePosition;
 import com.shyblack.cryptosignals.entity.Position;
+import com.shyblack.cryptosignals.entity.Signal;
 import com.shyblack.cryptosignals.entity.User;
 import com.shyblack.cryptosignals.entity.enums.AccountAvailability;
 import com.shyblack.cryptosignals.entity.enums.AccountCategory;
@@ -22,6 +25,7 @@ import com.shyblack.cryptosignals.repository.PortfolioAccountConnectionRepositor
 import com.shyblack.cryptosignals.repository.PortfolioExchangeBalanceRepository;
 import com.shyblack.cryptosignals.repository.PortfolioExchangePositionRepository;
 import com.shyblack.cryptosignals.repository.PositionRepository;
+import com.shyblack.cryptosignals.repository.SignalRepository;
 import com.shyblack.cryptosignals.service.futures.FuturesQueryService;
 import com.shyblack.cryptosignals.service.live.LiveTradingQueryService;
 import com.shyblack.cryptosignals.service.paper.PaperTradingAccountService;
@@ -31,9 +35,12 @@ import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -97,6 +104,7 @@ public class PortfolioAccountReadService {
 					+ "trading position, so position figures stay unavailable.";
 
 	private final PositionRepository positionRepository;
+	private final SignalRepository signalRepository;
 	private final PortfolioAccountConnectionRepository connectionRepository;
 	private final PortfolioExchangeBalanceRepository balanceRepository;
 	private final PortfolioExchangePositionRepository exchangePositionRepository;
@@ -131,6 +139,144 @@ public class PortfolioAccountReadService {
 	}
 
 	// ---------------------------------------------------------------- PAPER
+
+		/**
+	 * Positions for a single scope, drawn from exactly the sources the account views use.
+	 *
+	 * <p>Scope rules, so a response can never mix wallets or markets:
+	 * <ul>
+	 *   <li>PAPER {@code MAIN} — every simulated position. A position with no originating signal has
+	 *       no market category and is reported with a null category rather than being guessed.</li>
+	 *   <li>PAPER {@code SPOT}/{@code FUTURES} — filtered by {@code Signal.tradingMode}.</li>
+	 *   <li>LIVE {@code FUTURES} — the exchange-authoritative position snapshot.</li>
+	 *   <li>LIVE {@code SPOT} — {@code UNSUPPORTED}: spot has no open-position concept, and a
+	 *       wallet asset balance is never presented as a position.</li>
+	 *   <li>LIVE {@code MAIN} — {@code UNAVAILABLE}: serving it would mix the spot and futures
+	 *       wallets, which the architecture forbids.</li>
+	 *   <li>Options, in either mode — {@code UNSUPPORTED}.</li>
+	 * </ul>
+	 */
+	public PortfolioPositionsResponse listPositions(User user, AccountMode mode, AccountCategory category) {
+		Objects.requireNonNull(user, "user is required");
+		Objects.requireNonNull(mode, "accountMode is required");
+		Objects.requireNonNull(category, "accountCategory is required");
+
+		if (category == AccountCategory.OPTIONS) {
+			return new PortfolioPositionsResponse(
+					mode, category, AccountAvailability.UNSUPPORTED, List.of(), OPTIONS_UNSUPPORTED_MESSAGE);
+		}
+		if (mode.isPaper()) {
+			return new PortfolioPositionsResponse(
+					mode, category, AccountAvailability.AVAILABLE, paperPositions(user, category), null);
+		}
+		if (category == AccountCategory.MAIN) {
+			return new PortfolioPositionsResponse(
+					mode, category, AccountAvailability.UNAVAILABLE, List.of(), LIVE_MAIN_UNAVAILABLE_MESSAGE);
+		}
+		if (category == AccountCategory.SPOT) {
+			return new PortfolioPositionsResponse(
+					mode, category, AccountAvailability.UNSUPPORTED, List.of(), LIVE_SPOT_NO_POSITION_MESSAGE);
+		}
+		return new PortfolioPositionsResponse(
+				mode, category, AccountAvailability.AVAILABLE, liveFuturesPositions(user), null);
+	}
+
+	private List<PortfolioPositionView> paperPositions(User user, AccountCategory category) {
+		List<Position> scoped = category == AccountCategory.MAIN
+				? positionRepository.findByPortfolio_UserAndPortfolio_AccountTypeOrderByCreatedAtDesc(
+						user, AccountType.PAPER)
+				: positionRepository.findByOwnerAndAccountTypeAndSignalTradingMode(
+						user, AccountType.PAPER, category.tradingMode().orElseThrow());
+
+		// One batched lookup rather than a query per position.
+		List<UUID> signalIds = scoped.stream()
+				.map(Position::getSignalId)
+				.filter(java.util.Objects::nonNull)
+				.distinct()
+				.toList();
+		java.util.Map<UUID, TradingMode> modeBySignal = new java.util.HashMap<>();
+		if (!signalIds.isEmpty()) {
+			for (Signal signal : signalRepository.findAllById(signalIds)) {
+				modeBySignal.put(signal.getId(), signal.getTradingMode());
+			}
+		}
+
+		List<PortfolioPositionView> views = new ArrayList<>(scoped.size());
+		for (Position position : scoped) {
+			AccountCategory positionCategory = (position.getSignalId() == null)
+					? null
+					: toCategory(modeBySignal.get(position.getSignalId()));
+			views.add(new PortfolioPositionView(
+					AccountMode.PAPER,
+					positionCategory,
+					position.getSymbol(),
+					position.getSide(),
+					position.remainingQty(),
+					position.getEntryPrice(),
+					paperQueryService.currentPrice(position),
+					position.getStopLoss(),
+					position.getTakeProfit1(),
+					position.getTakeProfit2(),
+					position.getTakeProfit3(),
+					position.getLiquidationPrice(),
+					null,
+					position.getNotional(),
+					markKnownUnrealized(position),
+					position.getRealizedPnl(),
+					position.getStatus()));
+		}
+		return List.copyOf(views);
+	}
+
+	private List<PortfolioPositionView> liveFuturesPositions(User user) {
+		return exchangePositionRepository.findByUserAndExchangeOrderBySymbolAsc(user, ExchangeName.BINANCE)
+				.stream()
+				.map(p -> new PortfolioPositionView(
+						AccountMode.LIVE,
+						AccountCategory.FUTURES,
+						p.getSymbol(),
+						p.getPositionSide(),
+						p.quantity(),
+						p.getEntryPrice(),
+						p.getMarkPrice(),
+						// The exchange position response carries no stop loss and no take-profit
+						// ladder. Deriving a stop from the mark price would be fabrication, so these
+						// stay null and only REST or our own orders can ever supply them.
+						null,
+						null,
+						null,
+						null,
+						p.getLiquidationPrice(),
+						p.getLeverage(),
+						p.getNotional(),
+						p.getUnrealizedProfit(),
+						null,
+						p.getPositionAmount() == null || p.getPositionAmount().signum() == 0
+								? PositionStatus.CLOSED
+								: PositionStatus.OPEN))
+				.toList();
+	}
+
+	/** Per-position unrealized P&amp;L, or null when the mark price is unknown. */
+	private BigDecimal markKnownUnrealized(Position position) {
+		BigDecimal mark = paperQueryService.currentPrice(position);
+		if (mark == null) {
+			return null;
+		}
+		return paperPnL.grossPnl(position.getSide(), position.getEntryPrice(), mark, position.remainingQty());
+	}
+
+	/** A market mode mapped to its account category, or null when it cannot be attributed. */
+	private static AccountCategory toCategory(TradingMode mode) {
+		if (mode == null) {
+			return null;
+		}
+		return switch (mode) {
+			case SPOT -> AccountCategory.SPOT;
+			case FUTURES -> AccountCategory.FUTURES;
+			case OPTIONS -> AccountCategory.OPTIONS;
+		};
+	}
 
 	private PortfolioAccountView paperView(User user, AccountCategory category) {
 		if (category == AccountCategory.OPTIONS) {
