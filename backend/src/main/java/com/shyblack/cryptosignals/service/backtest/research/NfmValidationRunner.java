@@ -17,8 +17,10 @@ import java.util.function.Supplier;
  * gate first, and returns an auditable {@link NfmValidationResult} with explicit
  * status handling. It never fabricates data and never converts UNKNOWN to zero.
  *
- * <p>Runtime execution (PA runtime) is out of scope and remains RUNTIME_BLOCKED
- * when the externally-managed backend is unavailable.</p>
+ * <p>Persistence is deliberately NOT done here; see
+ * {@code NfmValidationResultPersistenceService}. Runtime execution (PA runtime)
+ * is out of scope and remains RUNTIME_BLOCKED when the externally-managed
+ * backend is unavailable.</p>
  */
 public final class NfmValidationRunner {
 
@@ -33,27 +35,23 @@ public final class NfmValidationRunner {
 
 		UUID runId = UUID.nameUUIDFromBytes(
 				(baseConfig.hash() + "|" + runType).getBytes(StandardCharsets.UTF_8));
-		String dataQuality;
 		ValidationDataQualityGate.Result gate =
 				ValidationDataQualityGate.checkAll(candles, events, baseConfig.startDate(), baseConfig.endDate());
 		if (!gate.passed()) {
-			dataQuality = "BLOCKED";
-			return result(runId, baseConfig, runType, dataQuality, NfmValidationStatus.DATA_QUALITY_BLOCKED,
-					0, null, null, null, null, null, "DATA_QUALITY_BLOCKED: " + String.join("; ", gate.failures()),
-					List.of(), eventDatasetVersion, derivativesDatasetVersion, datasetVersion);
+			return new NfmValidationResult(runId, baseConfig.strategyId(), strategyVersion(baseConfig), runType,
+					List.of(baseConfig.symbol()), baseConfig.timeframe(), baseConfig.startDate(),
+					baseConfig.endDate(), baseConfig.hash(), datasetVersion, eventDatasetVersion,
+					derivativesDatasetVersion, "BLOCKED", NfmValidationStatus.DATA_QUALITY_BLOCKED,
+					0, 0, 0, null, null, null, null, null, null, null, null, null, null,
+					"DATA_QUALITY_BLOCKED: " + String.join("; ", gate.failures()), List.of());
 		}
-		dataQuality = "PASS";
 
-		boolean emptyEvents = events == null || events.isEmpty();
-		boolean partialCoverage = emptyEvents;
+		boolean partialCoverage = events == null || events.isEmpty();
 
+		int trades = 0, wins = 0, losses = 0;
+		BigDecimal netPnl = null, grossProfit = null, grossLoss = null, fees = null;
+		BigDecimal winRate = null, expectancy = null, profitFactor = null, maxDd = null, returnPct = null;
 		List<ResearchWindowResult> windows = List.of();
-		int trades = 0;
-		BigDecimal netPnl = null;
-		BigDecimal maxDd = null;
-		BigDecimal winRate = null;
-		BigDecimal expectancy = null;
-		BigDecimal profitFactor = null;
 		NfmValidationStatus status = NfmValidationStatus.COMPLETED;
 
 		switch (runType) {
@@ -61,44 +59,74 @@ public final class NfmValidationRunner {
 				PartialExitBacktestEngine.Result r =
 						PartialExitBacktestEngine.run(baseConfig, strategyFactory.get(), candles, events);
 				trades = r.trades();
+				wins = r.wins();
+				losses = r.losses();
 				netPnl = r.netPnl();
+				fees = r.totalFees();
 				winRate = r.winRatePct();
-				expectancy = trades == 0 ? null
-						: r.netPnl().divide(BigDecimal.valueOf(trades), 8, RoundingMode.HALF_UP);
-				profitFactor = profitFactor(r);
+				BigDecimal gp = BigDecimal.ZERO, gl = BigDecimal.ZERO;
+				for (PartialExitSimulator.Lifecycle lc : r.lifecycles()) {
+					if (lc.netPnl().signum() > 0) gp = gp.add(lc.netPnl());
+					else if (lc.netPnl().signum() < 0) gl = gl.add(lc.netPnl().abs());
+				}
+				grossProfit = gp;
+				grossLoss = gl;
+				expectancy = ratio(netPnl, trades);
+				profitFactor = gl.signum() == 0 ? null : gp.divide(gl, 4, RoundingMode.HALF_UP);
+				returnPct = pctOf(netPnl, baseConfig.initialCapital());
 			}
 			case WALK_FORWARD -> {
 				windows = WalkForwardEngine.run(baseConfig, strategyFactory, candles, events, windowDays, stepDays);
 				if (windows.isEmpty()) {
 					status = NfmValidationStatus.NOT_EXECUTED;
-			} else {
+				} else {
 					WindowMetricsAggregator.Aggregate a = WindowMetricsAggregator.aggregate(windows);
 					trades = a.trades();
+					wins = a.wins();
+					losses = a.losses();
 					netPnl = a.netPnl();
-					maxDd = a.worstDrawdownPct();
+					grossProfit = a.grossProfit();
+					grossLoss = a.grossLoss();
+					fees = a.fees();
 					winRate = a.winRatePct();
 					expectancy = a.expectancy();
 					profitFactor = a.profitFactor();
+					maxDd = a.worstDrawdownPct();
+					returnPct = a.avgReturnPct();
 				}
 			}
 			case OOS -> {
 				windows = List.of(OutOfSampleRunner.run(baseConfig, strategyFactory.get(), candles, events));
 				WindowMetricsAggregator.Aggregate a = WindowMetricsAggregator.aggregate(windows);
 				trades = a.trades();
+				wins = a.wins();
+				losses = a.losses();
 				netPnl = a.netPnl();
-				maxDd = a.worstDrawdownPct();
+				grossProfit = a.grossProfit();
+				grossLoss = a.grossLoss();
+				fees = a.fees();
 				winRate = a.winRatePct();
 				expectancy = a.expectancy();
 				profitFactor = a.profitFactor();
+				maxDd = a.worstDrawdownPct();
+				returnPct = a.avgReturnPct();
 			}
 			case SENSITIVITY -> {
 				windows = SensitivityRunner.run(baseConfig, params -> strategyFactory.get(), candles, events,
 						variants);
 				WindowMetricsAggregator.Aggregate a = WindowMetricsAggregator.aggregate(windows);
 				trades = a.trades();
+				wins = a.wins();
+				losses = a.losses();
 				netPnl = a.netPnl();
+				grossProfit = a.grossProfit();
+				grossLoss = a.grossLoss();
+				fees = a.fees();
 				winRate = a.winRatePct();
+				expectancy = a.expectancy();
 				profitFactor = a.profitFactor();
+				maxDd = a.worstDrawdownPct();
+				returnPct = a.avgReturnPct();
 			}
 		}
 
@@ -108,30 +136,24 @@ public final class NfmValidationRunner {
 		String notes = partialCoverage
 				? "event coverage PARTIAL (no exact-time events in range); no fabrication"
 				: "ok";
-		return result(runId, baseConfig, runType, dataQuality, status, trades, netPnl, maxDd, winRate,
-				expectancy, profitFactor, notes, windows, eventDatasetVersion, derivativesDatasetVersion,
-				datasetVersion);
+		return new NfmValidationResult(runId, baseConfig.strategyId(), strategyVersion(baseConfig), runType,
+				List.of(baseConfig.symbol()), baseConfig.timeframe(), baseConfig.startDate(),
+				baseConfig.endDate(), baseConfig.hash(), datasetVersion, eventDatasetVersion,
+				derivativesDatasetVersion, "PASS", status, trades, wins, losses, netPnl, grossProfit,
+				grossLoss, fees, null, winRate, expectancy, profitFactor, maxDd, returnPct, notes, windows);
 	}
 
-	private static BigDecimal profitFactor(PartialExitBacktestEngine.Result r) {
-		BigDecimal grossWin = BigDecimal.ZERO, grossLoss = BigDecimal.ZERO;
-		for (PartialExitSimulator.Lifecycle lc : r.lifecycles()) {
-			BigDecimal n = lc.netPnl();
-			if (n.signum() > 0) grossWin = grossWin.add(n);
-			else if (n.signum() < 0) grossLoss = grossLoss.add(n.abs());
-		}
-		return grossLoss.signum() == 0 ? null : grossWin.divide(grossLoss, 4, RoundingMode.HALF_UP);
+	private static String strategyVersion(BacktestConfig config) {
+		return config.strategyParams() == null ? "NFM_FUTURES_V1" : config.strategyParams();
 	}
 
-	private static NfmValidationResult result(UUID runId, BacktestConfig baseConfig,
-			NfmValidationRunType runType, String dataQuality, NfmValidationStatus status, int trades,
-			BigDecimal netPnl, BigDecimal maxDd, BigDecimal winRate, BigDecimal expectancy,
-			BigDecimal profitFactor, String notes, List<ResearchWindowResult> windows,
-			String eventDatasetVersion, String derivativesDatasetVersion, String datasetVersion) {
-		return new NfmValidationResult(runId, baseConfig.strategyId(), baseConfig.strategyParams() == null
-				? "NFM_FUTURES_V1" : baseConfig.strategyParams(), runType, List.of(baseConfig.symbol()),
-				baseConfig.timeframe(), baseConfig.startDate(), baseConfig.endDate(), baseConfig.hash(),
-				datasetVersion, eventDatasetVersion, derivativesDatasetVersion, dataQuality, status, trades,
-				netPnl, maxDd, winRate, expectancy, profitFactor, notes, windows);
+	private static BigDecimal ratio(BigDecimal value, int count) {
+		return value == null ? null
+				: (count == 0 ? null : value.divide(BigDecimal.valueOf(count), 8, RoundingMode.HALF_UP));
+	}
+
+	private static BigDecimal pctOf(BigDecimal value, BigDecimal base) {
+		return value == null || base == null || base.signum() == 0 ? null
+				: value.multiply(BigDecimal.valueOf(100)).divide(base, 4, RoundingMode.HALF_UP);
 	}
 }

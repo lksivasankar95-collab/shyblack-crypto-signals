@@ -44,3 +44,41 @@ Externally-managed backend must be **restarted to the current jar** (Fed stateme
 113 EXACT events (BLS CPI/NFP/PPI). Fed implemented (runtime-pending). BEA/Census/DOL + central banks INELIGIBLE (date-only). Crypto/regulatory/security uncovered. Liquidation UNKNOWN.
 
 **Current real validation remains BLOCKED by:** externally stale runtime, partial event coverage, unavailable historical liquidation data.
+
+## 15. Result persistence lifecycle
+RUN → VALIDATE → PERSIST IMMUTABLE RESULT → AUDITABLE REPORT → DESCRIPTIVE COMPARISON.
+`NfmValidationRunner` stays persistence-free; `NfmValidationResultPersistenceService`
+is the only writer. Entity `research_nfm_validation_run` (identity/config/provenance/
+scope/status/metrics; NULL = UNKNOWN) plus `research_nfm_validation_detail`
+(`WINDOW` | `VARIANT`).
+
+## 16. Result immutability
+`run_id` is UNIQUE; persistence refuses to overwrite an existing run (throws
+"immutable") and never mutates `configurationHash`, dataset versions, strategy
+version, execution assumptions, or run type. Same deterministic config → same
+`runId`/`configurationHash` → second persist is rejected, original retained.
+
+## 17. Run identity
+`runId = UUID(baseConfig.hash() + "|" + runType)`; no randomness, no optimization.
+
+## 18. Walk-forward result storage
+Each window is persisted individually (label, test start/end, trades, netPnl,
+drawdown, winRate, expectancy) and returned by `GET .../windows`; never collapsed.
+
+## 19. Sensitivity result storage
+Each explicit variant persisted independently (variant id, `paramsJson`, config
+hash, metrics, status) and returned by `GET .../variants`. No `BEST_VARIANT`,
+`TOP_VARIANT`, `WINNER`, or `OPTIMAL_CONFIGURATION` exists.
+
+## 20. OOS result storage
+OOS is stored with `runType = OOS`, frozen config hash and dataset versions, and
+is distinguishable from BASELINE by run type and scope.
+
+## 21. Report statuses
+`COMPLETED · BLOCKED · DATA_COVERAGE_PARTIAL · DATA_QUALITY_BLOCKED ·
+RUNTIME_BLOCKED · NOT_VALIDATED`.
+
+## 22. Research comparison rules
+Read-only: get run by id, list runs, list windows, list variants. **Research
+comparison is descriptive only. No automatic winner selection or ranking is
+performed.** A run existing does not mean validation has been completed.

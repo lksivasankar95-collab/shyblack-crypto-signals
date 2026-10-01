@@ -1,6 +1,9 @@
 package com.shyblack.cryptosignals.controller;
 
 import com.shyblack.cryptosignals.dto.research.DatasetQualityReport;
+import com.shyblack.cryptosignals.entity.research.NfmValidationRun;
+import com.shyblack.cryptosignals.service.backtest.research.NfmValidationResultPersistenceService;
+import com.shyblack.cryptosignals.service.backtest.research.ResearchWindowResult;
 import com.shyblack.cryptosignals.service.research.ResearchDataImportService;
 import com.shyblack.cryptosignals.service.research.ResearchDataValidationService;
 import com.shyblack.cryptosignals.service.research.ResearchImportKind;
@@ -8,6 +11,7 @@ import com.shyblack.cryptosignals.service.research.ResearchImportSummary;
 import com.shyblack.cryptosignals.exception.ResourceNotFoundException;
 import com.shyblack.cryptosignals.service.research.events.EventCollectionJobService;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -39,6 +43,7 @@ public class ResearchDataAdminController {
 	private final ResearchDataImportService importService;
 	private final ResearchDataValidationService validationService;
 	private final EventCollectionJobService eventCollectionJobService;
+	private final NfmValidationResultPersistenceService validationResultService;
 
 	@Operation(summary = "Start a bounded official-event collection job (ADMIN, async)")
 	@PostMapping("/events/collect")
@@ -85,6 +90,31 @@ public class ResearchDataAdminController {
 	@GetMapping("/status")
 	public StatusResponse status() {
 		return new StatusResponse(importService.isRunning());
+	}
+
+	@Operation(summary = "Get a persisted NFM validation run by id (read-only)")
+	@GetMapping("/nmf-validation/{runId}")
+	public NfmValidationRun nfmValidation(@PathVariable UUID runId) {
+		return validationResultService.findByRunId(runId)
+				.orElseThrow(() -> new ResourceNotFoundException("Validation run not found: " + runId));
+	}
+
+	@Operation(summary = "List persisted NFM validation runs (descriptive; no ranking)")
+	@GetMapping("/nmf-validation")
+	public List<NfmValidationRun> nfmValidationRuns() {
+		return validationResultService.listRuns();
+	}
+
+	@Operation(summary = "List per-window results of a walk-forward run (individually auditable)")
+	@GetMapping("/nmf-validation/{runId}/windows")
+	public List<ResearchWindowResult> nfmValidationWindows(@PathVariable UUID runId) {
+		return validationResultService.windows(runId);
+	}
+
+	@Operation(summary = "List per-variant results of a sensitivity run (descriptive; not ranked)")
+	@GetMapping("/nmf-validation/{runId}/variants")
+	public List<ResearchWindowResult> nfmValidationVariants(@PathVariable UUID runId) {
+		return validationResultService.variants(runId);
 	}
 
 	public record StatusResponse(boolean running) {

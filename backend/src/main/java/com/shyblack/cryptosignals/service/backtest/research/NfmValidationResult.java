@@ -7,7 +7,8 @@ import java.util.UUID;
 
 /**
  * Auditable result of one NFM historical validation run. Metrics that cannot be
- * legitimately computed are null (UNKNOWN), never zero.
+ * legitimately computed are null (UNKNOWN), never zero. No winner/ranking field
+ * exists anywhere in this model.
  */
 public record NfmValidationResult(
 		UUID runId,
@@ -25,11 +26,18 @@ public record NfmValidationResult(
 		String dataQuality,
 		NfmValidationStatus executionStatus,
 		int tradeCount,
+		int wins,
+		int losses,
 		BigDecimal netPnl,
-		BigDecimal maxDrawdownPct,
+		BigDecimal grossProfit,
+		BigDecimal grossLoss,
+		BigDecimal fees,
+		BigDecimal slippage,
 		BigDecimal winRatePct,
 		BigDecimal expectancy,
 		BigDecimal profitFactor,
+		BigDecimal maxDrawdownPct,
+		BigDecimal returnPct,
 		String notes,
 		List<ResearchWindowResult> windows
 ) {
