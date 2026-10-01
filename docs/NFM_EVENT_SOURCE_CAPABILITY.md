@@ -12,7 +12,7 @@ Status: IMPLEMENTED · WORKING · PARTIAL · BLOCKED · INELIGIBLE · NOT_IMPLEM
 | Census — Retail Sales | INELIGIBLE | public HTML | date-only | **date-only** (0 time tokens) | 1 | 0 | as above |
 | DOL/ETA — Initial Jobless Claims | INELIGIBLE | public HTML/PDF | date-only | **date-only** (0 time tokens) | 1 | 0 | as above |
 | ISM | BLOCKED | — | — | — | — | 0 | private body; no free auditable historical timestamp source |
-| ECB/BoE/BoJ/BoC/RBA/SNB | NOT_IMPLEMENTED | RSS current-only; per-bank historical calendars | — | unknown | 1 | 0 | per-bank historical parsing not built |
+| ECB/BoE/BoJ/BoC/RBA/SNB | INELIGIBLE | statement pages probed | — | no machine-readable exact time (0 time tokens; ECB/SNB unreachable) | 1 | 0 | date-only / no exact release time → excluded (no fabrication) |
 | SEC/CFTC/Treasury (regulatory) | NOT_IMPLEMENTED | RSS current-only | — | EXACT live only | 1 | 0 | historical structured archives not wired |
 | Crypto structural | NOT_IMPLEMENTED | — | — | mixed | — | 0 | curated records required |
 | Security/exploits/depegs | NOT_IMPLEMENTED | — | — | mixed | — | 0 | curated official incident reports required |
