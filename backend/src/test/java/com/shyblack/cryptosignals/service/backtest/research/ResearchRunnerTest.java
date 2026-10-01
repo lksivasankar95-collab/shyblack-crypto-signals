@@ -92,6 +92,66 @@ class ResearchRunnerTest {
 	}
 
 	@Test
+	void walkForward_usesFreshStrategyInstancePerWindow_noSharedState() {
+		List<HistoricalCandle> candles = candles(240, 1);
+		Instant end = START.plus(10, ChronoUnit.DAYS);
+		List<Instant> creations = new ArrayList<>();
+		java.util.function.Supplier<BacktestStrategy> supplier = () -> {
+			creations.add(Instant.now());
+			return new FixedStrategy();
+		};
+		List<ResearchWindowResult> windows = WalkForwardEngine.run(base(end), supplier, candles, List.of(), 3, 3);
+		assertThat(creations).hasSize(windows.size());
+	}
+
+	@Test
+	void walkForward_isDeterministicAcrossRuns() {
+		List<HistoricalCandle> candles = candles(240, 1);
+		Instant end = START.plus(10, ChronoUnit.DAYS);
+		List<ResearchWindowResult> a = WalkForwardEngine.run(base(end), FixedStrategy::new, candles, List.of(), 3, 3);
+		List<ResearchWindowResult> b = WalkForwardEngine.run(base(end), FixedStrategy::new, candles, List.of(), 3, 3);
+		List<String> projectA = a.stream().map(w -> w.label() + "|" + w.trades() + "|" + w.netPnl()).toList();
+		List<String> projectB = b.stream().map(w -> w.label() + "|" + w.trades() + "|" + w.netPnl()).toList();
+		assertThat(projectA).isEqualTo(projectB);
+	}
+
+	@Test
+	void walkForward_eventSlicesAreHalfOpen_startInclusiveEndExclusive() {
+		Instant tStart = START.plus(1, ChronoUnit.DAYS);
+		Instant tEnd = START.plus(2, ChronoUnit.DAYS);
+		var atStart = event(tStart);
+		var atEnd = event(tEnd);
+		var before = event(tStart.minusSeconds(1));
+		var after = event(tEnd.plusSeconds(1));
+		List<com.shyblack.cryptosignals.service.backtest.historical.HistoricalEvent> sliced =
+				WalkForwardEngine.sliceEvents(List.of(before, atStart, atEnd, after), tStart, tEnd);
+		assertThat(sliced).containsExactly(atStart);
+	}
+
+	@Test
+	void aggregate_combinesWindowsWithNullSafeMath() {
+		Instant end = START.plus(10, ChronoUnit.DAYS);
+		List<ResearchWindowResult> r = List.of(
+				new ResearchWindowResult("w1", START, START.plus(1, ChronoUnit.DAYS), null, 2, 2, 0,
+						new BigDecimal("100"), new BigDecimal("50"), new BigDecimal("50"), BigDecimal.ZERO,
+						new BigDecimal("1"), new BigDecimal("25"), null, new BigDecimal("5"), new BigDecimal("5")),
+				new ResearchWindowResult("w2", START.plus(1, ChronoUnit.DAYS), end, null, 1, 0, 1,
+						BigDecimal.ZERO, new BigDecimal("-10"), BigDecimal.ZERO, new BigDecimal("10"),
+						new BigDecimal("0.5"), new BigDecimal("-10"), null, new BigDecimal("2"), new BigDecimal("-1")));
+		var agg = WindowMetricsAggregator.aggregate(r);
+		assertThat(agg.windows()).isEqualTo(2);
+		assertThat(agg.trades()).isEqualTo(3);
+		assertThat(agg.netPnl()).isEqualByComparingTo("40");
+		assertThat(agg.profitFactor()).isEqualByComparingTo("5.0000");
+		assertThat(agg.worstDrawdownPct()).isEqualByComparingTo("5");
+	}
+
+	private static com.shyblack.cryptosignals.service.backtest.historical.HistoricalEvent event(Instant t) {
+		return new com.shyblack.cryptosignals.service.backtest.historical.HistoricalEvent(
+				java.util.UUID.randomUUID(), t, "BTCUSDT", null, null, null, null, null, null, null, null, null, null);
+	}
+
+	@Test
 	void outOfSample_runsSingleHeldOutWindowWithFrozenConfig() {
 		List<HistoricalCandle> candles = candles(240, 1);
 		Instant end = START.plus(10, ChronoUnit.DAYS);
