@@ -8,6 +8,18 @@ data and independent support that **does not currently exist**.
 Allowed statuses: `COMPLETED · BLOCKED · DATA_COVERAGE_PARTIAL ·
 DATA_QUALITY_BLOCKED · RUNTIME_BLOCKED · NOT_VALIDATED`.
 
+> Framework status and real-market results are kept strictly separate below.
+> Passing framework tests is NOT a real validation.
+
+## 0. Status split
+- **FRAMEWORK STATUS:** implemented + tested (runner, engines, persistence, read APIs, execution endpoint, manifest).
+- **REAL EXECUTION STATUS:** NOT EXECUTED — no real historical run has been performed.
+- **DATA COVERAGE:** EVENT_COVERAGE_PARTIAL (113 BLS events); derivatives OI/funding present, liquidation UNKNOWN.
+- **RUNTIME STATUS:** RUNTIME_BLOCKED (externally stale).
+- **BASELINE / WALK_FORWARD / OOS / SENSITIVITY:** prepared and executable; each is `RUNTIME_BLOCKED` until the runtime/data allow a real run.
+- **LIMITATIONS:** see §14.
+- **MEASURED STATISTICS:** none yet (no run executed). No profitability/edge claim is made.
+
 ## 1. Run identity
 `runId` (deterministic `UUID(baseConfig.hash() + "|" + runType)`). Immutable.
 

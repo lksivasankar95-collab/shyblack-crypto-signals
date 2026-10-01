@@ -9,6 +9,7 @@ import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
@@ -27,8 +28,24 @@ public final class NfmValidationRunner {
 	private NfmValidationRunner() {
 	}
 
+	/** Convenience overload for callers with no per-params strategy factory. */
 	public static NfmValidationResult run(NfmValidationRunType runType, BacktestConfig baseConfig,
 			Supplier<BacktestStrategy> strategyFactory, List<HistoricalCandle> candles,
+			List<HistoricalEvent> events, String datasetVersion, String eventDatasetVersion,
+			String derivativesDatasetVersion, int windowDays, int stepDays,
+			List<SensitivityRunner.Variant> variants) {
+		return run(runType, baseConfig, (String paramsJson) -> strategyFactory.get(), candles, events,
+				datasetVersion, eventDatasetVersion, derivativesDatasetVersion, windowDays, stepDays, variants);
+	}
+
+	/**
+	 * @param strategyFactory paramsJson -&gt; a FRESH strategy instance. The params
+	 *                        JSON is the frozen {@code strategyParams} for
+	 *                        BASELINE/WALK_FORWARD/OOS, and the explicit variant
+	 *                        JSON for SENSITIVITY.
+	 */
+	public static NfmValidationResult run(NfmValidationRunType runType, BacktestConfig baseConfig,
+			Function<String, BacktestStrategy> strategyFactory, List<HistoricalCandle> candles,
 			List<HistoricalEvent> events, String datasetVersion, String eventDatasetVersion,
 			String derivativesDatasetVersion, int windowDays, int stepDays,
 			List<SensitivityRunner.Variant> variants) {
@@ -53,11 +70,12 @@ public final class NfmValidationRunner {
 		BigDecimal winRate = null, expectancy = null, profitFactor = null, maxDd = null, returnPct = null;
 		List<ResearchWindowResult> windows = List.of();
 		NfmValidationStatus status = NfmValidationStatus.COMPLETED;
+		String baseParams = baseConfig.strategyParams();
 
 		switch (runType) {
 			case BASELINE -> {
-				PartialExitBacktestEngine.Result r =
-						PartialExitBacktestEngine.run(baseConfig, strategyFactory.get(), candles, events);
+				PartialExitBacktestEngine.Result r = PartialExitBacktestEngine.run(baseConfig,
+						strategyFactory.apply(baseParams), candles, events);
 				trades = r.trades();
 				wins = r.wins();
 				losses = r.losses();
@@ -76,57 +94,34 @@ public final class NfmValidationRunner {
 				returnPct = pctOf(netPnl, baseConfig.initialCapital());
 			}
 			case WALK_FORWARD -> {
-				windows = WalkForwardEngine.run(baseConfig, strategyFactory, candles, events, windowDays, stepDays);
+				windows = WalkForwardEngine.run(baseConfig,
+						() -> strategyFactory.apply(baseParams), candles, events, windowDays, stepDays);
 				if (windows.isEmpty()) {
 					status = NfmValidationStatus.NOT_EXECUTED;
 				} else {
-					WindowMetricsAggregator.Aggregate a = WindowMetricsAggregator.aggregate(windows);
-					trades = a.trades();
-					wins = a.wins();
-					losses = a.losses();
-					netPnl = a.netPnl();
-					grossProfit = a.grossProfit();
-					grossLoss = a.grossLoss();
-					fees = a.fees();
-					winRate = a.winRatePct();
-					expectancy = a.expectancy();
-					profitFactor = a.profitFactor();
-					maxDd = a.worstDrawdownPct();
-					returnPct = a.avgReturnPct();
+					Aggregate agg = aggregate(windows);
+					trades = agg.trades; wins = agg.wins; losses = agg.losses; netPnl = agg.netPnl;
+					grossProfit = agg.grossProfit; grossLoss = agg.grossLoss; fees = agg.fees;
+					winRate = agg.winRate; expectancy = agg.expectancy; profitFactor = agg.profitFactor;
+					maxDd = agg.maxDd; returnPct = agg.returnPct;
 				}
 			}
 			case OOS -> {
-				windows = List.of(OutOfSampleRunner.run(baseConfig, strategyFactory.get(), candles, events));
-				WindowMetricsAggregator.Aggregate a = WindowMetricsAggregator.aggregate(windows);
-				trades = a.trades();
-				wins = a.wins();
-				losses = a.losses();
-				netPnl = a.netPnl();
-				grossProfit = a.grossProfit();
-				grossLoss = a.grossLoss();
-				fees = a.fees();
-				winRate = a.winRatePct();
-				expectancy = a.expectancy();
-				profitFactor = a.profitFactor();
-				maxDd = a.worstDrawdownPct();
-				returnPct = a.avgReturnPct();
+				windows = List.of(OutOfSampleRunner.run(baseConfig, strategyFactory.apply(baseParams),
+						candles, events));
+				Aggregate agg = aggregate(windows);
+				trades = agg.trades; wins = agg.wins; losses = agg.losses; netPnl = agg.netPnl;
+				grossProfit = agg.grossProfit; grossLoss = agg.grossLoss; fees = agg.fees;
+				winRate = agg.winRate; expectancy = agg.expectancy; profitFactor = agg.profitFactor;
+				maxDd = agg.maxDd; returnPct = agg.returnPct;
 			}
 			case SENSITIVITY -> {
-				windows = SensitivityRunner.run(baseConfig, params -> strategyFactory.get(), candles, events,
-						variants);
-				WindowMetricsAggregator.Aggregate a = WindowMetricsAggregator.aggregate(windows);
-				trades = a.trades();
-				wins = a.wins();
-				losses = a.losses();
-				netPnl = a.netPnl();
-				grossProfit = a.grossProfit();
-				grossLoss = a.grossLoss();
-				fees = a.fees();
-				winRate = a.winRatePct();
-				expectancy = a.expectancy();
-				profitFactor = a.profitFactor();
-				maxDd = a.worstDrawdownPct();
-				returnPct = a.avgReturnPct();
+				windows = SensitivityRunner.run(baseConfig, strategyFactory, candles, events, variants);
+				Aggregate agg = aggregate(windows);
+				trades = agg.trades; wins = agg.wins; losses = agg.losses; netPnl = agg.netPnl;
+				grossProfit = agg.grossProfit; grossLoss = agg.grossLoss; fees = agg.fees;
+				winRate = agg.winRate; expectancy = agg.expectancy; profitFactor = agg.profitFactor;
+				maxDd = agg.maxDd; returnPct = agg.returnPct;
 			}
 		}
 
@@ -141,6 +136,17 @@ public final class NfmValidationRunner {
 				baseConfig.endDate(), baseConfig.hash(), datasetVersion, eventDatasetVersion,
 				derivativesDatasetVersion, "PASS", status, trades, wins, losses, netPnl, grossProfit,
 				grossLoss, fees, null, winRate, expectancy, profitFactor, maxDd, returnPct, notes, windows);
+	}
+
+	private record Aggregate(int trades, int wins, int losses, BigDecimal winRate, BigDecimal netPnl,
+			BigDecimal grossProfit, BigDecimal grossLoss, BigDecimal fees, BigDecimal expectancy,
+			BigDecimal profitFactor, BigDecimal maxDd, BigDecimal returnPct) {}
+
+	private static Aggregate aggregate(List<ResearchWindowResult> windows) {
+		WindowMetricsAggregator.Aggregate a = WindowMetricsAggregator.aggregate(windows);
+		return new Aggregate(a.trades(), a.wins(), a.losses(), a.winRatePct(), a.netPnl(),
+				a.grossProfit(), a.grossLoss(), a.fees(), a.expectancy(), a.profitFactor(),
+				a.worstDrawdownPct(), a.avgReturnPct());
 	}
 
 	private static String strategyVersion(BacktestConfig config) {

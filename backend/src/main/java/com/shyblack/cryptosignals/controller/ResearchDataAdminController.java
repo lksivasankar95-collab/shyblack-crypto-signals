@@ -2,6 +2,9 @@ package com.shyblack.cryptosignals.controller;
 
 import com.shyblack.cryptosignals.dto.research.DatasetQualityReport;
 import com.shyblack.cryptosignals.entity.research.NfmValidationRun;
+import com.shyblack.cryptosignals.service.backtest.research.NfmValidationExecutionRequest;
+import com.shyblack.cryptosignals.service.backtest.research.NfmValidationExecutionResponse;
+import com.shyblack.cryptosignals.service.backtest.research.NfmValidationExecutionService;
 import com.shyblack.cryptosignals.service.backtest.research.NfmValidationResultPersistenceService;
 import com.shyblack.cryptosignals.service.backtest.research.ResearchWindowResult;
 import com.shyblack.cryptosignals.service.research.ResearchDataImportService;
@@ -44,6 +47,7 @@ public class ResearchDataAdminController {
 	private final ResearchDataValidationService validationService;
 	private final EventCollectionJobService eventCollectionJobService;
 	private final NfmValidationResultPersistenceService validationResultService;
+	private final NfmValidationExecutionService validationExecutionService;
 
 	@Operation(summary = "Start a bounded official-event collection job (ADMIN, async)")
 	@PostMapping("/events/collect")
@@ -90,6 +94,13 @@ public class ResearchDataAdminController {
 	@GetMapping("/status")
 	public StatusResponse status() {
 		return new StatusResponse(importService.isRunning());
+	}
+
+	@Operation(summary = "Execute one NFM historical validation run (BASELINE/WALK_FORWARD/OOS/SENSITIVITY)")
+	@PostMapping("/nmf-validation/execute")
+	public NfmValidationExecutionResponse executeNfmValidation(
+			@RequestBody NfmValidationExecutionRequest request) {
+		return validationExecutionService.execute(request);
 	}
 
 	@Operation(summary = "Get a persisted NFM validation run by id (read-only)")
