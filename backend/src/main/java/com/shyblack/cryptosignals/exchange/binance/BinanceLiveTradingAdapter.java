@@ -11,6 +11,8 @@ import com.shyblack.cryptosignals.entity.enums.LiveOrderStatus;
 import com.shyblack.cryptosignals.entity.enums.LiveOrderType;
 import com.shyblack.cryptosignals.exchange.ExchangeAccountSnapshot;
 import com.shyblack.cryptosignals.exchange.ExchangeAdapterException;
+import com.shyblack.cryptosignals.exchange.ExchangeAssetBalance;
+import com.shyblack.cryptosignals.exchange.ExchangeBalances;
 import com.shyblack.cryptosignals.exchange.ExchangeOrderResult;
 import com.shyblack.cryptosignals.exchange.ExchangeTradingAdapter;
 import com.shyblack.cryptosignals.exchange.PlaceOrderRequest;
@@ -29,7 +31,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
-import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestClient;
 
 /**
@@ -49,6 +51,9 @@ import org.springframework.web.client.RestClient;
 public class BinanceLiveTradingAdapter implements ExchangeTradingAdapter {
 
 	private static final Logger log = LoggerFactory.getLogger(BinanceLiveTradingAdapter.class);
+
+	/** Quote asset the trading engine summarises. Read-only summaries are per-asset. */
+	private static final String QUOTE_ASSET = "USDT";
 
 	private final LiveTradingProperties props;
 	private final ExchangeCredentialEncryptor encryptor;
@@ -71,25 +76,55 @@ public class BinanceLiveTradingAdapter implements ExchangeTradingAdapter {
 
 	@Override
 	public ExchangeAccountSnapshot getAccountBalance(ExchangeCredential credential) {
+		ExchangeBalances balances = getBalances(credential);
+		// Narrow to the configured quote asset. When the exchange did not report it at all the
+		// balances stay null: an absent asset is missing data, not a zero balance.
+		BigDecimal free = balances.free(QUOTE_ASSET);
+		BigDecimal total = balances.total(QUOTE_ASSET);
+		return new ExchangeAccountSnapshot(
+				QUOTE_ASSET,
+				free,
+				total,
+				balances.canTrade(),
+				balances.fetchedAt());
+	}
+
+	@Override
+	public ExchangeBalances getBalances(ExchangeCredential credential) {
 		String body = signedGet(credential, "/api/v3/account", new LinkedHashMap<>());
 		JsonObject json = JsonParser.parseString(body).getAsJsonObject();
 		boolean canTrade = json.has("canTrade") && json.get("canTrade").getAsBoolean();
-		BigDecimal totalFree = BigDecimal.ZERO;
-		BigDecimal totalLocked = BigDecimal.ZERO;
+		Map<String, ExchangeAssetBalance> parsed = new LinkedHashMap<>();
 		JsonArray balances = json.getAsJsonArray("balances");
+		if (balances == null) {
+			throw new ExchangeAdapterException(
+					"Malformed /api/v3/account response: missing balances array", null, false, 200, null);
+		}
 		for (JsonElement el : balances) {
 			JsonObject b = el.getAsJsonObject();
-			if ("USDT".equals(b.get("asset").getAsString())) {
-				totalFree = new BigDecimal(b.get("free").getAsString());
-				totalLocked = new BigDecimal(b.get("locked").getAsString());
-			}
+			String asset = b.get("asset").getAsString().toUpperCase();
+			parsed.put(asset, new ExchangeAssetBalance(
+					asset,
+					decimal(b, "free", asset),
+					decimal(b, "locked", asset)));
 		}
-		return new ExchangeAccountSnapshot(
-				"USDT",
-				totalFree,
-				totalFree.add(totalLocked),
-				canTrade,
-				Instant.now());
+		return new ExchangeBalances(parsed, canTrade, Instant.now());
+	}
+
+	/** Strict numeric read: an unusable value is malformed data, not a silent zero. */
+	private static BigDecimal decimal(JsonObject json, String key, String asset) {
+		JsonElement el = json.get(key);
+		if (el == null || el.isJsonNull()) {
+			throw new ExchangeAdapterException(
+					"Malformed balance for asset " + asset + ": missing " + key, null, false, 200, null);
+		}
+		try {
+			return new BigDecimal(el.getAsString());
+		} catch (NumberFormatException nfe) {
+			throw new ExchangeAdapterException(
+					"Malformed balance for asset " + asset + ": " + key + " is not numeric",
+					nfe, false, 200, null);
+		}
 	}
 
 	@Override
@@ -220,7 +255,7 @@ public class BinanceLiveTradingAdapter implements ExchangeTradingAdapter {
 						.headers(h -> h.addAll(headers))
 						.retrieve()
 						.body(String.class);
-			} catch (HttpClientErrorException http) {
+			} catch (HttpStatusCodeException http) {
 				Integer code = parseCode(http.getResponseBodyAsString());
 				log.warn("[LiveAdapter] Binance {} {} -> HTTP {} code={} bodyLen={}",
 						method, path, http.getStatusCode().value(), code,

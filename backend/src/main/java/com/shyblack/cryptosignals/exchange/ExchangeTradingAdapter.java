@@ -22,6 +22,13 @@ public interface ExchangeTradingAdapter {
 
 	ExchangeAccountSnapshot getAccountBalance(ExchangeCredential credential);
 
+	/**
+	 * Complete per-asset balance response. Unlike {@link #getAccountBalance}, which narrows to the
+	 * configured quote asset for the trading engine, this preserves every asset the exchange
+	 * reported so a caller can tell an explicit zero apart from an absent asset.
+	 */
+	ExchangeBalances getBalances(ExchangeCredential credential);
+
 	SymbolRules getSymbolRules(String symbol);
 
 	ExchangeOrderResult placeOrder(ExchangeCredential credential, PlaceOrderRequest request);

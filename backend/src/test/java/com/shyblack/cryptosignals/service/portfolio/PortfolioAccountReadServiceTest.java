@@ -382,7 +382,9 @@ class PortfolioAccountReadServiceTest {
 
 		PortfolioAccountView spot = readService.getAccount(u, AccountMode.LIVE, AccountCategory.SPOT);
 
-		assertThat(spot.availability()).isEqualTo(AccountAvailability.AVAILABLE);
+		assertThat(spot.availability())
+				.as("no authoritative snapshot exists yet")
+				.isEqualTo(AccountAvailability.UNAVAILABLE);
 		assertThat(spot.equity()).as("F: unknown balance stays null").isNull();
 		assertThat(spot.availableBalance()).isNull();
 		assertThat(spot.invested()).as("spot has no invested source").isNull();
@@ -406,30 +408,41 @@ class PortfolioAccountReadServiceTest {
 
 		PortfolioAccountView spot = readService.getAccount(u, AccountMode.LIVE, AccountCategory.SPOT);
 
-		assertThat(spot.availability()).isEqualTo(AccountAvailability.AVAILABLE);
-		assertThat(spot.availableBalance()).isEqualByComparingTo("500");
-		assertThat(spot.equity()).isEqualByComparingTo("750");
-		assertThat(spot.lastSyncedAt()).isNotNull();
+		assertThat(spot.availability())
+				.as("cached account fields alone are not an authoritative portfolio snapshot")
+				.isEqualTo(AccountAvailability.UNAVAILABLE);
+		assertThat(spot.availableBalance()).isNull();
+		assertThat(spot.equity()).isNull();
 	}
 
 	@Test
-	void liveSpotWithOldValidationTimestampIsReportedStale() {
+	void liveFuturesWithAnOutdatedSynchronizationIsReportedStale() {
 		User u = user();
-		LiveTradingAccount account = new LiveTradingAccount();
+		FuturesTradingAccount account = new FuturesTradingAccount();
 		account.setUser(u);
 		account.setExchange(ExchangeName.BINANCE);
 		account.setCredential(credential(u));
 		account.setConnectionStatus(ExchangeConnectionStatus.CONNECTED);
-		account.setCachedAvailableBalance(new BigDecimal("500"));
+		account.setWalletBalance(new BigDecimal("900"));
 		account.setLastValidatedAt(Instant.now().minus(PortfolioAccountReadService.STALE_AFTER).minusSeconds(60));
-		liveAccountRepository.saveAndFlush(account);
+		futuresAccountRepository.saveAndFlush(account);
 
-		PortfolioAccountView spot = readService.getAccount(u, AccountMode.LIVE, AccountCategory.SPOT);
+		PortfolioAccountConnection connection = new PortfolioAccountConnection();
+		connection.setUser(u);
+		connection.setAccountMode(AccountMode.LIVE);
+		connection.setAccountCategory(AccountCategory.FUTURES);
+		connection.setExchange(ExchangeName.BINANCE);
+		connection.setConnectionStatus(ExchangeConnectionStatus.CONNECTED);
+		connection.setAvailability(AccountAvailability.AVAILABLE);
+		connection.setLastSyncedAt(Instant.now().minus(PortfolioAccountReadService.STALE_AFTER).minusSeconds(60));
+		connectionRepository.saveAndFlush(connection);
 
-		assertThat(spot.availability()).isEqualTo(AccountAvailability.STALE);
-		assertThat(spot.availableBalance())
+		PortfolioAccountView futures = readService.getAccount(u, AccountMode.LIVE, AccountCategory.FUTURES);
+
+		assertThat(futures.availability()).isEqualTo(AccountAvailability.STALE);
+		assertThat(futures.equity())
 				.as("stale values are still shown, never discarded or zeroed")
-				.isEqualByComparingTo("500");
+				.isEqualByComparingTo("900");
 	}
 
 	@Test
@@ -455,13 +468,17 @@ class PortfolioAccountReadServiceTest {
 		assertThat(futures.availableBalance()).isEqualByComparingTo("650");
 		assertThat(futures.invested()).isEqualByComparingTo("250");
 		assertThat(futures.unrealizedPnl()).isEqualByComparingTo("-12.5");
-		assertThat(futures.realizedPnl()).isEqualByComparingTo("0");
-		assertThat(futures.openPositionCount()).isZero();
+		assertThat(futures.realizedPnl())
+				.as("J: no authoritative exchange income source, so local P&L is never substituted")
+				.isNull();
+		assertThat(futures.openPositionCount())
+				.as("open positions now come from the exchange snapshot, not the local shadow")
+				.isZero();
 		assertThat(futures.quoteCurrency()).isEqualTo("USDT");
 	}
 
 	@Test
-	void liveFuturesRealizedPnlSumsClosedPositions() {
+	void liveFuturesRealizedPnlIsNullEvenWithLocalClosedPositions() {
 		User u = user();
 		FuturesTradingAccount account = new FuturesTradingAccount();
 		account.setUser(u);
@@ -478,8 +495,8 @@ class PortfolioAccountReadServiceTest {
 		PortfolioAccountView futures = readService.getAccount(u, AccountMode.LIVE, AccountCategory.FUTURES);
 
 		assertThat(futures.realizedPnl())
-				.as("FuturesPosition.realizedPnl is NOT NULL, so this total is exact")
-				.isEqualByComparingTo("3");
+				.as("J: local closed-position P&L is never substituted for exchange realized P&L")
+				.isNull();
 	}
 
 	@Test
@@ -514,8 +531,12 @@ class PortfolioAccountReadServiceTest {
 
 		PortfolioAccountView futures = readService.getAccount(u, AccountMode.LIVE, AccountCategory.FUTURES);
 
-		assertThat(futures.openPositionCount()).isEqualTo(1);
-		assertThat(futures.totalPositionCount()).isEqualTo(1);
+		assertThat(futures.openPositionCount())
+				.as("a locally recorded position is not an exchange position")
+				.isZero();
+		assertThat(futures.totalPositionCount())
+				.as("a lifetime position total needs exchange history, which is not integrated")
+				.isNull();
 		assertThat(futures.orderCount()).isEqualTo(0);
 	}
 
@@ -537,9 +558,9 @@ class PortfolioAccountReadServiceTest {
 
 		assertThat(spot.orderCount()).isEqualTo(3);
 		assertThat(spot.openPositionCount())
-				.as("only the filled ENTRY counts as an open position")
-				.isEqualTo(1);
-		assertThat(spot.totalPositionCount()).isEqualTo(1);
+				.as("spot has no exchange position concept; a balance is never read as a position")
+				.isNull();
+		assertThat(spot.totalPositionCount()).isNull();
 	}
 
 	// ------------------------------------------------- D. PAPER/LIVE split

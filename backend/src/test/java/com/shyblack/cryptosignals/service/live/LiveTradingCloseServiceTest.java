@@ -21,6 +21,7 @@ import com.shyblack.cryptosignals.exception.BadRequestException;
 import com.shyblack.cryptosignals.exception.ResourceNotFoundException;
 import com.shyblack.cryptosignals.exchange.ClientOrderIdGenerator;
 import com.shyblack.cryptosignals.exchange.ExchangeAccountSnapshot;
+import com.shyblack.cryptosignals.exchange.ExchangeBalances;
 import com.shyblack.cryptosignals.exchange.ExchangeOrderResult;
 import com.shyblack.cryptosignals.exchange.ExchangeTradingAdapter;
 import com.shyblack.cryptosignals.exchange.PlaceOrderRequest;
@@ -202,6 +203,10 @@ class LiveTradingCloseServiceTest {
 
 		@Override public ExchangeAccountSnapshot getAccountBalance(ExchangeCredential c) {
 			return validateCredentials(c);
+		}
+
+		@Override public ExchangeBalances getBalances(ExchangeCredential c) {
+			return new ExchangeBalances(java.util.Map.of(), true, java.time.Instant.now());
 		}
 
 		@Override public SymbolRules getSymbolRules(String symbol) {

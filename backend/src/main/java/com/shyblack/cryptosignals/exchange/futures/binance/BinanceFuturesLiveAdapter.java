@@ -16,6 +16,7 @@ import com.shyblack.cryptosignals.exchange.ExchangeAdapterException;
 import com.shyblack.cryptosignals.exchange.SymbolRules;
 import com.shyblack.cryptosignals.exchange.futures.FuturesAccountSnapshot;
 import com.shyblack.cryptosignals.exchange.futures.FuturesExchangeAdapter;
+import com.shyblack.cryptosignals.exchange.futures.FuturesExchangePosition;
 import com.shyblack.cryptosignals.exchange.futures.FuturesOrderResult;
 import com.shyblack.cryptosignals.exchange.futures.PlaceFuturesOrderRequest;
 import com.shyblack.cryptosignals.security.ExchangeCredentialEncryptor;
@@ -23,7 +24,9 @@ import java.math.BigDecimal;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
@@ -31,7 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
-import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestClient;
 
 /**
@@ -64,19 +67,72 @@ public class BinanceFuturesLiveAdapter implements FuturesExchangeAdapter {
 	public FuturesAccountSnapshot getAccount(ExchangeCredential credential) {
 		String body = signedGet(credential, "/fapi/v2/account", new LinkedHashMap<>());
 		JsonObject json = JsonParser.parseString(body).getAsJsonObject();
-		BigDecimal wallet = num(json, "totalWalletBalance");
-		BigDecimal available = num(json, "availableBalance");
-		BigDecimal marginBalance = num(json, "totalMarginBalance");
-		BigDecimal usedMargin = num(json, "totalInitialMargin");
-		BigDecimal maint = num(json, "totalMaintMargin");
-		BigDecimal unreal = num(json, "totalUnrealizedProfit");
+		BigDecimal wallet = requiredNum(json, "totalWalletBalance", "/fapi/v2/account");
+		BigDecimal available = requiredNum(json, "availableBalance", "/fapi/v2/account");
+		BigDecimal marginBalance = requiredNum(json, "totalMarginBalance", "/fapi/v2/account");
+		BigDecimal usedMargin = requiredNum(json, "totalInitialMargin", "/fapi/v2/account");
+		BigDecimal maint = requiredNum(json, "totalMaintMargin", "/fapi/v2/account");
+		BigDecimal unreal = requiredNum(json, "totalUnrealizedProfit", "/fapi/v2/account");
 		boolean canTrade = json.has("canTrade") && json.get("canTrade").getAsBoolean();
 
 		// Position mode is a separate endpoint on Binance; probe it once.
 		FuturesPositionMode positionMode = fetchPositionMode(credential);
+		// Per-symbol margin mode now comes from the authoritative position list when a position is
+		// open; an account-level aggregate has no single margin mode, so it stays null rather than
+		// being hardcoded to ISOLATED.
+		FuturesMarginMode accountMarginMode = null;
 		return new FuturesAccountSnapshot(
 				"USDT", wallet, available, marginBalance, usedMargin, maint, unreal,
-				positionMode, FuturesMarginMode.ISOLATED, canTrade, Instant.now());
+				positionMode, accountMarginMode, canTrade, Instant.now());
+	}
+
+	@Override
+	public List<FuturesExchangePosition> getPositions(ExchangeCredential credential) {
+		String body = signedGet(credential, "/fapi/v2/positionRisk", new LinkedHashMap<>());
+		JsonArray arr = JsonParser.parseString(body).getAsJsonArray();
+		List<FuturesExchangePosition> positions = new ArrayList<>(arr.size());
+		for (JsonElement el : arr) {
+			JsonObject p = el.getAsJsonObject();
+			String symbol = p.get("symbol").getAsString().toUpperCase();
+			BigDecimal amount = optionalNum(p, "positionAmt");
+			// A flat position is a real closed state on the exchange, not an open one.
+			if (amount == null || amount.signum() == 0) {
+				continue;
+			}
+			positions.add(new FuturesExchangePosition(
+					symbol,
+					amount.signum() > 0 ? PositionSide.LONG : PositionSide.SHORT,
+					amount,
+					optionalNum(p, "entryPrice"),
+					optionalNum(p, "markPrice"),
+					zeroToNull(optionalNum(p, "liquidationPrice")),
+					optionalInt(p, "leverage"),
+					marginMode(p.get("marginType") == null ? null : p.get("marginType").getAsString()),
+					optionalNum(p, "isolatedMargin"),
+					optionalNum(p, "notional"),
+					optionalNum(p, "unRealizedProfit"),
+					Instant.now()));
+		}
+		return List.copyOf(positions);
+	}
+
+	/**
+	 * Binance reports "0" for a liquidation price that is not applicable, which would otherwise be
+	 * indistinguishable from a genuine zero. Normalise that one sentinel to null.
+	 */
+	private static BigDecimal zeroToNull(BigDecimal value) {
+		return value == null || value.signum() == 0 ? null : value;
+	}
+
+	private static FuturesMarginMode marginMode(String raw) {
+		if (raw == null) {
+			return null;
+		}
+		return switch (raw.toUpperCase()) {
+			case "ISOLATED", "ISOLATED_MARGIN" -> FuturesMarginMode.ISOLATED;
+			case "CROSSED", "CROSS", "CROSSED_MARGIN" -> FuturesMarginMode.CROSS;
+			default -> null;
+		};
 	}
 
 	private FuturesPositionMode fetchPositionMode(ExchangeCredential credential) {
@@ -229,7 +285,7 @@ public class BinanceFuturesLiveAdapter implements FuturesExchangeAdapter {
 			try {
 				return rest.method(method).uri(url).headers(h -> h.addAll(headers))
 						.retrieve().body(String.class);
-			} catch (HttpClientErrorException http) {
+			} catch (HttpStatusCodeException http) {
 				Integer code = parseCode(http.getResponseBodyAsString());
 				log.warn("[FutAdapter] Binance {} {} HTTP {} code={}",
 						method, path, http.getStatusCode().value(), code);
@@ -249,6 +305,46 @@ public class BinanceFuturesLiveAdapter implements FuturesExchangeAdapter {
 		return json.has(key) && !json.get(key).isJsonNull()
 				? new BigDecimal(json.get(key).getAsString())
 				: BigDecimal.ZERO;
+	}
+
+	/**
+	 * Strict read for account totals: an absent or unusable field means the response is malformed.
+	 * Falling back to zero here would report a real-looking balance that Binance never sent.
+	 */
+	private static BigDecimal requiredNum(JsonObject json, String key, String path) {
+		BigDecimal value = optionalNum(json, key);
+		if (value == null) {
+			throw new ExchangeAdapterException(
+					"Malformed " + path + " response: missing numeric field " + key, null, false, 200, null);
+		}
+		return value;
+	}
+
+	/** Null-preserving numeric read; an unusable value is malformed data, not zero. */
+	private static BigDecimal optionalNum(JsonObject json, String key) {
+		JsonElement el = json.get(key);
+		if (el == null || el.isJsonNull()) {
+			return null;
+		}
+		try {
+			return new BigDecimal(el.getAsString());
+		} catch (NumberFormatException nfe) {
+			throw new ExchangeAdapterException(
+					"Malformed exchange response: field " + key + " is not numeric",
+					nfe, false, 200, null);
+		}
+	}
+
+	private static Integer optionalInt(JsonObject json, String key) {
+		JsonElement el = json.get(key);
+		if (el == null || el.isJsonNull()) {
+			return null;
+		}
+		try {
+			return Integer.valueOf(el.getAsString());
+		} catch (NumberFormatException nfe) {
+			return null;
+		}
 	}
 
 	private static Integer parseCode(String body) {

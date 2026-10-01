@@ -1,12 +1,13 @@
 package com.shyblack.cryptosignals.service.portfolio;
 
 import com.shyblack.cryptosignals.dto.portfolio.PortfolioAccountView;
-import com.shyblack.cryptosignals.entity.FuturesPosition;
 import com.shyblack.cryptosignals.entity.LiveOrder;
 import com.shyblack.cryptosignals.entity.LiveTradingAccount;
 import com.shyblack.cryptosignals.entity.FuturesTradingAccount;
 import com.shyblack.cryptosignals.entity.Portfolio;
 import com.shyblack.cryptosignals.entity.PortfolioAccountConnection;
+import com.shyblack.cryptosignals.entity.PortfolioExchangeBalance;
+import com.shyblack.cryptosignals.entity.PortfolioExchangePosition;
 import com.shyblack.cryptosignals.entity.Position;
 import com.shyblack.cryptosignals.entity.User;
 import com.shyblack.cryptosignals.entity.enums.AccountAvailability;
@@ -15,11 +16,11 @@ import com.shyblack.cryptosignals.entity.enums.AccountMode;
 import com.shyblack.cryptosignals.entity.enums.AccountType;
 import com.shyblack.cryptosignals.entity.enums.ExchangeConnectionStatus;
 import com.shyblack.cryptosignals.entity.enums.ExchangeName;
-import com.shyblack.cryptosignals.entity.enums.LiveOrderPurpose;
-import com.shyblack.cryptosignals.entity.enums.LiveOrderStatus;
 import com.shyblack.cryptosignals.entity.enums.PositionStatus;
 import com.shyblack.cryptosignals.entity.enums.TradingMode;
 import com.shyblack.cryptosignals.repository.PortfolioAccountConnectionRepository;
+import com.shyblack.cryptosignals.repository.PortfolioExchangeBalanceRepository;
+import com.shyblack.cryptosignals.repository.PortfolioExchangePositionRepository;
 import com.shyblack.cryptosignals.repository.PositionRepository;
 import com.shyblack.cryptosignals.service.futures.FuturesQueryService;
 import com.shyblack.cryptosignals.service.live.LiveTradingQueryService;
@@ -33,7 +34,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -82,21 +82,24 @@ public class PortfolioAccountReadService {
 			"Capital sits in one shared paper wallet reported at MAIN. It is not split per category, so "
 					+ "balance and equity are unavailable here; position-level figures are exact.";
 
-	/** Order states that still represent a live exposure on the exchange. */
-	private static final Set<LiveOrderStatus> LIVE_ACTIVE_ORDER_STATUSES = Set.of(
-			LiveOrderStatus.CREATED,
-			LiveOrderStatus.SUBMITTING,
-			LiveOrderStatus.SUBMITTED,
-			LiveOrderStatus.ACKNOWLEDGED,
-			LiveOrderStatus.PARTIALLY_FILLED,
-			LiveOrderStatus.FILLED);
+	/**
+	 * Realized P&amp;L is reported as null for both live scopes. Binance supplies authoritative
+	 * realized P&amp;L only through a time-windowed income endpoint that needs a persisted cursor and a
+	 * pagination strategy; until that exists, the locally recorded position ledger is NOT substituted
+	 * and never labelled as exchange realized P&amp;L.
+	 */
+	static final String LIVE_REALIZED_PNL_UNAVAILABLE_MESSAGE =
+			"Realized P&L is unavailable: it requires the exchange income history, which is not "
+					+ "integrated yet. Local position P&L is never presented as exchange realized P&L.";
 
-	/** Order states that mean the exchange took (part of) the position. */
-	private static final Set<LiveOrderStatus> LIVE_FILLED_ORDER_STATUSES = Set.of(
-			LiveOrderStatus.FILLED, LiveOrderStatus.PARTIALLY_FILLED);
+	static final String LIVE_SPOT_NO_POSITION_MESSAGE =
+			"Spot exposes balances, not open positions. A wallet asset balance is never presented as a "
+					+ "trading position, so position figures stay unavailable.";
 
 	private final PositionRepository positionRepository;
 	private final PortfolioAccountConnectionRepository connectionRepository;
+	private final PortfolioExchangeBalanceRepository balanceRepository;
+	private final PortfolioExchangePositionRepository exchangePositionRepository;
 	private final PaperTradingAccountService paperAccountService;
 	private final PaperTradingQueryService paperQueryService;
 	private final PaperTradingPnLService paperPnL;
@@ -245,34 +248,35 @@ public class PortfolioAccountReadService {
 						user, AccountMode.LIVE, AccountCategory.SPOT);
 
 		List<LiveOrder> orders = liveQueryService.allOrders(user);
-		int openPositions = (int) orders.stream()
-				.filter(o -> o.getPurpose() == LiveOrderPurpose.ENTRY)
-				.filter(o -> LIVE_ACTIVE_ORDER_STATUSES.contains(o.getStatus()))
-				.count();
-		int totalPositions = (int) orders.stream()
-				.filter(o -> o.getPurpose() == LiveOrderPurpose.ENTRY)
-				.filter(o -> LIVE_FILLED_ORDER_STATUSES.contains(o.getStatus()))
-				.count();
 
-		// Spot has no position entity and no authoritative unrealized/realized P&L source yet, so
-		// those stay null. Only the two balances the reconciliation job caches are exposed.
+		// Authoritative per-asset balances last written by the read sync. Null when the quote asset
+		// was not reported, which is missing data rather than a zero balance.
+		String quoteAsset = account.getQuoteCurrency();
+		Optional<PortfolioExchangeBalance> quoteBalance = quoteAsset == null
+				? Optional.empty()
+				: balanceRepository.findByUserAndExchangeAndAsset(user, ExchangeName.BINANCE, quoteAsset);
+
+		// Binance Spot has no open-position concept, so a wallet asset balance is never presented as
+		// a trading position. Balances stay valid; position figures stay unavailable.
 		return new PortfolioAccountView(
 				AccountMode.LIVE,
 				AccountCategory.SPOT,
-				liveAvailability(account.getConnectionStatus(), account.getLastValidatedAt(), connection.orElse(null)),
+				liveSpotAvailability(account, connection.orElse(null)),
 				account.getExchange(),
 				account.getConnectionStatus(),
-				account.getQuoteCurrency(),
-				account.getCachedTotalBalance(),
-				account.getCachedAvailableBalance(),
+				quoteAsset,
+				quoteBalance.map(PortfolioExchangeBalance::total).orElse(null),
+				quoteBalance.map(PortfolioExchangeBalance::getFree).orElse(null),
 				null,
 				null,
 				null,
-				totalPositions,
-				openPositions,
+				null,
+				null,
 				orders.size(),
-				account.getLastValidatedAt(),
-				connection.map(PortfolioAccountConnection::getLastSyncMessage).orElse(null));
+				connection.map(PortfolioAccountConnection::getLastSyncedAt)
+						.orElse(account.getLastValidatedAt()),
+				connection.map(PortfolioAccountConnection::getLastSyncMessage)
+						.orElse(LIVE_SPOT_NO_POSITION_MESSAGE));
 	}
 
 	private PortfolioAccountView liveFuturesView(User user) {
@@ -285,8 +289,9 @@ public class PortfolioAccountReadService {
 				connectionRepository.findByUserAndAccountModeAndAccountCategory(
 						user, AccountMode.LIVE, AccountCategory.FUTURES);
 
-		List<FuturesPosition> open = futuresQueryService.openPositions(user);
-		List<FuturesPosition> closed = futuresQueryService.closedPositions(user);
+		// Authoritative open positions as last reported by the exchange position-risk endpoint.
+		List<PortfolioExchangePosition> open =
+				exchangePositionRepository.findByUserAndExchangeOrderBySymbolAsc(user, ExchangeName.BINANCE);
 		int orderCount = futuresQueryService.openOrders(user).size()
 				+ futuresQueryService.history(user).size();
 
@@ -300,13 +305,33 @@ public class PortfolioAccountReadService {
 				account.getWalletBalance(),
 				account.getAvailableBalance(),
 				account.getUsedMargin(),
-				sumFuturesRealizedPnl(closed),
+				null,
 				account.getUnrealizedPnl(),
-				open.size() + closed.size(),
+				null,
 				open.size(),
 				orderCount,
-				account.getLastValidatedAt(),
-				connection.map(PortfolioAccountConnection::getLastSyncMessage).orElse(null));
+				connection.map(PortfolioAccountConnection::getLastSyncedAt)
+						.orElse(account.getLastValidatedAt()),
+				connection.map(PortfolioAccountConnection::getLastSyncMessage)
+						.orElse(LIVE_REALIZED_PNL_UNAVAILABLE_MESSAGE));
+	}
+
+	/**
+	 * Spot balances are read from the exchange-authoritative snapshot table, which only the read sync
+	 * writes. With no synchronization record there is no authoritative balance yet, so the scope is
+	 * UNAVAILABLE even though the account object itself reports a connected status — that status is
+	 * still surfaced separately in {@code connectionStatus}.
+	 */
+	private AccountAvailability liveSpotAvailability(
+			LiveTradingAccount account, PortfolioAccountConnection connection) {
+		// No synchronization record means the read model has never obtained an authoritative balance
+		// snapshot, so the scope cannot be AVAILABLE no matter what the cached account fields say.
+		if (connection == null || connection.getAvailability() == null) {
+			return AccountAvailability.UNAVAILABLE;
+		}
+		// Otherwise reuse the shared rule, which also keeps the guarantee that a recorded status can
+		// never upgrade a scope to AVAILABLE while the account itself is not connected.
+		return liveAvailability(account.getConnectionStatus(), account.getLastValidatedAt(), connection);
 	}
 
 	/**
@@ -383,15 +408,6 @@ public class PortfolioAccountReadService {
 	/** Notional currently deployed, which is the paper engine's own definition of {@code invested}. */
 	private static BigDecimal sumNotional(List<Position> open) {
 		return sumStrict(open, Position::getNotional);
-	}
-
-	/**
-	 * Realized P&amp;L of locally recorded closed futures positions. This is our own ledger, not an
-	 * authoritative exchange income statement, which only becomes available once income endpoints are
-	 * integrated.
-	 */
-	private static BigDecimal sumFuturesRealizedPnl(List<FuturesPosition> closed) {
-		return sumStrict(closed, FuturesPosition::getRealizedPnl);
 	}
 
 	private static List<Position> filterByStatus(List<Position> positions, PositionStatus status) {

@@ -5,6 +5,8 @@ import com.shyblack.cryptosignals.entity.enums.ExchangeName;
 import com.shyblack.cryptosignals.entity.enums.LiveOrderStatus;
 import com.shyblack.cryptosignals.entity.enums.LiveOrderType;
 import com.shyblack.cryptosignals.exchange.ExchangeAccountSnapshot;
+import com.shyblack.cryptosignals.exchange.ExchangeAssetBalance;
+import com.shyblack.cryptosignals.exchange.ExchangeBalances;
 import com.shyblack.cryptosignals.exchange.ExchangeOrderResult;
 import com.shyblack.cryptosignals.exchange.ExchangeTradingAdapter;
 import com.shyblack.cryptosignals.exchange.PlaceOrderRequest;
@@ -36,6 +38,7 @@ public class MockExchangeTradingAdapter implements ExchangeTradingAdapter {
 
 	private final Map<String, ExchangeOrderResult> orders = new ConcurrentHashMap<>();
 	private final Map<String, SymbolRules> rules = new ConcurrentHashMap<>();
+	private final Map<String, ExchangeAssetBalance> assets = new ConcurrentHashMap<>();
 	private BigDecimal availableBalance = new BigDecimal("10000");
 	private BigDecimal totalBalance = new BigDecimal("10000");
 
@@ -75,6 +78,37 @@ public class MockExchangeTradingAdapter implements ExchangeTradingAdapter {
 	@Override
 	public ExchangeAccountSnapshot getAccountBalance(ExchangeCredential credential) {
 		return snapshot();
+	}
+
+	@Override
+	public ExchangeBalances getBalances(ExchangeCredential credential) {
+		return new ExchangeBalances(assets, true, Instant.now());
+	}
+
+	/**
+	 * Seeds one asset balance. Pass a null free/locked to model an asset the exchange reported with an
+	 * unusable value; simply not seeding an asset models one the exchange did not report at all.
+	 */
+	public void putBalance(String asset, BigDecimal free, BigDecimal locked) {
+		String key = asset.toUpperCase();
+		assets.put(key, new ExchangeAssetBalance(key, free, locked));
+	}
+
+	/** Removes an asset, modelling an exchange response that omits it entirely. */
+	public void removeBalance(String asset) {
+		assets.remove(asset.toUpperCase());
+	}
+
+	/**
+	 * Restores pristine state. Required because this adapter is a singleton bean: without it, state
+	 * seeded by one test leaks into every other test sharing the cached Spring context.
+	 */
+	public void reset() {
+		orders.clear();
+		rules.clear();
+		assets.clear();
+		availableBalance = new BigDecimal("10000");
+		totalBalance = new BigDecimal("10000");
 	}
 
 	private ExchangeAccountSnapshot snapshot() {

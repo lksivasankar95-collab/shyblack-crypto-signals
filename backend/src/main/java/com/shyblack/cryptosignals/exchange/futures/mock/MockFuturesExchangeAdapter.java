@@ -10,10 +10,12 @@ import com.shyblack.cryptosignals.entity.enums.PositionSide;
 import com.shyblack.cryptosignals.exchange.SymbolRules;
 import com.shyblack.cryptosignals.exchange.futures.FuturesAccountSnapshot;
 import com.shyblack.cryptosignals.exchange.futures.FuturesExchangeAdapter;
+import com.shyblack.cryptosignals.exchange.futures.FuturesExchangePosition;
 import com.shyblack.cryptosignals.exchange.futures.FuturesOrderResult;
 import com.shyblack.cryptosignals.exchange.futures.PlaceFuturesOrderRequest;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -31,6 +33,7 @@ public class MockFuturesExchangeAdapter implements FuturesExchangeAdapter {
 	private final Map<String, SymbolRules> rules = new ConcurrentHashMap<>();
 	private final Map<String, Integer> leverages = new ConcurrentHashMap<>();
 	private final Map<String, FuturesMarginMode> marginModes = new ConcurrentHashMap<>();
+	private final Map<String, FuturesExchangePosition> positions = new ConcurrentHashMap<>();
 	private BigDecimal walletBalance = new BigDecimal("10000");
 	private BigDecimal availableBalance = new BigDecimal("10000");
 	private FuturesPositionMode positionMode = FuturesPositionMode.ONE_WAY;
@@ -63,6 +66,40 @@ public class MockFuturesExchangeAdapter implements FuturesExchangeAdapter {
 				"USDT", walletBalance, availableBalance, walletBalance,
 				BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
 				positionMode, FuturesMarginMode.ISOLATED, true, Instant.now());
+	}
+
+	@Override
+	public List<FuturesExchangePosition> getPositions(ExchangeCredential credential) {
+		return List.copyOf(positions.values());
+	}
+
+	/** Seeds an authoritative exchange position. Never touches the real exchange. */
+	public void putPosition(FuturesExchangePosition position) {
+		positions.put(positionKey(position.symbol(), position.positionSide()), position);
+	}
+
+	/** Models the exchange reporting a flat (closed) position for a symbol. */
+	public void clearPosition(String symbol, PositionSide side) {
+		positions.remove(positionKey(symbol, side));
+	}
+
+	private static String positionKey(String symbol, PositionSide side) {
+		return symbol.toUpperCase() + ":" + side.name();
+	}
+
+	/**
+	 * Restores pristine state. Required because this adapter is a singleton bean: without it, state
+	 * seeded by one test leaks into every other test sharing the cached Spring context.
+	 */
+	public void reset() {
+		orders.clear();
+		rules.clear();
+		leverages.clear();
+		marginModes.clear();
+		positions.clear();
+		walletBalance = new BigDecimal("10000");
+		availableBalance = new BigDecimal("10000");
+		positionMode = FuturesPositionMode.ONE_WAY;
 	}
 
 	@Override

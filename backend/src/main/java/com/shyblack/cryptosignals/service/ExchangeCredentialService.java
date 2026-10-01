@@ -9,6 +9,9 @@ import com.shyblack.cryptosignals.entity.User;
 import com.shyblack.cryptosignals.entity.enums.ExchangeConnectionStatus;
 import com.shyblack.cryptosignals.exception.BadRequestException;
 import com.shyblack.cryptosignals.exception.ResourceNotFoundException;
+import com.shyblack.cryptosignals.exchange.ExchangeAccountSnapshot;
+import com.shyblack.cryptosignals.exchange.ExchangeAdapterException;
+import com.shyblack.cryptosignals.exchange.ExchangeTradingAdapter;
 import com.shyblack.cryptosignals.repository.ExchangeCredentialRepository;
 import com.shyblack.cryptosignals.repository.UserRepository;
 import com.shyblack.cryptosignals.security.ExchangeCredentialEncryptor;
@@ -30,12 +33,11 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class ExchangeCredentialService {
 
-	private static final long SIMULATED_LATENCY_MS = 42;
-
 	private final ExchangeCredentialRepository credentialRepository;
 	private final UserRepository userRepository;
 	private final ExchangeCredentialEncryptor encryptor;
 	private final SettingsProperties properties;
+	private final ExchangeTradingAdapter adapter;
 
 	@Transactional(readOnly = true)
 	public List<ExchangeCredentialView> list(UserPrincipal principal) {
@@ -69,19 +71,60 @@ public class ExchangeCredentialService {
 		return toView(credentialRepository.save(credential));
 	}
 
+	/**
+	 * Validates a credential against the exchange with a real signed, read-only request.
+	 *
+	 * <p>Previously this returned a hardcoded success after a simulated 42 ms delay without making
+	 * any call, so a credential was reported CONNECTED purely because it existed in the database. The
+	 * status is now set only when the exchange actually accepts the signed request; any failure is
+	 * recorded as FAILED with a diagnostic.
+	 *
+	 * <p>This performs no order placement, cancellation or modification of any kind — only an
+	 * authenticated account read.
+	 *
+	 * <p>When {@code app.live-trading.mode=MOCK} (the default for dev and tests) the configured
+	 * adapter is the in-process simulator, so this validates the local path rather than the exchange.
+	 */
 	@Transactional
 	public ExchangeCredentialConnectionResponse testConnection(UserPrincipal principal, UUID id) {
 		ExchangeCredential credential = requireOwned(principal, id);
-		credential.setStatus(ExchangeConnectionStatus.CONNECTED);
-		credentialRepository.save(credential);
-		return new ExchangeCredentialConnectionResponse(
-				credential.getId(),
-				credential.getExchange(),
-				true,
-				"Connection verified",
-				SIMULATED_LATENCY_MS,
-				Instant.now(),
-				ExchangeConnectionStatus.CONNECTED);
+		long startedAt = System.nanoTime();
+		try {
+			ExchangeAccountSnapshot snapshot = adapter.validateCredentials(credential);
+			long latencyMs = elapsedMs(startedAt);
+			credential.setStatus(ExchangeConnectionStatus.CONNECTED);
+			credentialRepository.save(credential);
+			return new ExchangeCredentialConnectionResponse(
+					credential.getId(),
+					credential.getExchange(),
+					true,
+					"Connection verified against " + adapter.exchange()
+							+ (snapshot.canTrade() ? "" : " (read-only: trading permission absent)"),
+					latencyMs,
+					Instant.now(),
+					ExchangeConnectionStatus.CONNECTED);
+		} catch (ExchangeAdapterException ex) {
+			long latencyMs = elapsedMs(startedAt);
+			credential.setStatus(ExchangeConnectionStatus.FAILED);
+			credentialRepository.save(credential);
+			return new ExchangeCredentialConnectionResponse(
+					credential.getId(),
+					credential.getExchange(),
+					false,
+					// Diagnostic only; never the API key, secret, header or signed query string.
+					truncate("Exchange rejected the credentials: " + ex.getMessage()),
+					latencyMs,
+					Instant.now(),
+					ExchangeConnectionStatus.FAILED);
+		}
+	}
+
+	private static long elapsedMs(long startedAtNanos) {
+		return Math.max(0L, (System.nanoTime() - startedAtNanos) / 1_000_000L);
+	}
+
+	private static String truncate(String message) {
+		return message == null || message.length() <= 200 ? message : message.substring(0, 197) + "...";
 	}
 
 	@Transactional
