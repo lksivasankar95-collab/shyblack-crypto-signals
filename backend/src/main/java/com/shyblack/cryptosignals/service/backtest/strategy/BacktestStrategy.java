@@ -5,6 +5,7 @@ import com.shyblack.cryptosignals.service.backtest.historical.HistoricalCandle;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * A pluggable backtest strategy. Given the candles up to (and including) the
@@ -57,11 +58,18 @@ public interface BacktestStrategy {
 			BigDecimal takeProfit,
 			BigDecimal takeProfit2,
 			BigDecimal takeProfit3,
-			String notes
+			String notes,
+			/** Attributed event ids (additive analytics metadata; null = unattributed). Never affects decisions. */
+			List<UUID> eventIds
 	) {
 		public Signal(PositionSide side, BigDecimal referencePrice, BigDecimal stopLoss,
 				BigDecimal takeProfit, String notes) {
-			this(side, referencePrice, stopLoss, takeProfit, null, null, notes);
+			this(side, referencePrice, stopLoss, takeProfit, null, null, notes, null);
+		}
+
+		public Signal(PositionSide side, BigDecimal referencePrice, BigDecimal stopLoss,
+				BigDecimal takeProfit, BigDecimal takeProfit2, BigDecimal takeProfit3, String notes) {
+			this(side, referencePrice, stopLoss, takeProfit, takeProfit2, takeProfit3, notes, null);
 		}
 	}
 }

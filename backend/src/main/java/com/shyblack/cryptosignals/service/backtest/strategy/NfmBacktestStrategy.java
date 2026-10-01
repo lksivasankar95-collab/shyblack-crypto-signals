@@ -102,8 +102,9 @@ public class NfmBacktestStrategy implements EventAwareBacktestStrategy, Configur
 		}
 		lastSignalIndex = currentIndex;
 		PositionSide side = a.action() == NfmAction.LONG ? PositionSide.LONG : PositionSide.SHORT;
+		List<java.util.UUID> eventIds = eligibleEventIds(eventsUpToNow, current);
 		return Optional.of(new Signal(side, a.entry(), a.stopLoss(), a.tp1(), a.tp2(), a.tp3(),
-				"NFM grade=" + a.grade() + " score=" + a.score() + " " + a.reason()));
+				"NFM grade=" + a.grade() + " score=" + a.score() + " " + a.reason(), eventIds));
 	}
 
 	/** As-of derivatives snapshot; unavailable on any failure (never zero). */
@@ -134,6 +135,25 @@ public class NfmBacktestStrategy implements EventAwareBacktestStrategy, Configur
 			}
 		}
 		return best;
+	}
+
+	/**
+	 * All events causally eligible for the current candle (same visibility rule
+	 * as {@link #latestEligible}), preserving every relevant id. Additive
+	 * analytics metadata only — the decision still uses the single latest event.
+	 */
+	private List<java.util.UUID> eligibleEventIds(List<HistoricalEvent> events, HistoricalCandle current) {
+		if (events == null || events.isEmpty() || current == null || current.closeTime() == null) {
+			return List.of();
+		}
+		List<java.util.UUID> ids = new ArrayList<>();
+		for (HistoricalEvent e : events) {
+			if (e.id() == null) continue;
+			if (!com.shyblack.cryptosignals.service.backtest.research.NfmEventAttributionBuilder
+					.causallyEligible(e, current.closeTime(), config.getEventMaxAgeMinutes())) continue;
+			ids.add(e.id());
+		}
+		return ids;
 	}
 
 	private static List<KlineResponse> toKlines(List<HistoricalCandle> history) {

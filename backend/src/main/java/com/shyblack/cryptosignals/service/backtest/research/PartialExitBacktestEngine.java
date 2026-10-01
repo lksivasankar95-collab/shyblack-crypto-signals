@@ -30,14 +30,20 @@ public final class PartialExitBacktestEngine {
 	public record Result(
 			int trades, int wins, int losses,
 			BigDecimal winRatePct, BigDecimal grossPnl, BigDecimal totalFees, BigDecimal netPnl,
-			List<PartialExitSimulator.Lifecycle> lifecycles) {}
+			List<PartialExitSimulator.Lifecycle> lifecycles, List<Entry> entries) {}
+
+	/** Additive per-trade capture for analytics (signal + entry context + lifecycle). */
+	public record Entry(BacktestStrategy.Signal signal, int entryIndex, java.time.Instant entryTime,
+			BigDecimal entryPrice, PartialExitSimulator.Lifecycle lifecycle) {}
 
 	public static Result run(BacktestConfig config, BacktestStrategy strategy,
 			List<HistoricalCandle> candles, List<HistoricalEvent> events) {
 		List<PartialExitSimulator.Lifecycle> lifecycles = new ArrayList<>();
+		List<Entry> entries = new ArrayList<>();
 		int n = candles == null ? 0 : candles.size();
 		if (n < 3) {
-			return new Result(0, 0, 0, null, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, lifecycles);
+			return new Result(0, 0, 0, null, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, lifecycles,
+					entries);
 		}
 		BigDecimal capital = config.initialCapital();
 
@@ -69,6 +75,7 @@ public final class PartialExitBacktestEngine {
 					signal.stopLoss(), signal.takeProfit(), signal.takeProfit2(), signal.takeProfit3(),
 					config.feePct(), tp1Frac, tp2Frac, bars);
 			lifecycles.add(lc);
+			entries.add(new Entry(signal, i + 1, entryCandle.openTime(), entry, lc));
 			capital = capital.add(lc.netPnl());
 			i = i + 2; // advance past the entry bar; sequential single-position model
 		}
@@ -85,7 +92,7 @@ public final class PartialExitBacktestEngine {
 		}
 		BigDecimal winRate = trades == 0 ? null : BigDecimal.valueOf(wins)
 				.multiply(BigDecimal.valueOf(100)).divide(BigDecimal.valueOf(trades), 4, RoundingMode.HALF_UP);
-		return new Result(trades, wins, losses, winRate, gross, fees, net, lifecycles);
+		return new Result(trades, wins, losses, winRate, gross, fees, net, lifecycles, entries);
 	}
 
 	private static BacktestStrategy.Signal evaluate(BacktestStrategy strategy,

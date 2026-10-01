@@ -70,7 +70,28 @@ Fed/FOMC collection runtime-pending. BEA/Census/DOL date-only → INELIGIBLE.
 ECB/BoE/BoJ/BoC/RBA/SNB exact timestamps unavailable → INELIGIBLE.
 Crypto/regulatory/security no exact-time dataset. Liquidation UNKNOWN.
 
-## 15. Validation conclusion
+## 15. Event attribution & validation analytics
+Status legend: **MEASURED** (real data), **UNKNOWN** (null, not zero), **NOT_AVAILABLE**, **DATA_COVERAGE_PARTIAL**.
+
+1. **Event coverage** — DATA_COVERAGE_PARTIAL: 113 EXACT BLS events (CPI 34 / NFP 46 / PPI 33).
+2. **Event → signal attribution** — deterministic causal rule `event.time <= candle.closeTime` (`NfmEventAttributionBuilder.causallyEligible`); multiple eligible events preserved; if none, `EVENT_ATTRIBUTION_UNKNOWN` (never guessed).
+3. **Event → trade attribution** — engine captures `PartialExitBacktestEngine.Entry` (signal + entry + lifecycle); signal grade/score not exposed by the engine → UNKNOWN.
+4. **Event type stats** — `NfmValidationAnalytics.byEventType` (event/signal/trade/long/short/win/loss/net/PF); score/reaction/drawdown UNKNOWN.
+5. **Symbol stats** — per BTCUSDT/ETHUSDT; descriptive only, no ranking.
+6. **Direction stats** — LONG/SHORT separately; no BEST_DIRECTION field.
+7. **Score/grade stats** — NOT_AVAILABLE (grade/score not surfaced by the engine); no threshold recommendation.
+8. **Reaction stats** — NOT_AVAILABLE (windows/series not captured); priceReaction/volumeRatio/oiChange/funding/liquidation UNKNOWN.
+9. **Regime stats** — NOT_AVAILABLE (regime not surfaced per trade); no new regime algorithm.
+10. **No-trade reasons** — NOT_AVAILABLE (reject/block reasons not captured per signal); no invented categories.
+11. **Trade lifecycle** — MEASURED from lifecycle fills: TP1/TP2/TP3/SL hit rates; timing UNKNOWN (bar timestamps not captured).
+12. **OOS attribution** — separated via `runType=OOS` and `NfmValidationDetail` (test window); wins/organised separately from in-sample.
+13. **Walk-forward attribution** — per-window rows retained in `research_nfm_validation_detail` (kind WINDOW); never collapsed, no best window.
+14. **Sensitivity attribution** — per-variant rows (kind VARIANT) with `paramsJson` + `configurationHash`; never ranked.
+15. **Data limitations** — Fed runtime-pending; BEA/Census/DOL + central banks INELIGIBLE; crypto/regulatory/security uncovered; liquidation UNKNOWN; surprise data absent → SURPRISE_DATA_UNAVAILABLE.
+
+All analytics are descriptive; no profitability/edge/best claim. Run-scoped analytics endpoints and attribution persistence are **NOT_AVAILABLE** in this revision (analytics are produced from engine-captured entries in-process).
+
+## 16. Validation conclusion
 Factual status only. **Real NFM validation has NOT been completed.** It remains
 blocked by an externally stale runtime, partial event coverage, and unavailable
 historical liquidation data. Persisting a run does not imply an edge.
