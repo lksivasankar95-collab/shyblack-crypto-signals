@@ -42,16 +42,22 @@ class BlsScheduleHistoricalEventSourceTest {
 	}
 
 	@Test
-	void handlesMonthSpilloverAcrossCalendarCells() {
-		// trailing cell is February (day resets below previous day)
+	void skipsNextMonthSpilloverCells_capturedOnTheirOwnMonthPage() {
+		// trailing cell is February (day resets) -> skipped here, not mis-dated.
 		List<NormalizedEvent> events = BlsScheduleHistoricalEventSource.parseMonth(
 				table("<td>31 Employment Situation December 2023 08:30 AM</td>"
 						+ "<td>2 Employment Situation January 2024 08:30 AM</td>"),
 				2024, 1);
 		assertThat(events).extracting(NormalizedEvent::eventTime)
-				.containsExactly(
-						Instant.parse("2024-01-31T13:30:00Z"),
-						Instant.parse("2024-02-02T13:30:00Z"));
+				.containsExactly(Instant.parse("2024-01-31T13:30:00Z"));
+	}
+
+	@Test
+	void impossibleDate_doesNotCrashAndIsSkipped() {
+		// Feb 30 does not exist -> the month must not fail; the bad cell is dropped.
+		List<NormalizedEvent> events = BlsScheduleHistoricalEventSource.parseMonth(
+				table("<td>30 Consumer Price Index January 2026 08:30 AM</td>"), 2026, 2);
+		assertThat(events).isEmpty();
 	}
 
 	@Test

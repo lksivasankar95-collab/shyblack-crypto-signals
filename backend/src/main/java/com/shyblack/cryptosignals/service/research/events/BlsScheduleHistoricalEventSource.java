@@ -137,6 +137,7 @@ public class BlsScheduleHistoricalEventSource implements HistoricalEventSource {
 		}
 		Matcher cell = CELL.matcher(table.group(1));
 		int curYear = year, curMonth = month, lastDay = 0;
+		boolean spillover = false;
 		while (cell.find()) {
 			String text = cell.group(1).replaceAll("(?s)<[^>]+>", " ")
 					.replace("&nbsp;", " ").replaceAll("\\s+", " ").trim();
@@ -145,14 +146,15 @@ public class BlsScheduleHistoricalEventSource implements HistoricalEventSource {
 				continue;
 			}
 			int day = Integer.parseInt(dm.group(1));
+			// Calendar rows end with next-month spillover days (day resets). Those
+			// events are captured on their own month's page, so skip them here.
 			if (lastDay != 0 && day < lastDay) {
-				curMonth++;
-				if (curMonth > 12) {
-					curMonth = 1;
-					curYear++;
-				}
+				spillover = true;
 			}
 			lastDay = day;
+			if (spillover) {
+				continue;
+			}
 			for (Map.Entry<String, String> prog : PROGRAMS.entrySet()) {
 				Pattern p = Pattern.compile(Pattern.quote(prog.getKey())
 						+ "\\s+(.+?)\\s+(\\d{1,2}:\\d{2}\\s*[AaPp][Mm])");
@@ -166,9 +168,15 @@ public class BlsScheduleHistoricalEventSource implements HistoricalEventSource {
 				} catch (Exception ex) {
 					continue;
 				}
-				Instant eventTime = ZonedDateTime.of(
-						LocalDate.of(curYear, curMonth, day), lt, EASTERN).toInstant();
-				String id = "BLS_" + prog.getValue() + "_" + LocalDate.of(curYear, curMonth, day);
+				LocalDate date;
+				Instant eventTime;
+				try {
+					date = LocalDate.of(curYear, curMonth, day);
+					eventTime = ZonedDateTime.of(date, lt, EASTERN).toInstant();
+				} catch (java.time.DateTimeException ex) {
+					continue; // impossible date for the month; never fabricate
+				}
+				String id = "BLS_" + prog.getValue() + "_" + date;
 				out.add(new NormalizedEvent(
 						id, eventTime, eventTime, "MACRO", prog.getValue(), "OFFICIAL_CONFIRMATION",
 						"BLS", "TIER_1", prog.getKey() + " (" + em.group(1).trim() + ")",
