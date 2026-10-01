@@ -93,4 +93,29 @@ class TradingStrategyServiceTest {
                 .isInstanceOf(BadRequestException.class)
                 .hasMessageContaining("SPOT");
     }
+
+    @Test
+    void create_persistsNfmFuturesEngineKeyAndConfig() {
+        CreateStrategyRequest req = new CreateStrategyRequest("NFM", "desc", TradingMode.FUTURES,
+                StrategyConfigDto.nfmFuturesDefaults(), "NFM_FUTURES");
+
+        TradingStrategyResponse resp = service.create(principal, req);
+
+        ArgumentCaptor<TradingStrategy> captor = ArgumentCaptor.forClass(TradingStrategy.class);
+        verify(strategyRepository).save(captor.capture());
+        assertThat(captor.getValue().getEngineKey()).isEqualTo("NFM_FUTURES");
+        assertThat(captor.getValue().getTradingMode()).isEqualTo(TradingMode.FUTURES);
+        // The NFM config block is stored under "nfmFutures".
+        assertThat(captor.getValue().getConfigJson()).contains("nfmFutures");
+        assertThat(resp.engineKey()).isEqualTo("NFM_FUTURES");
+    }
+
+    @Test
+    void create_rejectsNfmFuturesForSpot() {
+        assertThatThrownBy(() -> service.create(principal,
+                new CreateStrategyRequest("NFM", "desc", TradingMode.SPOT,
+                        StrategyConfigDto.spotDefaults(), "NFM_FUTURES")))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("FUTURES");
+    }
 }

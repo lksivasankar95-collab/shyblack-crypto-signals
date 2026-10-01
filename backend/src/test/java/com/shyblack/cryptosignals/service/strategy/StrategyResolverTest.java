@@ -89,6 +89,47 @@ class StrategyResolverTest {
         assertThat(resolver.resolveActive(TradingMode.SPOT)).isEmpty();
     }
 
+    private TradingStrategy userNfmFutures(StrategyStatus status) {
+        com.shyblack.cryptosignals.dto.strategy.NfmFuturesConfig cfg =
+                com.shyblack.cryptosignals.dto.strategy.NfmFuturesConfig.defaults();
+        cfg.setMinimumScore(77);
+        TradingStrategy s = new TradingStrategy();
+        s.setName("My NFM");
+        s.setTradingMode(TradingMode.FUTURES);
+        s.setStrategyType(StrategyType.USER);
+        s.setStatus(status);
+        s.setEngineKey("NFM_FUTURES");
+        try {
+            s.setConfigJson(MAPPER.writeValueAsString(
+                    new StrategyConfigDto(null, null, null, null,
+                            StrategyConfigDto.FuturesConfig.defaults(), null, null, cfg)));
+        } catch (Exception ex) {
+            throw new IllegalStateException(ex);
+        }
+        return s;
+    }
+
+    private UserStrategySelection futuresSelection(TradingStrategy strategy) {
+        UserStrategySelection sel = new UserStrategySelection();
+        sel.setTradingMode(TradingMode.FUTURES);
+        sel.setStrategy(strategy);
+        return sel;
+    }
+
+    @Test
+    void activeNfmUserSelection_isResolvedForFutures_andItsConfigIsUsed() {
+        TradingStrategy user = userNfmFutures(StrategyStatus.ACTIVE);
+        when(selectionRepository.findByTradingModeOrderByUpdatedAtDesc(TradingMode.FUTURES))
+                .thenReturn(List.of(futuresSelection(user)));
+
+        TradingStrategy resolved = resolver.resolveActive(TradingMode.FUTURES).orElseThrow();
+
+        assertThat(resolved.getEngineKey()).isEqualTo("NFM_FUTURES");
+        // The live NFM service reconstructs the USER's persisted config.
+        assertThat(resolver.parseNfmFuturesConfig(resolved).getMinimumScore()).isEqualTo(77);
+        verifyNoInteractions(strategyRepository);
+    }
+
     @Test
     void noUserSelection_fallsBackToActiveSystemStrategy() {
         TradingStrategy inactive = new TradingStrategy();
