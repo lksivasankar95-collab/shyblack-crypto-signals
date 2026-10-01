@@ -38,6 +38,7 @@ public class FuturesSignalScheduler {
     private final SignalNotificationService signalNotificationService;
     private final ApplicationEventPublisher eventPublisher;
     private final StrategyResolver strategyResolver;
+    private final NfmFuturesSignalService nfmFuturesSignalService;
 
     @Scheduled(cron = SignalConstants.SIGNAL_CRON)
     @Transactional
@@ -50,7 +51,17 @@ public class FuturesSignalScheduler {
             return;
         }
         TradingStrategy strategy = strategyOpt.get();
-        log.info("[FutSignalCycle] Using strategy: {} v{}", strategy.getName(), strategy.getVersion());
+        log.info("[FutSignalCycle] Using strategy: {} v{} engine={}",
+                strategy.getName(), strategy.getVersion(), strategy.getEngineKey());
+
+        // Route by engine key — mirror the SPOT scheduler so an independent
+        // futures engine (NFM) runs instead of the legacy momentum engine.
+        if (com.shyblack.cryptosignals.dto.strategy.NfmFuturesConfig.ENGINE_KEY
+                .equals(strategy.getEngineKey())) {
+            int generated = nfmFuturesSignalService.runCycle(strategy);
+            log.info("[FutSignalCycle] NFM cycle complete. Generated {} new futures signals.", generated);
+            return;
+        }
 
         int generated = 0;
         try {

@@ -8,7 +8,9 @@ import com.shyblack.cryptosignals.entity.enums.BacktestExitReason;
 import com.shyblack.cryptosignals.entity.enums.PositionSide;
 import com.shyblack.cryptosignals.entity.enums.TradingMode;
 import com.shyblack.cryptosignals.service.backtest.historical.HistoricalCandle;
+import com.shyblack.cryptosignals.service.backtest.historical.HistoricalEvent;
 import com.shyblack.cryptosignals.service.backtest.strategy.BacktestStrategy;
+import com.shyblack.cryptosignals.service.backtest.strategy.EventAwareBacktestStrategy;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
@@ -36,7 +38,19 @@ public final class BacktestEngine {
 
 	public static Result run(BacktestRun run, BacktestConfig config, BacktestStrategy strategy,
 			List<HistoricalCandle> candles, AtomicBoolean cancelled) {
+		return run(run, config, strategy, candles, List.of(), cancelled);
+	}
 
+	/**
+	 * Event-aware overload. {@code events} are filtered to those at or before the
+	 * current candle's close time before being handed to an
+	 * {@link EventAwareBacktestStrategy} — the no-look-ahead contract is identical
+	 * to the candle contract.
+	 */
+	public static Result run(BacktestRun run, BacktestConfig config, BacktestStrategy strategy,
+			List<HistoricalCandle> candles, List<HistoricalEvent> events, AtomicBoolean cancelled) {
+
+		List<HistoricalEvent> eventStream = events == null ? List.of() : events;
 		int n = candles.size();
 		BacktestPortfolio portfolio = new BacktestPortfolio(
 				config.initialCapital(), config.tradingMode(), config.leverage());
@@ -94,7 +108,15 @@ public final class BacktestEngine {
 
 			// 3) Ask the strategy — only for candles ≤ current. Strategy sees NO future data.
 			List<HistoricalCandle> history = candles.subList(0, i + 1);
-			BacktestStrategy.Signal emitted = strategy.evaluate(history, i).orElse(null);
+			BacktestStrategy.Signal emitted;
+			if (strategy instanceof EventAwareBacktestStrategy eventAware) {
+				List<HistoricalEvent> visible = eventStream.stream()
+						.filter(e -> e.time() != null && !e.time().isAfter(candle.closeTime()))
+						.toList();
+				emitted = eventAware.evaluate(history, i, visible).orElse(null);
+			} else {
+				emitted = strategy.evaluate(history, i).orElse(null);
+			}
 			if (emitted != null && !portfolio.hasOpenPosition() && i + 1 < n) {
 				pendingSignal = emitted;
 				pendingSignalId = UUID.randomUUID();

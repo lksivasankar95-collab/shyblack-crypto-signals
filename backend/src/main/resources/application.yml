@@ -70,6 +70,11 @@ app:
     enabled: ${NEWS_NOTIFY_ENABLED:true}
     min-impact: ${NEWS_NOTIFY_MIN_IMPACT:HIGH}
     min-score: ${NEWS_NOTIFY_MIN_SCORE:0}
+  nfm:
+    # News Flow Momentum Futures — event resolution gate. Source-tier lists
+    # default to Tier-1/2/3 built-ins when omitted.
+    enabled: ${NFM_ENABLED:true}
+    event-max-age-minutes: ${NFM_EVENT_MAX_AGE_MINUTES:180}
   settings:
     risk-per-trade-ceiling-pct: ${SETTINGS_RISK_PER_TRADE_CEILING_PCT:2.0}
     max-position-size-pct: ${SETTINGS_MAX_POSITION_SIZE_PCT:20.0}

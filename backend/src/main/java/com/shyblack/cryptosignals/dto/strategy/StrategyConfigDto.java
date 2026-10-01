@@ -7,7 +7,8 @@ public record StrategyConfigDto(
         EntryConfig entry,
         FuturesConfig futures, // null for SPOT
         TrendPullbackConfig pullback, // null unless the strategy uses TREND_PULLBACK
-        EMATrendFollowingConfig emaTrendFollowing // null unless the strategy uses EMA_TREND_FOLLOWING
+        EMATrendFollowingConfig emaTrendFollowing, // null unless the strategy uses EMA_TREND_FOLLOWING
+        NfmFuturesConfig nfmFutures // null unless the strategy uses NFM_FUTURES
 ) {
     public record IndicatorConfig(
             int emaFast, int emaMid, int emaSlow,
@@ -56,26 +57,33 @@ public record StrategyConfigDto(
     public static StrategyConfigDto spotDefaults() {
         return new StrategyConfigDto(
                 IndicatorConfig.defaults(), ScoringConfig.defaults(),
-                FilterConfig.defaults(), EntryConfig.defaults(), null, null, null);
+                FilterConfig.defaults(), EntryConfig.defaults(), null, null, null, null);
     }
 
     public static StrategyConfigDto futuresDefaults() {
         return new StrategyConfigDto(
                 IndicatorConfig.defaults(), ScoringConfig.defaults(),
-                FilterConfig.defaults(), EntryConfig.defaults(), FuturesConfig.defaults(), null, null);
+                FilterConfig.defaults(), EntryConfig.defaults(), FuturesConfig.defaults(), null, null, null);
     }
 
     public static StrategyConfigDto trendPullbackDefaults() {
         return new StrategyConfigDto(
                 IndicatorConfig.defaults(), ScoringConfig.defaults(),
                 FilterConfig.defaults(), EntryConfig.defaults(), null,
-                TrendPullbackConfig.defaults(), null);
+                TrendPullbackConfig.defaults(), null, null);
     }
 
     public static StrategyConfigDto emaTrendFollowingDefaults() {
         return new StrategyConfigDto(
                 IndicatorConfig.defaults(), ScoringConfig.defaults(),
                 FilterConfig.defaults(), EntryConfig.defaults(), null, null,
-                EMATrendFollowingConfig.defaults());
+                EMATrendFollowingConfig.defaults(), null);
+    }
+
+    public static StrategyConfigDto nfmFuturesDefaults() {
+        return new StrategyConfigDto(
+                IndicatorConfig.defaults(), ScoringConfig.defaults(),
+                FilterConfig.defaults(), EntryConfig.defaults(), FuturesConfig.defaults(),
+                null, null, NfmFuturesConfig.defaults());
     }
 }

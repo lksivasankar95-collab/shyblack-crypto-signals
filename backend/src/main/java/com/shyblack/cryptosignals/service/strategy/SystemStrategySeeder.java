@@ -39,6 +39,10 @@ public class SystemStrategySeeder implements ApplicationRunner {
                         + "Buys a confirmed EMA20/EMA50 bullish transition with momentum/volume/volatility confirmation.",
                 TradingMode.SPOT, StrategyConfigDto.emaTrendFollowingDefaults(),
                 com.shyblack.cryptosignals.dto.strategy.EMATrendFollowingConfig.ENGINE_KEY);
+        seedIfAbsent("News Flow Momentum Futures", "NFM — event-driven USDT-M futures strategy. "
+                        + "News is the catalyst, market reaction is the confirmation, derivatives positioning is the validation.",
+                TradingMode.FUTURES, StrategyConfigDto.nfmFuturesDefaults(),
+                com.shyblack.cryptosignals.dto.strategy.NfmFuturesConfig.ENGINE_KEY);
         log.info("[StrategySeeder] System strategies initialized");
     }
 

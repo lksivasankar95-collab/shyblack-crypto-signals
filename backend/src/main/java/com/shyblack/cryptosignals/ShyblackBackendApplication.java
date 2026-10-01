@@ -5,6 +5,7 @@ import com.shyblack.cryptosignals.config.FuturesTradingProperties;
 import com.shyblack.cryptosignals.config.JwtProperties;
 import com.shyblack.cryptosignals.config.LiveTradingProperties;
 import com.shyblack.cryptosignals.config.MarketProperties;
+import com.shyblack.cryptosignals.config.NfmProperties;
 import com.shyblack.cryptosignals.config.NewsNotificationProperties;
 import com.shyblack.cryptosignals.config.NewsProperties;
 import com.shyblack.cryptosignals.config.PaperTradingProperties;
@@ -18,7 +19,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @SpringBootApplication
 @EnableJpaAuditing
 @EnableScheduling
-@EnableConfigurationProperties({JwtProperties.class, MarketProperties.class, NewsProperties.class, NewsNotificationProperties.class, SettingsProperties.class, PaperTradingProperties.class, LiveTradingProperties.class, FuturesTradingProperties.class, BacktestingProperties.class})
+@EnableConfigurationProperties({JwtProperties.class, MarketProperties.class, NewsProperties.class, NewsNotificationProperties.class, SettingsProperties.class, PaperTradingProperties.class, LiveTradingProperties.class, FuturesTradingProperties.class, BacktestingProperties.class, NfmProperties.class})
 public class ShyblackBackendApplication {
 
 	public static void main(String[] args) {

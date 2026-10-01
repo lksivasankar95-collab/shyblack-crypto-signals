@@ -110,4 +110,27 @@ public class StrategyResolver {
         }
         return com.shyblack.cryptosignals.dto.strategy.EMATrendFollowingConfig.defaults();
     }
+
+    /**
+     * Reads the {@code nfmFutures} block of an NFM_FUTURES strategy's config,
+     * falling back to built-in defaults for missing fields.
+     */
+    public com.shyblack.cryptosignals.dto.strategy.NfmFuturesConfig parseNfmFuturesConfig(
+            TradingStrategy strategy) {
+        if (strategy == null || strategy.getConfigJson() == null) {
+            return com.shyblack.cryptosignals.dto.strategy.NfmFuturesConfig.defaults();
+        }
+        try {
+            JsonNode root = objectMapper.readTree(strategy.getConfigJson());
+            JsonNode node = root.get("nfmFutures");
+            if (node != null && !node.isNull()) {
+                return objectMapper.treeToValue(
+                        node, com.shyblack.cryptosignals.dto.strategy.NfmFuturesConfig.class);
+            }
+        } catch (Exception ex) {
+            log.warn("[StrategyResolver] Failed to parse NFM config for strategy {}, using defaults: {}",
+                    strategy.getId(), ex.getMessage());
+        }
+        return com.shyblack.cryptosignals.dto.strategy.NfmFuturesConfig.defaults();
+    }
 }

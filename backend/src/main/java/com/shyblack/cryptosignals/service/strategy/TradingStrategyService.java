@@ -160,8 +160,15 @@ public class TradingStrategyService {
         }
         boolean trendPullback = com.shyblack.cryptosignals.dto.strategy.TrendPullbackConfig.ENGINE_KEY.equals(engineKey);
         boolean emaTrendFollowing = com.shyblack.cryptosignals.dto.strategy.EMATrendFollowingConfig.ENGINE_KEY.equals(engineKey);
-        if (!trendPullback && !emaTrendFollowing) {
+        boolean nfmFutures = com.shyblack.cryptosignals.dto.strategy.NfmFuturesConfig.ENGINE_KEY.equals(engineKey);
+        if (!trendPullback && !emaTrendFollowing && !nfmFutures) {
             throw new BadRequestException("Unknown strategy engine: " + engineKey);
+        }
+        if (nfmFutures) {
+            if (mode != TradingMode.FUTURES) {
+                throw new BadRequestException(engineKey + " engine requires FUTURES mode");
+            }
+            return engineKey;
         }
         if (mode != TradingMode.SPOT) {
             throw new BadRequestException(engineKey + " engine requires SPOT mode");

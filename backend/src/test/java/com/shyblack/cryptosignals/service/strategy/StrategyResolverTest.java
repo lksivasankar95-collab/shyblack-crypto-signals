@@ -50,7 +50,7 @@ class StrategyResolverTest {
         s.setEngineKey("TREND_PULLBACK");
         try {
             s.setConfigJson(MAPPER.writeValueAsString(
-                    new StrategyConfigDto(null, null, null, null, null, cfg, null)));
+                    new StrategyConfigDto(null, null, null, null, null, cfg, null, null)));
         } catch (Exception ex) {
             throw new IllegalStateException(ex);
         }

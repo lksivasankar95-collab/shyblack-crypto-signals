@@ -14,6 +14,8 @@ import com.shyblack.cryptosignals.service.backtest.engine.BacktestConfig;
 import com.shyblack.cryptosignals.service.backtest.engine.BacktestEngine;
 import com.shyblack.cryptosignals.service.backtest.engine.BacktestMetricsCalculator;
 import com.shyblack.cryptosignals.service.backtest.historical.HistoricalCandle;
+import com.shyblack.cryptosignals.service.backtest.historical.HistoricalEvent;
+import com.shyblack.cryptosignals.service.backtest.historical.HistoricalEventProvider;
 import com.shyblack.cryptosignals.service.backtest.historical.HistoricalMarketDataProvider;
 import com.shyblack.cryptosignals.service.backtest.strategy.BacktestStrategy;
 import com.shyblack.cryptosignals.service.backtest.strategy.BacktestStrategyRegistry;
@@ -50,6 +52,7 @@ public class BacktestJobRunner {
 	private final BacktestSignalRepository signalRepo;
 	private final BacktestEquityPointRepository equityRepo;
 	private final HistoricalMarketDataProvider historicalDataProvider;
+	private final HistoricalEventProvider historicalEventProvider;
 	private final BacktestStrategyRegistry strategyRegistry;
 
 	private ExecutorService executor;
@@ -117,7 +120,9 @@ public class BacktestJobRunner {
 		}
 		updateTotals(runId, candles.size());
 
-		BacktestEngine.Result result = BacktestEngine.run(run, config, strategy, candles, cancel);
+		List<HistoricalEvent> events = historicalEventProvider.load(
+				config.symbol(), config.startDate(), config.endDate());
+		BacktestEngine.Result result = BacktestEngine.run(run, config, strategy, candles, events, cancel);
 		persistResult(runId, config, candles.get(candles.size() - 1).closeTime(), result, cancel.get());
 	}
 

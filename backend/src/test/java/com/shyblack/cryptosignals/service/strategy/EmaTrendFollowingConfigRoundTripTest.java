@@ -52,7 +52,7 @@ class EmaTrendFollowingConfigRoundTripTest {
     void fullStrategyConfig_roundTripsEveryEmaField() throws Exception {
         EMATrendFollowingConfig original = perturbed();
         StrategyConfigDto dto = new StrategyConfigDto(
-                null, null, null, null, null, null, original);
+                null, null, null, null, null, null, original, null);
 
         TradingStrategy strategy = new TradingStrategy();
         strategy.setConfigJson(MAPPER.writeValueAsString(dto));
