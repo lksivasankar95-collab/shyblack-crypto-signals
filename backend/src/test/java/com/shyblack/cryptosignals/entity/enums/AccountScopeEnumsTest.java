@@ -109,6 +109,7 @@ class AccountScopeEnumsTest {
 				.containsExactlyInAnyOrder(
 						AccountAvailability.AVAILABLE,
 						AccountAvailability.SYNCING,
+						AccountAvailability.STALE,
 						AccountAvailability.NOT_CONNECTED,
 						AccountAvailability.DISCONNECTED,
 						AccountAvailability.UNAVAILABLE,

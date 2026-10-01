@@ -5,6 +5,7 @@ import com.shyblack.cryptosignals.entity.Position;
 import com.shyblack.cryptosignals.entity.User;
 import com.shyblack.cryptosignals.entity.enums.AccountType;
 import com.shyblack.cryptosignals.entity.enums.PositionStatus;
+import com.shyblack.cryptosignals.entity.enums.TradingMode;
 import jakarta.persistence.LockModeType;
 import java.util.List;
 import java.util.Optional;
@@ -30,6 +31,25 @@ public interface PositionRepository extends JpaRepository<Position, UUID> {
 			User user, AccountType accountType, PositionStatus status);
 
 	Optional<Position> findByPortfolioAndSignalId(Portfolio portfolio, UUID signalId);
+
+	/**
+	 * Positions of one account whose originating signal carries the given market mode.
+	 *
+	 * <p>{@code Position.signalId} is a plain {@code UUID} column rather than an association, so the
+	 * category partition is resolved with a subquery on {@code Signal.tradingMode} instead of a join.
+	 * A position whose {@code signalId} is NULL is therefore excluded from every market-scoped
+	 * category and stays visible only in {@code MAIN}; it is never assigned to a category by guess.
+	 */
+	@Query("""
+			select p from Position p
+			where p.portfolio.user = :user
+				and p.portfolio.accountType = :accountType
+				and p.signalId in (select s.id from Signal s where s.tradingMode = :mode)
+			""")
+	List<Position> findByOwnerAndAccountTypeAndSignalTradingMode(
+			@Param("user") User user,
+			@Param("accountType") AccountType accountType,
+			@Param("mode") TradingMode mode);
 
 	List<Position> findByStatus(PositionStatus status);
 

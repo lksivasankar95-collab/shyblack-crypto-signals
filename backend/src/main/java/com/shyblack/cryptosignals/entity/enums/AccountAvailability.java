@@ -15,6 +15,12 @@ public enum AccountAvailability {
 	/** A synchronization is currently in flight. */
 	SYNCING,
 
+	/**
+	 * Data was synchronized but is older than the freshness window, so it must not be presented as
+	 * current. The values remain the last known ones rather than being discarded.
+	 */
+	STALE,
+
 	/** No exchange account has ever been connected for this scope. */
 	NOT_CONNECTED,
 
