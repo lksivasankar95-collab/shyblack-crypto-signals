@@ -40,9 +40,12 @@ class NfmValidationExecutionServiceTest {
 	private final BacktestStrategyRegistry strategyRegistry = mock(BacktestStrategyRegistry.class);
 	private final NfmValidationResultPersistenceService persistenceService =
 			mock(NfmValidationResultPersistenceService.class);
+	private final NfmAttributionPersistenceService attributionPersistenceService =
+			mock(NfmAttributionPersistenceService.class);
 
 	private final NfmValidationExecutionService service = new NfmValidationExecutionService(
-			candleRepository, eventProvider, strategyRegistry, persistenceService);
+			candleRepository, eventProvider, strategyRegistry, persistenceService,
+			attributionPersistenceService);
 
 	private static final class Fixture implements BacktestStrategy {
 		@Override public String id() { return "NFM_FUTURES"; }

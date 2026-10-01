@@ -58,6 +58,7 @@ public class NfmValidationExecutionService {
 	private final HistoricalEventProvider eventProvider;
 	private final BacktestStrategyRegistry strategyRegistry;
 	private final NfmValidationResultPersistenceService persistenceService;
+	private final NfmAttributionPersistenceService attributionPersistenceService;
 
 	public NfmValidationExecutionResponse execute(NfmValidationExecutionRequest request) {
 		Plan plan = plan(request);
@@ -78,6 +79,7 @@ public class NfmValidationExecutionService {
 			} catch (IllegalStateException alreadyExists) {
 				duplicate = true;
 			}
+			attributionPersistenceService.persistAll(result.runId(), result.attributions());
 			outcomes.add(new NfmValidationExecutionResponse.SymbolOutcome(symbol, result.runId(),
 					result.executionStatus().name(), result.dataQuality(), result.configurationHash(),
 					result.tradeCount(), duplicate));

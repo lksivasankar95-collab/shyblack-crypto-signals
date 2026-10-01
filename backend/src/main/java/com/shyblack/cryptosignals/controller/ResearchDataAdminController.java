@@ -4,6 +4,8 @@ import com.shyblack.cryptosignals.dto.research.DatasetQualityReport;
 import com.shyblack.cryptosignals.entity.research.NfmValidationRun;
 import com.shyblack.cryptosignals.service.backtest.research.NfmValidationExecutionRequest;
 import com.shyblack.cryptosignals.service.backtest.research.NfmValidationExecutionResponse;
+import com.shyblack.cryptosignals.service.backtest.research.NfmValidationAnalytics;
+import com.shyblack.cryptosignals.service.backtest.research.NfmValidationAnalyticsService;
 import com.shyblack.cryptosignals.service.backtest.research.NfmValidationExecutionService;
 import com.shyblack.cryptosignals.service.backtest.research.NfmValidationResultPersistenceService;
 import com.shyblack.cryptosignals.service.backtest.research.ResearchWindowResult;
@@ -48,6 +50,7 @@ public class ResearchDataAdminController {
 	private final EventCollectionJobService eventCollectionJobService;
 	private final NfmValidationResultPersistenceService validationResultService;
 	private final NfmValidationExecutionService validationExecutionService;
+	private final NfmValidationAnalyticsService validationAnalyticsService;
 
 	@Operation(summary = "Start a bounded official-event collection job (ADMIN, async)")
 	@PostMapping("/events/collect")
@@ -126,6 +129,54 @@ public class ResearchDataAdminController {
 	@GetMapping("/nmf-validation/{runId}/variants")
 	public List<ResearchWindowResult> nfmValidationVariants(@PathVariable UUID runId) {
 		return validationResultService.variants(runId);
+	}
+
+	@Operation(summary = "Full descriptive event-attribution analytics for a run")
+	@GetMapping("/nmf-validation/{runId}/analytics")
+	public NfmValidationAnalytics.Report nfmAnalytics(@PathVariable UUID runId) {
+		return validationAnalyticsService.report(runId);
+	}
+
+	@Operation(summary = "Analytics by event type")
+	@GetMapping("/nmf-validation/{runId}/analytics/events")
+	public List<NfmValidationAnalytics.EventTypeStats> nfmAnalyticsEvents(@PathVariable UUID runId) {
+		return validationAnalyticsService.report(runId).byEventType();
+	}
+
+	@Operation(summary = "Analytics by symbol (descriptive; no ranking)")
+	@GetMapping("/nmf-validation/{runId}/analytics/symbols")
+	public List<NfmValidationAnalytics.SymbolStats> nfmAnalyticsSymbols(@PathVariable UUID runId) {
+		return validationAnalyticsService.report(runId).bySymbol();
+	}
+
+	@Operation(summary = "Analytics by direction LONG/SHORT (no winner)")
+	@GetMapping("/nmf-validation/{runId}/analytics/directions")
+	public List<NfmValidationAnalytics.DirectionStats> nfmAnalyticsDirections(@PathVariable UUID runId) {
+		return validationAnalyticsService.report(runId).byDirection();
+	}
+
+	@Operation(summary = "Analytics by grade A/B/C")
+	@GetMapping("/nmf-validation/{runId}/analytics/grades")
+	public List<NfmValidationAnalytics.GradeStats> nfmAnalyticsGrades(@PathVariable UUID runId) {
+		return validationAnalyticsService.report(runId).byGrade();
+	}
+
+	@Operation(summary = "Analytics by score bucket")
+	@GetMapping("/nmf-validation/{runId}/analytics/scores")
+	public List<NfmValidationAnalytics.ScoreBucketStats> nfmAnalyticsScores(@PathVariable UUID runId) {
+		return validationAnalyticsService.report(runId).byScoreBucket();
+	}
+
+	@Operation(summary = "Analytics by market regime (no ranking)")
+	@GetMapping("/nmf-validation/{runId}/analytics/regimes")
+	public List<NfmValidationAnalytics.RegimeStats> nfmAnalyticsRegimes(@PathVariable UUID runId) {
+		return validationAnalyticsService.report(runId).byRegime();
+	}
+
+	@Operation(summary = "No-trade reason distribution (empty when reasons are not observable)")
+	@GetMapping("/nmf-validation/{runId}/analytics/no-trade")
+	public List<String> nfmAnalyticsNoTrade(@PathVariable UUID runId) {
+		return validationAnalyticsService.report(runId).noTradeReasons();
 	}
 
 	public record StatusResponse(boolean running) {

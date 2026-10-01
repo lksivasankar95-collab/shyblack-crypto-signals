@@ -15,6 +15,7 @@ import com.shyblack.cryptosignals.signal.nfm.NfmAssessment;
 import com.shyblack.cryptosignals.signal.nfm.NfmDecisionContext;
 import com.shyblack.cryptosignals.signal.nfm.NfmEventView;
 import com.shyblack.cryptosignals.signal.nfm.NfmFuturesAnalyzer;
+import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -96,15 +97,15 @@ public class NfmBacktestStrategy implements EventAwareBacktestStrategy, Configur
 				event.eventStage(), event.sourceTier(), event.relevance(), null,
 				event.expectedValue(), event.actualValue(), event.surpriseValue(), null, event.time());
 
-		NfmAssessment a = NfmFuturesAnalyzer.analyze(event.symbol(), view, klines,
-				snapshot(event.symbol(), current.closeTime()), regime, config);
+		DerivativesSnapshot ds = snapshot(event.symbol(), current.closeTime());
+		NfmAssessment a = NfmFuturesAnalyzer.analyze(event.symbol(), view, klines, ds, regime, config);
 		if (!a.actionable() || a.entry() == null || a.stopLoss() == null || a.tp1() == null) {
 			return Optional.empty();
 		}
 		lastSignalIndex = currentIndex;
 		PositionSide side = a.action() == NfmAction.LONG ? PositionSide.LONG : PositionSide.SHORT;
 		List<java.util.UUID> eventIds = eligibleEventIds(eventsUpToNow, current);
-		NfmDecisionContext context = decisionContext(event, a, regime, eventIds, current);
+		NfmDecisionContext context = decisionContext(event, a, regime, eventIds, current, ds);
 		return Optional.of(new Signal(side, a.entry(), a.stopLoss(), a.tp1(), a.tp2(), a.tp3(),
 				"NFM grade=" + a.grade() + " score=" + a.score() + " " + a.reason(), eventIds, context));
 	}
@@ -144,10 +145,13 @@ public class NfmBacktestStrategy implements EventAwareBacktestStrategy, Configur
 	 * No recalculation, no effect on the decision.
 	 */
 	private static NfmDecisionContext decisionContext(HistoricalEvent event, NfmAssessment a,
-			MarketRegime regime, List<java.util.UUID> eventIds, HistoricalCandle current) {
+			MarketRegime regime, List<java.util.UUID> eventIds, HistoricalCandle current,
+			DerivativesSnapshot ds) {
 		Long ageSeconds = event == null || event.time() == null || current == null
 				|| current.closeTime() == null ? null
 				: Duration.between(event.time(), current.closeTime()).getSeconds();
+		BigDecimal liquidation = ds == null || !ds.liquidationAvailable() ? null
+				: nz(ds.longLiquidationVolume()).add(nz(ds.shortLiquidationVolume()));
 		return new NfmDecisionContext(
 				eventIds == null ? List.of() : List.copyOf(eventIds),
 				a.score(),
@@ -158,8 +162,8 @@ public class NfmBacktestStrategy implements EventAwareBacktestStrategy, Configur
 				a.priceReactionPct(),
 				a.volumeMultiplier(),
 				a.oiChangePct(),
-				null, // funding rate value not exposed by the assessment (state only)
-				null, // liquidation volume value not exposed by the assessment (state only)
+				ds == null ? null : ds.lastFundingRate(), // actual as-of funding rate (NULL when unavailable)
+				liquidation, // actual liquidation volume (NULL when unavailable)
 				regime == null ? null : regime.name(),
 				a.action() == null ? null : a.action().name(),
 				a.actionable() ? null : a.reason(),
@@ -186,6 +190,10 @@ public class NfmBacktestStrategy implements EventAwareBacktestStrategy, Configur
 			ids.add(e.id());
 		}
 		return ids;
+	}
+
+	private static BigDecimal nz(BigDecimal v) {
+		return v == null ? BigDecimal.ZERO : v;
 	}
 
 	private static List<KlineResponse> toKlines(List<HistoricalCandle> history) {

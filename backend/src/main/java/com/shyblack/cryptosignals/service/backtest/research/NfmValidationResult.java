@@ -39,6 +39,8 @@ public record NfmValidationResult(
 		BigDecimal maxDrawdownPct,
 		BigDecimal returnPct,
 		String notes,
-		List<ResearchWindowResult> windows
+		List<ResearchWindowResult> windows,
+		/** EVENT → SIGNAL → TRADE → OUTCOME attribution (populated for BASELINE). */
+		List<NfmEventAttribution> attributions
 ) {
 }

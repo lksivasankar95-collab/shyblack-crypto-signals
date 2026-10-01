@@ -40,7 +40,7 @@ class NfmValidationResultPersistenceServiceTest {
 				"cafebabe", "NFM_RESEARCH_V1", "NFM_EVENTS_V1", "NFM_DERIV_V1",
 				blocked ? "BLOCKED" : "PASS", status,
 				0, 0, 0, netPnl, null, null, null, null, null, netPnl == null ? null : BigDecimal.ONE,
-				null, null, null, blocked ? "blocked" : "ok", windows);
+				null, null, null, blocked ? "blocked" : "ok", windows, List.of());
 	}
 
 	private void allowNewRun() {

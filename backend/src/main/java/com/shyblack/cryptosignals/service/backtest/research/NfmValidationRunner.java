@@ -60,7 +60,7 @@ public final class NfmValidationRunner {
 					baseConfig.endDate(), baseConfig.hash(), datasetVersion, eventDatasetVersion,
 					derivativesDatasetVersion, "BLOCKED", NfmValidationStatus.DATA_QUALITY_BLOCKED,
 					0, 0, 0, null, null, null, null, null, null, null, null, null, null,
-					"DATA_QUALITY_BLOCKED: " + String.join("; ", gate.failures()), List.of());
+					"DATA_QUALITY_BLOCKED: " + String.join("; ", gate.failures()), List.of(), List.of());
 		}
 
 		boolean partialCoverage = events == null || events.isEmpty();
@@ -69,6 +69,7 @@ public final class NfmValidationRunner {
 		BigDecimal netPnl = null, grossProfit = null, grossLoss = null, fees = null;
 		BigDecimal winRate = null, expectancy = null, profitFactor = null, maxDd = null, returnPct = null;
 		List<ResearchWindowResult> windows = List.of();
+		List<NfmEventAttribution> attributions = List.of();
 		NfmValidationStatus status = NfmValidationStatus.COMPLETED;
 		String baseParams = baseConfig.strategyParams();
 
@@ -92,6 +93,7 @@ public final class NfmValidationRunner {
 				expectancy = ratio(netPnl, trades);
 				profitFactor = gl.signum() == 0 ? null : gp.divide(gl, 4, RoundingMode.HALF_UP);
 				returnPct = pctOf(netPnl, baseConfig.initialCapital());
+				attributions = NfmEventAttributionBuilder.build(baseConfig.symbol(), events, r.entries());
 			}
 			case WALK_FORWARD -> {
 				windows = WalkForwardEngine.run(baseConfig,
@@ -135,7 +137,8 @@ public final class NfmValidationRunner {
 				List.of(baseConfig.symbol()), baseConfig.timeframe(), baseConfig.startDate(),
 				baseConfig.endDate(), baseConfig.hash(), datasetVersion, eventDatasetVersion,
 				derivativesDatasetVersion, "PASS", status, trades, wins, losses, netPnl, grossProfit,
-				grossLoss, fees, null, winRate, expectancy, profitFactor, maxDd, returnPct, notes, windows);
+				grossLoss, fees, null, winRate, expectancy, profitFactor, maxDd, returnPct, notes, windows,
+				attributions);
 	}
 
 	private record Aggregate(int trades, int wins, int losses, BigDecimal winRate, BigDecimal netPnl,

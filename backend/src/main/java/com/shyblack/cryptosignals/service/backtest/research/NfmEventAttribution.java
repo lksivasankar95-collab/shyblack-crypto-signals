@@ -55,6 +55,8 @@ public record NfmEventAttribution(
 		// ATTRIBUTED | EVENT_ATTRIBUTION_UNKNOWN | NO_TRADE
 		String attributionStatus,
 		// observational decision snapshot (null = not captured)
-		com.shyblack.cryptosignals.signal.nfm.NfmDecisionContext decisionContext
+		com.shyblack.cryptosignals.signal.nfm.NfmDecisionContext decisionContext,
+		/** Deterministic per-trade signal identity (symbol + entry index + entry time). */
+		UUID signalId
 ) {
 }

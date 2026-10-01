@@ -91,6 +91,20 @@ class NfmDecisionContextExposureTest {
 	}
 
 	@Test
+	void fundingAndLiquidationAreExposedWhenAvailableElseNull() {
+		NfmDecisionContext withValues = new NfmDecisionContext(List.of(), 70, "B", "CPI", "REPORT",
+				"TIER_1", bd("0.4"), bd("1.5"), bd("2.0"), bd("0.0004"), bd("123"), "NEUTRAL", "LONG",
+				null, 60L, null, null, null);
+		NfmEventAttribution a = attribute(withValues);
+		assertThat(a.funding()).isEqualByComparingTo("0.0004");
+		assertThat(a.liquidation()).isEqualByComparingTo("123");
+
+		NfmEventAttribution none = attribute(ctx(70, "B", bd("0.4"), bd("1.5"), null, "NEUTRAL", null));
+		assertThat(none.funding()).isNull();
+		assertThat(none.liquidation()).isNull();
+	}
+
+	@Test
 	void regimeIsExposedUnchangedAndGrouped() {
 		NfmEventAttribution a = attribute(ctx(70, "B", bd("0.4"), bd("1.5"), null, "BEARISH", null));
 		assertThat(a.marketRegime()).isEqualTo("BEARISH");

@@ -82,3 +82,32 @@ RUNTIME_BLOCKED · NOT_VALIDATED`.
 Read-only: get run by id, list runs, list windows, list variants. **Research
 comparison is descriptive only. No automatic winner selection or ranking is
 performed.** A run existing does not mean validation has been completed.
+
+## 23. Complete pipeline
+DATA → EVENT → SIGNAL → TRADE → OUTCOME → ATTRIBUTION → PERSISTENCE → ANALYTICS →
+BASELINE → WALK_FORWARD → OOS → SENSITIVITY. Run identity is deterministic
+(`runId = UUID(configurationHash + "|" + runType)`); re-execution is idempotent.
+
+## 24. Attribution persistence
+`NfmValidationAttribution` (table `research_nfm_validation_attribution`) stores the
+immutable EVENT→SIGNAL→TRADE→OUTCOME row (event ids/type/stage/tier/timestamp,
+symbol, signal direction/score/grade/status, expected/actual/surprise,
+priceReaction/volumeRatio/oiChange/funding/liquidation, regime, tradeability/reject
+reason, entry, SL/TP1-3, TP/SL hits, gross/fees/slippage/net, outcome). Unique
+`(run_id, signal_id)`; duplicates refused; NULL = UNKNOWN. Populated for BASELINE.
+
+## 25. Analytics API (read-only, descriptive)
+`GET /api/v1/admin/research/nmf-validation/{runId}/analytics` (+ `/events`,
+`/symbols`, `/directions`, `/grades`, `/scores`, `/regimes`, `/no-trade`).
+No write, ranking, best, top, optimal, or winner endpoint exists.
+
+## 26. Funding / liquidation / surprise
+Funding rate propagated from the as-of derivatives snapshot when available, else
+NULL. Liquidation NULL unless an authoritative provider supplies it (historically
+UNKNOWN). Surprise NULL unless expected+actual exist (`SURPRISE_DATA_UNAVAILABLE`
+otherwise). No reconstruction, estimation, or synthetic values.
+
+## 27. Non-actionable assessments
+**NOT_AVAILABLE** in this revision: the engine returns `Optional.empty()` for
+`WAIT_CONFIRMATION`/`NO_TRADE`/`RISK_BLOCKED`, so their reasons are not observable
+without changing engine behavior. No reasons are inferred.

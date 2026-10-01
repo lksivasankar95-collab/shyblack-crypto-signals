@@ -127,7 +127,15 @@ public final class NfmEventAttributionBuilder {
 				net,
 				outcome,
 				attributed ? "ATTRIBUTED" : "EVENT_ATTRIBUTION_UNKNOWN",
-				ctx);
+				ctx,
+				deterministicSignalId(symbol, entry));
+	}
+
+	private static java.util.UUID deterministicSignalId(String symbol,
+			PartialExitBacktestEngine.Entry entry) {
+		String key = symbol + "|" + entry.entryIndex() + "|"
+				+ (entry.entryTime() == null ? "" : entry.entryTime().toString());
+		return java.util.UUID.nameUUIDFromBytes(key.getBytes(java.nio.charset.StandardCharsets.UTF_8));
 	}
 
 	private static boolean hasFill(PartialExitSimulator.Lifecycle lc, String reason) {
