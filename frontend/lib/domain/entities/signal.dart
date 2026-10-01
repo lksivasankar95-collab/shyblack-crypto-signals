@@ -94,6 +94,52 @@ extension MarketRegimeLabel on MarketRegime {
   }
 }
 
+/// NFM (News Flow Momentum) event + derivatives context attached to a signal.
+/// Null for non-NFM signals.
+class NfmContext {
+  const NfmContext({
+    this.newsEventId,
+    this.eventType,
+    this.eventCategory,
+    this.eventStage,
+    this.sourceTier,
+    this.source,
+    this.eventTime,
+    this.expectedValue,
+    this.actualValue,
+    this.surpriseValue,
+    this.surpriseDirection,
+    this.priceReactionPct,
+    this.volumeMultiplier,
+    this.openInterestChangePct,
+    this.fundingState,
+    this.liquidationState,
+    this.eventConfluenceScore,
+    this.marketInterpretation,
+    this.configVersion,
+  });
+
+  final String? newsEventId;
+  final String? eventType;
+  final String? eventCategory;
+  final String? eventStage;
+  final String? sourceTier;
+  final String? source;
+  final DateTime? eventTime;
+  final double? expectedValue;
+  final double? actualValue;
+  final double? surpriseValue;
+  final String? surpriseDirection;
+  final double? priceReactionPct;
+  final double? volumeMultiplier;
+  final double? openInterestChangePct;
+  final String? fundingState;
+  final String? liquidationState;
+  final int? eventConfluenceScore;
+  final String? marketInterpretation;
+  final String? configVersion;
+}
+
 class Signal {
   const Signal({
     required this.id,
@@ -119,6 +165,9 @@ class Signal {
     this.targetPrice2,
     this.targetPrice3,
     this.riskReward,
+    // Application market metadata (SPOT / FUTURES) + optional NFM context
+    this.tradingMode,
+    this.nfmContext,
   });
 
   final String id;
@@ -145,4 +194,10 @@ class Signal {
   final double? targetPrice2;
   final double? targetPrice3;
   final double? riskReward;
+
+  /// Signal market metadata (SPOT / FUTURES) — from the persisted signal.
+  final String? tradingMode;
+
+  /// NFM event/derivatives context; null for non-NFM signals.
+  final NfmContext? nfmContext;
 }

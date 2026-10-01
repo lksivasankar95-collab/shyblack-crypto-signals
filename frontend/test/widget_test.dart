@@ -686,7 +686,7 @@ class _ScriptedSocketConnector implements MarketsSocketConnector {
 
 class _FakeSignalRepository implements SignalRepository {
   @override
-  Future<List<Signal>> getSignals() async => [
+  Future<List<Signal>> getSignals({String? mode}) async => [
     Signal(
       id: 's1',
       symbol: 'BTCUSDT',
@@ -711,7 +711,7 @@ class _FakeSignalRepository implements SignalRepository {
 
 class _EmptySignalRepository implements SignalRepository {
   @override
-  Future<List<Signal>> getSignals() async => [];
+  Future<List<Signal>> getSignals({String? mode}) async => [];
 }
 
 class _EmptyNewsRepository implements NewsRepository {

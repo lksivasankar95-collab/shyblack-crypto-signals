@@ -25,6 +25,8 @@ class SignalModel {
     this.targetPrice2,
     this.targetPrice3,
     this.riskReward,
+    this.tradingMode,
+    this.nfmContext,
   });
 
   final String id;
@@ -51,6 +53,8 @@ class SignalModel {
   final double? targetPrice2;
   final double? targetPrice3;
   final double? riskReward;
+  final String? tradingMode;
+  final NfmContext? nfmContext;
 
   factory SignalModel.fromJson(Map<String, dynamic> json) {
     return SignalModel(
@@ -79,6 +83,36 @@ class SignalModel {
       targetPrice2: (json['targetPrice2'] as num?)?.toDouble(),
       targetPrice3: (json['targetPrice3'] as num?)?.toDouble(),
       riskReward: (json['riskReward'] as num?)?.toDouble(),
+      tradingMode: json['tradingMode'] as String?,
+      nfmContext: _parseNfmContext(json['nfmContext']),
+    );
+  }
+
+  static NfmContext? _parseNfmContext(dynamic value) {
+    if (value is! Map) {
+      return null;
+    }
+    final json = Map<String, dynamic>.from(value);
+    return NfmContext(
+      newsEventId: json['newsEventId'] as String?,
+      eventType: json['eventType'] as String?,
+      eventCategory: json['eventCategory'] as String?,
+      eventStage: json['eventStage'] as String?,
+      sourceTier: json['sourceTier'] as String?,
+      source: json['source'] as String?,
+      eventTime: _parseDate(json['eventTime']),
+      expectedValue: (json['expectedValue'] as num?)?.toDouble(),
+      actualValue: (json['actualValue'] as num?)?.toDouble(),
+      surpriseValue: (json['surpriseValue'] as num?)?.toDouble(),
+      surpriseDirection: json['surpriseDirection'] as String?,
+      priceReactionPct: (json['priceReactionPct'] as num?)?.toDouble(),
+      volumeMultiplier: (json['volumeMultiplier'] as num?)?.toDouble(),
+      openInterestChangePct: (json['openInterestChangePct'] as num?)?.toDouble(),
+      fundingState: json['fundingState'] as String?,
+      liquidationState: json['liquidationState'] as String?,
+      eventConfluenceScore: (json['eventConfluenceScore'] as num?)?.toInt(),
+      marketInterpretation: json['marketInterpretation'] as String?,
+      configVersion: json['configVersion'] as String?,
     );
   }
 
@@ -116,6 +150,8 @@ class SignalModel {
       targetPrice2: targetPrice2,
       targetPrice3: targetPrice3,
       riskReward: riskReward,
+      tradingMode: tradingMode,
+      nfmContext: nfmContext,
     );
   }
 }

@@ -5,5 +5,5 @@ class GetSignals {
   const GetSignals(this._repository);
   final SignalRepository _repository;
 
-  Future<List<Signal>> call() => _repository.getSignals();
+  Future<List<Signal>> call({String? mode}) => _repository.getSignals(mode: mode);
 }

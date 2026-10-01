@@ -7,8 +7,8 @@ class SignalRepositoryImpl implements SignalRepository {
   final SignalRemoteDataSource _remote;
 
   @override
-  Future<List<Signal>> getSignals() async {
-    final models = await _remote.getSignals();
+  Future<List<Signal>> getSignals({String? mode}) async {
+    final models = await _remote.getSignals(mode: mode);
     return models.map((model) => model.toEntity()).toList();
   }
 }

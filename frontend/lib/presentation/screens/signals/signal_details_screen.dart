@@ -44,6 +44,10 @@ class SignalDetailsScreen extends StatelessWidget {
               const SizedBox(height: 12),
               _SignalEngineCard(signal: signal),
             ],
+            if (signal.nfmContext case final nfm?) ...[
+              const SizedBox(height: 12),
+              _NfmEventCard(nfm: nfm),
+            ],
             if (signal.technicalSummary case final summary?) ...[
               const SizedBox(height: 12),
               _InfoCard(
@@ -194,6 +198,83 @@ class _SignalEngineCard extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// NFM event + derivatives card (News Flow Momentum, Futures-only)
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _NfmEventCard extends StatelessWidget {
+  const _NfmEventCard({required this.nfm});
+
+  final NfmContext nfm;
+
+  @override
+  Widget build(BuildContext context) {
+    return _InfoCard(
+      title: 'News Event (NFM)',
+      icon: Icons.newspaper_outlined,
+      child: Column(
+        children: [
+          if (nfm.eventType case final type?)
+            _DetailRow(label: 'Event Type', value: type),
+          if (nfm.eventStage case final stage?)
+            _DetailRow(label: 'Event Stage', value: stage),
+          if (nfm.eventCategory case final category?)
+            _DetailRow(label: 'Category', value: category),
+          if (nfm.source case final source?)
+            _DetailRow(
+              label: 'Source',
+              value: nfm.sourceTier == null ? source : '$source (${nfm.sourceTier})',
+            ),
+          if (nfm.eventTime case final time?)
+            _DetailRow(label: 'Event Time', value: _dateTime(time)),
+          if (nfm.expectedValue != null || nfm.actualValue != null) ...[
+            _DetailRow(label: 'Expected', value: _num(nfm.expectedValue)),
+            _DetailRow(label: 'Actual', value: _num(nfm.actualValue)),
+            _DetailRow(
+              label: 'Surprise',
+              value: nfm.surpriseDirection == null
+                  ? _num(nfm.surpriseValue)
+                  : '${_num(nfm.surpriseValue)} (${nfm.surpriseDirection})',
+            ),
+          ],
+          _DetailRow(label: 'Price Reaction', value: _pct(nfm.priceReactionPct)),
+          _DetailRow(
+            label: 'Volume',
+            value: nfm.volumeMultiplier == null
+                ? '—'
+                : '${nfm.volumeMultiplier!.toStringAsFixed(2)}x',
+          ),
+          _DetailRow(label: 'Open Interest Δ', value: _pct(nfm.openInterestChangePct)),
+          if (nfm.fundingState case final funding?)
+            _DetailRow(label: 'Funding', value: funding),
+          if (nfm.liquidationState case final liquidation?)
+            _DetailRow(label: 'Liquidation', value: liquidation),
+          if (nfm.eventConfluenceScore case final score?)
+            _DetailRow(label: 'Confluence Score', value: '$score / 100'),
+          if (nfm.marketInterpretation case final interpretation?)
+            _DetailRow(label: 'Interpretation', value: interpretation),
+          if (nfm.configVersion case final version?)
+            _DetailRow(label: 'Config Version', value: version),
+        ],
+      ),
+    );
+  }
+
+  static String _num(double? value) =>
+      value == null ? '—' : value.toStringAsFixed(4);
+
+  static String _pct(double? value) =>
+      value == null ? '—' : '${value >= 0 ? '+' : ''}${value.toStringAsFixed(2)}%';
+
+  static String _dateTime(DateTime value) {
+    final local = value.toLocal();
+    final date = '${local.year}-${_two(local.month)}-${_two(local.day)}';
+    return '$date ${_two(local.hour)}:${_two(local.minute)}';
+  }
+
+  static String _two(int value) => value.toString().padLeft(2, '0');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Score bar widget
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -304,6 +385,15 @@ class _SummaryCard extends StatelessWidget {
                           label: signal.status.label,
                           color: AppColors.muted,
                         ),
+                        if (signal.tradingMode case final mode?) ...[
+                          const SizedBox(width: 6),
+                          _Badge(
+                            label: mode.toUpperCase(),
+                            color: mode.toUpperCase() == 'FUTURES'
+                                ? AppColors.loss
+                                : AppColors.accent,
+                          ),
+                        ],
                         if (signal.signalGrade case final grade?) ...[
                           const SizedBox(width: 6),
                           _Badge(

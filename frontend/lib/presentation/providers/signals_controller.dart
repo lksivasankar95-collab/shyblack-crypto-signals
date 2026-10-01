@@ -99,7 +99,24 @@ class SignalsController extends AsyncNotifier<SignalsViewData> {
     }
   }
 
-  Future<List<Signal>> _fetch() => ref.read(getSignalsProvider).call();
+  /// Surfaces both application trading modes in the existing feed: SPOT is the
+  /// primary feed (its failure still surfaces an error), while a FUTURES
+  /// failure must never blank the signal list.
+  Future<List<Signal>> _fetch() async {
+    final usecase = ref.read(getSignalsProvider);
+    final spot = await usecase(mode: 'SPOT');
+    List<Signal> futures;
+    try {
+      futures = await usecase(mode: 'FUTURES');
+    } catch (_) {
+      futures = const <Signal>[];
+    }
+    final merged = <String, Signal>{for (final s in spot) s.id: s};
+    for (final s in futures) {
+      merged[s.id] = s;
+    }
+    return merged.values.toList();
+  }
 
   SignalsViewData _toView(List<Signal> signals) {
     final sorted = List<Signal>.of(signals)
