@@ -38,6 +38,8 @@ class PaperPosition {
     this.createdAt,
     this.strategyId,
     this.strategyVersion,
+    this.marketType,
+    this.strategyName,
   });
 
   final String id;
@@ -65,4 +67,10 @@ class PaperPosition {
   final DateTime? createdAt;
   final String? strategyId;
   final int? strategyVersion;
+
+  /// Signal market metadata (SPOT / FUTURES), from the persisted signal.
+  final String? marketType;
+
+  /// Strategy name (e.g. "EMA Trend Following"), resolved from the strategy.
+  final String? strategyName;
 }

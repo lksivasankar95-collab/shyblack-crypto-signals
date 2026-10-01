@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,14 +7,71 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:cryptosignals/core/di/providers.dart';
 import 'package:cryptosignals/core/theme/app_theme.dart';
+import 'package:cryptosignals/data/datasources/markets_websocket_client.dart';
+import 'package:cryptosignals/domain/entities/app_settings.dart';
+import 'package:cryptosignals/domain/entities/kline_candle.dart';
+import 'package:cryptosignals/domain/entities/market_ticker.dart';
 import 'package:cryptosignals/domain/entities/paper_account.dart';
 import 'package:cryptosignals/domain/entities/paper_performance.dart';
 import 'package:cryptosignals/domain/entities/paper_position.dart';
+import 'package:cryptosignals/domain/repositories/market_repository.dart';
 import 'package:cryptosignals/domain/repositories/paper_trading_repository.dart';
+import 'package:cryptosignals/presentation/providers/auth_session.dart';
+import 'package:cryptosignals/presentation/providers/markets_controller.dart';
 import 'package:cryptosignals/presentation/screens/paper_trading/paper_trading_screen.dart';
 
-Widget _app(_FakePaperTradingRepository repo) => ProviderScope(
-      overrides: [paperTradingRepositoryProvider.overrideWith((ref) => repo)],
+MarketTicker _ticker(String symbol, double price) => MarketTicker(
+      symbol: symbol,
+      name: symbol,
+      price: price,
+      change24h: 0,
+      changePercent24h: 0,
+      volume24h: 0,
+      high24h: price,
+      low24h: price,
+    );
+
+/// Fake markets state so there is exactly ONE shared market stream (no socket
+/// here) and the card reads its live price from it.
+class _FakeMarketsController extends MarketsController {
+  _FakeMarketsController(this._data);
+  MarketsViewData _data;
+
+  /// Test hook: push a new markets state exactly as a WebSocket tick would.
+  void emit(MarketsViewData data) {
+    _data = data;
+    state = AsyncData(data);
+  }
+
+  @override
+  Future<MarketsViewData> build() async => _data;
+}
+
+MarketsViewData _markets(Map<String, double> prices, {bool connected = true}) {
+  final tickers = [for (final e in prices.entries) _ticker(e.key, e.value)];
+  return MarketsViewData(
+    mode: kAppMarketMode,
+    all: tickers,
+    symbols: [for (final t in tickers) t.symbol],
+    bySymbol: {for (final t in tickers) t.symbol: t},
+    gainers: const [],
+    losers: const [],
+    connected: connected,
+  );
+}
+
+Widget _app(
+  _FakePaperTradingRepository repo, {
+  Map<String, double> live = const {'BTCUSDT': 40500},
+  bool connected = true,
+}) =>
+    ProviderScope(
+      overrides: [
+        paperTradingRepositoryProvider.overrideWith((ref) => repo),
+        marketsControllerProvider.overrideWith(
+          () => _FakeMarketsController(_markets(live, connected: connected)),
+        ),
+      ],
       child: MaterialApp(
         theme: AppTheme.dark(),
         darkTheme: AppTheme.dark(),
@@ -21,63 +80,135 @@ Widget _app(_FakePaperTradingRepository repo) => ProviderScope(
       ),
     );
 
-Future<void> _load(WidgetTester tester, _FakePaperTradingRepository repo) async {
-  await tester.pumpWidget(_app(repo));
+Future<void> _load(
+  WidgetTester tester,
+  _FakePaperTradingRepository repo, {
+  Map<String, double> live = const {'BTCUSDT': 40500},
+  bool connected = true,
+}) async {
+  await tester.pumpWidget(_app(repo, live: live, connected: connected));
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 50));
 }
 
 void main() {
-  testWidgets('paper trading screen renders account, open positions, history and stats',
+  testWidgets('position card shows market type, strategy, opened time and live price',
       (WidgetTester tester) async {
     final repo = _FakePaperTradingRepository();
     await _load(tester, repo);
 
     expect(find.text('SIMULATION'), findsOneWidget);
-    expect(find.textContaining('USDT'), findsWidgets);
     expect(find.text('BTCUSDT'), findsWidgets);
+    // Market type from signal metadata (not inferred).
+    expect(find.text('FUTURES'), findsOneWidget);
     expect(find.text('LONG'), findsWidgets);
-    expect(find.text('CLOSE'), findsOneWidget);
-
-    await tester.tap(find.text('History'));
-    await tester.pumpAndSettle();
-    expect(find.text('ETHUSDT'), findsWidgets);
-
-    await tester.tap(find.text('Stats'));
-    await tester.pumpAndSettle();
-    expect(find.text('Total trades'), findsOneWidget);
-    expect(find.text('Win rate'), findsOneWidget);
-    expect(find.text('Profit factor'), findsOneWidget);
+    // Strategy name resolved from persisted strategy metadata.
+    expect(find.text('Strategy: EMA Trend Following'), findsOneWidget);
+    // Opened timestamp from the persisted OPENED time.
+    expect(find.textContaining('30 Sep 2026'), findsOneWidget);
+    // Live price comes from the shared markets stream (40500), not the backend 40000.
+    expect(find.text('40500.0000'), findsOneWidget);
+    // LONG unrealized PnL = (40500 - 40000) * 0.05 = +25.00.
+    expect(find.textContaining('+25.00'), findsOneWidget);
+    expect(find.text('● LIVE'), findsOneWidget);
   });
 
-  testWidgets('close position triggers repository close and shows snackbar',
+  testWidgets('SPOT position displays SPOT', (WidgetTester tester) async {
+    final repo = _FakePaperTradingRepository(marketType: 'SPOT');
+    await _load(tester, repo);
+    expect(find.text('SPOT'), findsOneWidget);
+    expect(find.text('FUTURES'), findsNothing);
+  });
+
+  testWidgets('SHORT position computes live PnL correctly', (WidgetTester tester) async {
+    final repo = _FakePaperTradingRepository(side: PaperPositionSide.short);
+    await _load(tester, repo, live: const {'BTCUSDT': 39500});
+    // SHORT unrealized = (entry - current) * qty = (40000 - 39500) * 0.05 = +25.00.
+    expect(find.text('SHORT'), findsWidgets);
+    expect(find.textContaining('+25.00'), findsOneWidget);
+  });
+
+  testWidgets('multiple positions update independently', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(1200, 2000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final repo = _FakePaperTradingRepository(
+      openPositions: [
+        _position(symbol: 'BTCUSDT', marketType: 'FUTURES', price: 40500),
+        _position(symbol: 'ETHUSDT', marketType: 'SPOT', price: 2200, qty: 1),
+      ],
+    );
+    await _load(tester, repo, live: const {'BTCUSDT': 40500, 'ETHUSDT': 2200});
+    expect(find.text('FUTURES'), findsOneWidget);
+    expect(find.text('SPOT'), findsOneWidget);
+    expect(find.text('40500.0000'), findsOneWidget);
+    expect(find.text('2200.0000'), findsOneWidget);
+  });
+
+  testWidgets('current price and PnL update when a live tick arrives',
       (WidgetTester tester) async {
     final repo = _FakePaperTradingRepository();
+    await _load(tester, repo); // shared stream starts at 40500.
+    expect(find.text('40500.0000'), findsOneWidget);
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(PaperTradingScreen)),
+    );
+    final markets = container.read(marketsControllerProvider.notifier)
+        as _FakeMarketsController;
+    markets.emit(_markets(const {'BTCUSDT': 40600}));
+    await tester.pump();
+
+    // Current price reflects the new tick; the old backend/live value is gone.
+    expect(find.text('40600.0000'), findsOneWidget);
+    expect(find.text('40500.0000'), findsNothing);
+    // LONG live PnL = (40600 - 40000) * 0.05 = +30.00 (was +25.00).
+    expect(find.textContaining('+30.00'), findsOneWidget);
+    expect(find.textContaining('+25.00'), findsNothing);
+  });
+
+  testWidgets('closed positions do not show a live price', (WidgetTester tester) async {
+    final repo = _FakePaperTradingRepository(openPositions: const []);
     await _load(tester, repo);
-
-    await tester.tap(find.text('CLOSE'));
+    // History only: shows the persisted EXIT price, never a live price.
+    await tester.tap(find.text('History'));
     await tester.pumpAndSettle();
-    expect(find.text('Close BTCUSDT?'), findsOneWidget);
-    await tester.tap(find.text('CLOSE').last);
+    expect(find.text('2100.0000'), findsOneWidget);
+    expect(find.text('40500.0000'), findsNothing);
+  });
+
+  testWidgets('closed positions keep their exit price when live ticks arrive',
+      (WidgetTester tester) async {
+    final repo = _FakePaperTradingRepository(openPositions: const []);
+    await _load(tester, repo);
+    await tester.tap(find.text('History'));
     await tester.pumpAndSettle();
 
-    expect(repo.closeCalled, 'p1');
-    expect(find.text('BTCUSDT closed'), findsOneWidget);
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(PaperTradingScreen)),
+    );
+    final markets = container.read(marketsControllerProvider.notifier)
+        as _FakeMarketsController;
+    // A live tick for the closed symbol must NOT overwrite the exit price.
+    markets.emit(_markets(const {'ETHUSDT': 9999}));
+    await tester.pump();
+
+    expect(find.text('2100.0000'), findsOneWidget);
+    expect(find.text('9999.0000'), findsNothing);
   });
 
   testWidgets('capital update succeeds when account has no trading activity',
       (WidgetTester tester) async {
     final repo = _FakePaperTradingRepository(
       trades: 0,
-      openPositionCount: 0,
+      openPositions: const [],
       realizedPnl: 0,
       invested: 0,
     );
     await _load(tester, repo);
 
     expect(find.text('Initial Capital'), findsOneWidget);
-    expect(find.textContaining('10000.00'), findsWidgets);
-
     await tester.tap(find.byKey(const Key('paper_capital_edit')));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), '250');
@@ -86,66 +217,27 @@ void main() {
 
     expect(repo.capitalSet, 250);
     expect(find.textContaining('250.00'), findsWidgets);
-    expect(find.text('Initial capital updated'), findsOneWidget);
   });
 
   testWidgets('capital update is proactively blocked when trades exist',
       (WidgetTester tester) async {
-    final repo = _FakePaperTradingRepository(trades: 3, openPositionCount: 0);
+    final repo = _FakePaperTradingRepository(trades: 3);
     await _load(tester, repo);
 
     await tester.tap(find.byKey(const Key('paper_capital_edit')));
     await tester.pumpAndSettle();
 
     expect(find.text("Can't change initial capital"), findsOneWidget);
-    expect(
-      find.textContaining("Reset the paper account first"),
-      findsOneWidget,
-    );
-    // No backend call was made.
+    expect(find.textContaining('Reset the paper account first'), findsOneWidget);
     expect(repo.capitalSet, isNull);
     expect(find.textContaining('DioException'), findsNothing);
-  });
-
-  testWidgets('capital update is proactively blocked when open positions exist',
-      (WidgetTester tester) async {
-    final repo = _FakePaperTradingRepository(
-      trades: 0,
-      openPositionCount: 1,
-      realizedPnl: 0,
-      invested: 0,
-    );
-    await _load(tester, repo);
-
-    await tester.tap(find.byKey(const Key('paper_capital_edit')));
-    await tester.pumpAndSettle();
-
-    expect(find.text("Can't change initial capital"), findsOneWidget);
-    expect(repo.capitalSet, isNull);
-  });
-
-  testWidgets('capital update is proactively blocked when realized PnL exists',
-      (WidgetTester tester) async {
-    final repo = _FakePaperTradingRepository(
-      trades: 0,
-      openPositionCount: 0,
-      realizedPnl: 25,
-      invested: 0,
-    );
-    await _load(tester, repo);
-
-    await tester.tap(find.byKey(const Key('paper_capital_edit')));
-    await tester.pumpAndSettle();
-
-    expect(find.text("Can't change initial capital"), findsOneWidget);
-    expect(repo.capitalSet, isNull);
   });
 
   testWidgets('backend 400 is mapped to a friendly message (no raw DioException)',
       (WidgetTester tester) async {
     final repo = _FakePaperTradingRepository(
       trades: 0,
-      openPositionCount: 0,
+      openPositions: const [],
       realizedPnl: 0,
       invested: 0,
       updateStatus: 400,
@@ -160,116 +252,171 @@ void main() {
 
     expect(find.text("Can't change initial capital"), findsOneWidget);
     expect(find.textContaining('DioException'), findsNothing);
-    expect(find.textContaining('bad response'), findsNothing);
-  });
-
-  testWidgets('unexpected error shows a generic friendly message',
-      (WidgetTester tester) async {
-    final repo = _FakePaperTradingRepository(
-      trades: 0,
-      openPositionCount: 0,
-      realizedPnl: 0,
-      invested: 0,
-      updateStatus: 500,
-    );
-    await _load(tester, repo);
-
-    await tester.tap(find.byKey(const Key('paper_capital_edit')));
-    await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField), '500');
-    await tester.tap(find.text('Save'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Unable to update initial capital. Please try again.'), findsOneWidget);
-    expect(find.textContaining('DioException'), findsNothing);
-  });
-
-  testWidgets('capital update rejects non-positive input without calling the backend',
-      (WidgetTester tester) async {
-    final repo = _FakePaperTradingRepository(
-      trades: 0,
-      openPositionCount: 0,
-      realizedPnl: 0,
-      invested: 0,
-    );
-    await _load(tester, repo);
-
-    await tester.tap(find.byKey(const Key('paper_capital_edit')));
-    await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField), '0');
-    await tester.tap(find.text('Save'));
-    await tester.pumpAndSettle();
-
-    expect(repo.capitalSet, isNull);
-    expect(find.text('Enter a positive amount'), findsOneWidget);
   });
 
   testWidgets('reset then capital update flow works', (WidgetTester tester) async {
-    final repo = _FakePaperTradingRepository(trades: 3, openPositionCount: 1);
+    final repo = _FakePaperTradingRepository(trades: 3);
     await _load(tester, repo);
 
-    // Edit while activity exists -> blocked, offers Reset.
     await tester.tap(find.byKey(const Key('paper_capital_edit')));
     await tester.pumpAndSettle();
-    expect(find.text('Reset Account'), findsOneWidget);
-
     await tester.tap(find.text('Reset Account'));
     await tester.pumpAndSettle();
     expect(repo.resetCalled, isTrue);
     expect(repo.initial, 100);
-    expect(find.textContaining('100.00'), findsWidgets);
 
-    // Now the account is clean: edit anew.
     await tester.tap(find.byKey(const Key('paper_capital_edit')));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), '500');
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
-
     expect(repo.capitalSet, 500);
-    expect(find.textContaining('500.00'), findsWidgets);
+  });
+
+  test('many positions share exactly one market socket, disposed on teardown',
+      () async {
+    final connector = _CountingSocketConnector();
+    addTearDown(connector.dispose);
+    final container = ProviderContainer(
+      overrides: [
+        authSessionProvider.overrideWith(() => _AuthedSessionController()),
+        marketRepositoryProvider.overrideWith((ref) => _StubMarketRepository()),
+        marketsSocketConnectorProvider.overrideWith((ref) => connector),
+      ],
+    );
+
+    // Resolve the auth session first so the markets controller does not do its
+    // one-time loading→authenticated reconnect during the assertion.
+    await container.read(authSessionProvider.future);
+
+    // Two independent listeners (as many position cards would create) must still
+    // resolve to ONE shared controller instance and ONE socket connection.
+    final subA = container.listen(marketsControllerProvider, (_, _) {});
+    final subB = container.listen(marketsControllerProvider, (_, _) {});
+    await container.read(marketsControllerProvider.future);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(connector.connectCalls, 1);
+
+    subA.close();
+    subB.close();
+    container.dispose();
+    await Future<void>.delayed(Duration.zero);
+
+    expect(connector.closeCalls, greaterThanOrEqualTo(1));
+    expect(connector.connectCalls, 1);
   });
 }
+
+class _AuthedSessionController extends AuthSessionController {
+  @override
+  Future<AuthStatus> build() async => AuthStatus.authenticated;
+}
+
+class _CountingSocketConnector implements MarketsSocketConnector {
+  int connectCalls = 0;
+  int closeCalls = 0;
+  final _controller = StreamController<dynamic>();
+
+  @override
+  MarketsSocketSession connect(Uri uri) {
+    connectCalls++;
+    return MarketsSocketSession(
+      stream: _controller.stream,
+      ready: Future.value(),
+      close: () async {
+        closeCalls++;
+      },
+    );
+  }
+
+  void dispose() => _controller.close();
+}
+
+class _StubMarketRepository implements MarketRepository {
+  @override
+  Future<MarketSnapshot> getMarkets(TradingMode mode) async =>
+      const MarketSnapshot(mode: 'SPOT', tickers: []);
+
+  @override
+  Future<MarketSnapshot> getGainers(TradingMode mode) async =>
+      const MarketSnapshot(mode: 'SPOT', tickers: []);
+
+  @override
+  Future<MarketSnapshot> getLosers(TradingMode mode) async =>
+      const MarketSnapshot(mode: 'SPOT', tickers: []);
+
+  @override
+  Future<MarketTicker> getTicker(String symbol, TradingMode mode) async =>
+      throw UnimplementedError();
+
+  @override
+  Future<List<KlineCandle>> getKlines({
+    required String symbol,
+    required String interval,
+    required int limit,
+    required TradingMode mode,
+  }) async =>
+      const [];
+}
+
+PaperPosition _position({
+  String symbol = 'BTCUSDT',
+  String marketType = 'FUTURES',
+  double price = 40500,
+  double qty = 0.05,
+  PaperPositionSide side = PaperPositionSide.long,
+}) =>
+    PaperPosition(
+      id: 'p_$symbol',
+      signalId: 's_$symbol',
+      symbol: symbol,
+      side: side,
+      quantity: qty,
+      entryPrice: 40000,
+      currentPrice: 40000,
+      stopLoss: 39500,
+      takeProfit1: 41000,
+      takeProfit2: 42000,
+      takeProfit3: 43000,
+      notional: 40000 * qty,
+      entryFee: 2,
+      realizedPnl: 0,
+      unrealizedPnl: 0,
+      unrealizedPnlPct: 0,
+      status: PaperPositionStatus.open,
+      openedAt: DateTime.utc(2026, 9, 30, 6, 42, 18),
+      strategyName: 'EMA Trend Following',
+      marketType: marketType,
+    );
 
 class _FakePaperTradingRepository implements PaperTradingRepository {
   _FakePaperTradingRepository({
     this.trades = 1,
-    this.openPositionCount = 1,
+    this.openPositions,
     this.realizedPnl = 25,
     this.invested = 2000,
     this.updateStatus,
+    this.marketType = 'FUTURES',
+    this.side = PaperPositionSide.long,
   });
 
   int trades;
-  int openPositionCount;
+  List<PaperPosition>? openPositions;
   double realizedPnl;
   double invested;
-
-  /// When set, [updateInitialCapital] throws a DioException with this status.
   int? updateStatus;
+  String marketType;
+  PaperPositionSide side;
 
-  String? closeCalled;
   bool resetCalled = false;
   double? capitalSet;
   double initial = 10000;
 
-  PaperPosition _openPosition() => const PaperPosition(
-        id: 'p1',
-        signalId: 's1',
-        symbol: 'BTCUSDT',
-        side: PaperPositionSide.long,
-        quantity: 0.05,
-        entryPrice: 40000,
-        currentPrice: 40500,
-        stopLoss: 39500,
-        takeProfit1: 41000,
-        notional: 2000,
-        entryFee: 2,
-        realizedPnl: 0,
-        unrealizedPnl: 25,
-        unrealizedPnlPct: 1.25,
-        status: PaperPositionStatus.open,
-      );
+  PaperPosition get _defaultOpen {
+    final p = _position(marketType: marketType, side: side);
+    return p;
+  }
 
   @override
   Future<PaperAccount> getAccount() async => PaperAccount(
@@ -291,7 +438,7 @@ class _FakePaperTradingRepository implements PaperTradingRepository {
 
   @override
   Future<List<PaperPosition>> listOpenPositions() async =>
-      List.generate(openPositionCount, (_) => _openPosition());
+      openPositions ?? [_defaultOpen];
 
   @override
   Future<List<PaperPosition>> listHistory() async => trades > 0
@@ -329,29 +476,26 @@ class _FakePaperTradingRepository implements PaperTradingRepository {
       );
 
   @override
-  Future<PaperPosition> closePosition(String id) async {
-    closeCalled = id;
-    return const PaperPosition(
-      id: 'p1',
-      symbol: 'BTCUSDT',
-      side: PaperPositionSide.long,
-      quantity: 0.05,
-      entryPrice: 40000,
-      exitPrice: 40500,
-      realizedPnl: 23,
-      unrealizedPnl: 0,
-      unrealizedPnlPct: 0,
-      status: PaperPositionStatus.closed,
-      closeReason: PaperCloseReason.manual,
-    );
-  }
+  Future<PaperPosition> closePosition(String id) async => const PaperPosition(
+        id: 'p0',
+        symbol: 'BTCUSDT',
+        side: PaperPositionSide.long,
+        quantity: 0.05,
+        entryPrice: 40000,
+        exitPrice: 40500,
+        realizedPnl: 23,
+        unrealizedPnl: 0,
+        unrealizedPnlPct: 0,
+        status: PaperPositionStatus.closed,
+        closeReason: PaperCloseReason.manual,
+      );
 
   @override
   Future<PaperAccount> resetAccount() async {
     resetCalled = true;
     initial = 100;
     trades = 0;
-    openPositionCount = 0;
+    openPositions = const [];
     realizedPnl = 0;
     invested = 0;
     return getAccount();

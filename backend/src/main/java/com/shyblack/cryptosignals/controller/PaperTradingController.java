@@ -6,11 +6,15 @@ import com.shyblack.cryptosignals.dto.paper.PaperPerformanceResponse;
 import com.shyblack.cryptosignals.dto.paper.PaperPositionResponse;
 import com.shyblack.cryptosignals.entity.Portfolio;
 import com.shyblack.cryptosignals.entity.Position;
+import com.shyblack.cryptosignals.entity.Signal;
+import com.shyblack.cryptosignals.entity.TradingStrategy;
 import com.shyblack.cryptosignals.entity.User;
 import com.shyblack.cryptosignals.entity.enums.CloseReason;
 import com.shyblack.cryptosignals.entity.enums.PositionStatus;
 import com.shyblack.cryptosignals.exception.BadRequestException;
 import com.shyblack.cryptosignals.exception.ResourceNotFoundException;
+import com.shyblack.cryptosignals.repository.SignalRepository;
+import com.shyblack.cryptosignals.repository.TradingStrategyRepository;
 import com.shyblack.cryptosignals.repository.UserRepository;
 import com.shyblack.cryptosignals.security.UserPrincipal;
 import com.shyblack.cryptosignals.service.paper.PaperTradingAccountService;
@@ -23,8 +27,13 @@ import jakarta.validation.Valid;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -52,6 +61,8 @@ public class PaperTradingController {
 	private final PaperTradingQueryService queryService;
 	private final PaperTradingExecutionService executionService;
 	private final UserRepository userRepository;
+	private final SignalRepository signalRepository;
+	private final TradingStrategyRepository strategyRepository;
 
 	@Operation(summary = "Get the authenticated user's paper trading account")
 	@GetMapping("/account")
@@ -73,23 +84,19 @@ public class PaperTradingController {
 	@Operation(summary = "List open paper positions")
 	@GetMapping("/positions")
 	public List<PaperPositionResponse> listOpenPositions() {
-		return queryService.listOpen(currentUser()).stream()
-				.map(this::toPositionDto)
-				.toList();
+		return toPositionDtos(queryService.listOpen(currentUser()));
 	}
 
 	@Operation(summary = "Get a single paper position (must be owned by the caller)")
 	@GetMapping("/positions/{id}")
 	public PaperPositionResponse getPosition(@PathVariable UUID id) {
-		return toPositionDto(fetchOwned(id));
+		return toPositionDtos(List.of(fetchOwned(id))).get(0);
 	}
 
 	@Operation(summary = "List closed positions (trade history)")
 	@GetMapping("/history")
 	public List<PaperPositionResponse> history() {
-		return queryService.listHistory(currentUser()).stream()
-				.map(this::toPositionDto)
-				.toList();
+		return toPositionDtos(queryService.listHistory(currentUser()));
 	}
 
 	@Operation(summary = "Aggregate performance across all closed paper trades")
@@ -150,7 +157,7 @@ public class PaperTradingController {
 		}
 		Position closed = executionService.close(owned.getId(), ref, CloseReason.MANUAL)
 				.orElseThrow(() -> new BadRequestException("Failed to close position"));
-		return toPositionDto(closed);
+		return toPositionDtos(List.of(closed)).get(0);
 	}
 
 	@Operation(summary = "Reset the paper account — closes all open positions and restores initial balance")
@@ -196,7 +203,31 @@ public class PaperTradingController {
 				p.getCreatedAt());
 	}
 
-	private PaperPositionResponse toPositionDto(Position p) {
+	/** Batch-resolves the signal market type + strategy name once per list (no N+1). */
+	private List<PaperPositionResponse> toPositionDtos(List<Position> positions) {
+		if (positions.isEmpty()) {
+			return List.of();
+		}
+		Set<UUID> signalIds = positions.stream()
+				.map(Position::getSignalId).filter(Objects::nonNull).collect(Collectors.toSet());
+		Map<UUID, String> modeBySignal = new HashMap<>();
+		for (Signal s : signalRepository.findAllById(signalIds)) {
+			// Market type is persisted signal metadata (never inferred). A null
+			// mode is surfaced as null and rendered as "—", not fabricated.
+			modeBySignal.put(s.getId(), s.getTradingMode() != null ? s.getTradingMode().name() : null);
+		}
+		Set<UUID> strategyIds = positions.stream()
+				.map(Position::getStrategyId).filter(Objects::nonNull).collect(Collectors.toSet());
+		Map<UUID, String> nameById = new HashMap<>();
+		for (TradingStrategy s : strategyRepository.findAllById(strategyIds)) {
+			nameById.put(s.getId(), s.getName());
+		}
+		return positions.stream()
+				.map(p -> toPositionDto(p, modeBySignal.get(p.getSignalId()), nameById.get(p.getStrategyId())))
+				.toList();
+	}
+
+	private PaperPositionResponse toPositionDto(Position p, String marketType, String strategyName) {
 		BigDecimal current = p.getStatus() == PositionStatus.OPEN
 				? queryService.currentPrice(p)
 				: p.getExitPrice();
@@ -231,7 +262,9 @@ public class PaperTradingController {
 				p.getClosedAt(),
 				p.getCreatedAt(),
 				p.getStrategyId(),
-				p.getStrategyVersion());
+				p.getStrategyVersion(),
+				marketType,
+				strategyName);
 	}
 
 	private User currentUser() {

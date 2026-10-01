@@ -32,5 +32,7 @@ public record PaperPositionResponse(
 		Instant closedAt,
 		Instant createdAt,
 		UUID strategyId,
-		Integer strategyVersion
+		Integer strategyVersion,
+		String marketType,
+		String strategyName
 ) {}

@@ -33,6 +33,8 @@ class PaperPositionModel {
         createdAt: _date(json['createdAt']),
         strategyId: json['strategyId'] as String?,
         strategyVersion: (json['strategyVersion'] as num?)?.toInt(),
+        marketType: json['marketType'] as String?,
+        strategyName: json['strategyName'] as String?,
       ),
     );
   }

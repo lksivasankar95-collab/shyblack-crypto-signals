@@ -7,6 +7,7 @@ import '../../../domain/entities/paper_account.dart';
 import '../../../domain/entities/paper_performance.dart';
 import '../../../domain/entities/paper_position.dart';
 import '../../providers/paper_trading_controller.dart';
+import '../../providers/markets_controller.dart';
 
 class PaperTradingScreen extends ConsumerWidget {
   const PaperTradingScreen({super.key});
@@ -554,17 +555,40 @@ class _StatRow extends StatelessWidget {
   }
 }
 
-class _PositionCard extends StatelessWidget {
+class _PositionCard extends ConsumerWidget {
   const _PositionCard({required this.position, this.onClose});
   final PaperPosition position;
   final VoidCallback? onClose;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final isOpen = position.status == PaperPositionStatus.open;
-    final pnl = isOpen ? position.unrealizedPnl : position.realizedPnl;
-    final pnlPct = isOpen ? position.unrealizedPnlPct : 0.0;
+    // Live price comes from the single shared markets WebSocket (no per-position
+    // socket, no polling); falls back to the backend price until the first tick.
+    final livePrice = ref.watch(
+      marketsControllerProvider.select(
+        (async) => async.value?.bySymbol[position.symbol]?.price,
+      ),
+    );
+    final liveConnected = ref.watch(
+      marketsControllerProvider.select((async) => async.value?.connected ?? false),
+    );
+    final current = livePrice ?? position.currentPrice;
+    final entry = position.entryPrice;
+    final qty = position.quantity;
+    final double unrealized = (current == null)
+        ? position.unrealizedPnl
+        : (position.side == PaperPositionSide.long ? current - entry : entry - current) * qty;
+    final pnl = isOpen ? unrealized : position.realizedPnl;
+    final pnlPct = !isOpen
+        ? 0.0
+        : (position.notional != null && position.notional != 0
+            ? (unrealized / position.notional!) * 100
+            : position.unrealizedPnlPct);
     final pnlColor = pnl >= 0 ? AppColors.profit : AppColors.loss;
+    final marketType = (position.marketType ?? '—').toUpperCase();
+    final isFutures = marketType == 'FUTURES';
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -585,50 +609,52 @@ class _PositionCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppColors.accent.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  position.side == PaperPositionSide.long ? 'LONG' : 'SHORT',
-                  style: const TextStyle(
-                      color: AppColors.accent,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800),
-                ),
+              _Badge(text: marketType, color: isFutures ? AppColors.loss : AppColors.accent),
+              const SizedBox(width: 6),
+              _Badge(
+                text: position.side == PaperPositionSide.long ? 'LONG' : 'SHORT',
+                color: AppColors.accent,
               ),
               const Spacer(),
-              Text(
-                '${pnl >= 0 ? '+' : ''}${pnl.toStringAsFixed(2)}',
-                style: TextStyle(color: pnlColor, fontWeight: FontWeight.w800),
+              _Badge(
+                text: isOpen ? 'OPEN' : 'CLOSED',
+                color: isOpen ? AppColors.profit : AppColors.muted,
               ),
-              if (isOpen) ...[
-                const SizedBox(width: 6),
-                Text('(${pnlPct >= 0 ? '+' : ''}${pnlPct.toStringAsFixed(2)}%)',
-                    style: TextStyle(color: pnlColor, fontSize: 12)),
-              ],
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
+          Text(
+            'Strategy: ${position.strategyName ?? '—'}',
+            style: const TextStyle(color: AppColors.muted, fontSize: 11),
+          ),
+          const SizedBox(height: 8),
           Row(
             children: [
-              _Meta(label: 'Entry', value: position.entryPrice.toStringAsFixed(4)),
+              _Meta(label: 'Opened', value: _openedLabel(position.openedAt)),
+              if (isOpen)
+                _Meta(
+                  label: 'Price Feed',
+                  value: liveConnected ? '● LIVE' : '○ OFFLINE',
+                  valueColor: liveConnected ? AppColors.profit : AppColors.muted,
+                ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              _Meta(label: 'Entry', value: entry.toStringAsFixed(4)),
               _Meta(
                 label: isOpen ? 'Current' : 'Exit',
-                value: (isOpen ? position.currentPrice : position.exitPrice)
-                        ?.toStringAsFixed(4) ??
-                    '—',
+                value: (isOpen ? current : position.exitPrice)?.toStringAsFixed(4) ?? '—',
               ),
-              _Meta(label: 'Qty', value: position.quantity.toStringAsFixed(4)),
+              _Meta(label: 'Qty', value: qty.toStringAsFixed(4)),
             ],
           ),
           const SizedBox(height: 4),
           Row(
             children: [
               _Meta(label: 'SL', value: position.stopLoss?.toStringAsFixed(4) ?? '—'),
-              _Meta(label: 'TP', value: position.takeProfit1?.toStringAsFixed(4) ?? '—'),
+              _Meta(label: 'TP1', value: position.takeProfit1?.toStringAsFixed(4) ?? '—'),
               _Meta(
                 label: isOpen ? 'Notional' : 'Reason',
                 value: isOpen
@@ -637,6 +663,21 @@ class _PositionCard extends StatelessWidget {
               ),
             ],
           ),
+          if (isOpen) ...[
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                _Meta(label: 'TP2', value: position.takeProfit2?.toStringAsFixed(4) ?? '—'),
+                _Meta(label: 'TP3', value: position.takeProfit3?.toStringAsFixed(4) ?? '—'),
+                _Meta(
+                  label: 'Unrealized PnL',
+                  value: '${pnl >= 0 ? '+' : ''}${pnl.toStringAsFixed(2)}'
+                      ' (${pnlPct >= 0 ? '+' : ''}${pnlPct.toStringAsFixed(2)}%)',
+                  valueColor: pnlColor,
+                ),
+              ],
+            ),
+          ],
           if (isOpen && onClose != null) ...[
             const SizedBox(height: 8),
             Align(
@@ -658,6 +699,18 @@ class _PositionCard extends StatelessWidget {
     );
   }
 
+  static String _openedLabel(DateTime? d) {
+    if (d == null) return '—';
+    final local = d.toLocal();
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final h24 = local.hour;
+    final h12 = h24 % 12 == 0 ? 12 : h24 % 12;
+    final ampm = h24 < 12 ? 'AM' : 'PM';
+    String two(int n) => n.toString().padLeft(2, '0');
+    return '${local.day} ${months[local.month - 1]} ${local.year}, '
+        '${two(h12)}:${two(local.minute)}:${two(local.second)} $ampm';
+  }
+
   static String _reasonLabel(PaperCloseReason? r) {
     return switch (r) {
       PaperCloseReason.stopLoss => 'SL',
@@ -671,10 +724,30 @@ class _PositionCard extends StatelessWidget {
   }
 }
 
+class _Badge extends StatelessWidget {
+  const _Badge({required this.text, required this.color});
+  final String text;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(text,
+          style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w800)),
+    );
+  }
+}
+
 class _Meta extends StatelessWidget {
-  const _Meta({required this.label, required this.value});
+  const _Meta({required this.label, required this.value, this.valueColor});
   final String label;
   final String value;
+  final Color? valueColor;
 
   @override
   Widget build(BuildContext context) {
@@ -684,7 +757,10 @@ class _Meta extends StatelessWidget {
         children: [
           Text(label, style: const TextStyle(color: AppColors.muted, fontSize: 10)),
           Text(value,
-              style: const TextStyle(color: AppColors.onCard, fontWeight: FontWeight.w600, fontSize: 12)),
+              style: TextStyle(
+                  color: valueColor ?? AppColors.onCard,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12)),
         ],
       ),
     );
