@@ -102,7 +102,7 @@ public class NfmBacktestStrategy implements EventAwareBacktestStrategy, Configur
 		}
 		lastSignalIndex = currentIndex;
 		PositionSide side = a.action() == NfmAction.LONG ? PositionSide.LONG : PositionSide.SHORT;
-		return Optional.of(new Signal(side, a.entry(), a.stopLoss(), a.tp1(),
+		return Optional.of(new Signal(side, a.entry(), a.stopLoss(), a.tp1(), a.tp2(), a.tp3(),
 				"NFM grade=" + a.grade() + " score=" + a.score() + " " + a.reason()));
 	}
 

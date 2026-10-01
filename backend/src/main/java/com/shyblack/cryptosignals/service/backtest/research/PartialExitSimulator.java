@@ -77,10 +77,10 @@ public final class PartialExitSimulator {
 				break;
 			}
 			if (stopTouched(side, bar, stopLoss)) {
-				Fill f = exit(side, entry, remaining, stopLoss, fee);
-				fills.add(f.fill());
-				gross = gross.add(f.fill().grossPnl());
-				exitFees = exitFees.add(f.fill().fee());
+				fills.add(exit(side, entry, remaining, stopLoss, fee, "STOP_LOSS"));
+				ExitFill last = fills.get(fills.size() - 1);
+				gross = gross.add(last.grossPnl());
+				exitFees = exitFees.add(last.fee());
 				remaining = BigDecimal.ZERO;
 				finalReason = "STOP_LOSS";
 				closed = true;
@@ -90,10 +90,10 @@ public final class PartialExitSimulator {
 			if (!tp1Done && remaining.signum() > 0 && tpTouched(side, bar, tp1)) {
 				BigDecimal q = qty1.min(remaining);
 				if (q.signum() > 0) {
-					Fill f = exit(side, entry, q, tp1, fee);
-					fills.add(f.fill());
-					gross = gross.add(f.fill().grossPnl());
-					exitFees = exitFees.add(f.fill().fee());
+					fills.add(exit(side, entry, q, tp1, fee, "TP1"));
+					ExitFill last = fills.get(fills.size() - 1);
+					gross = gross.add(last.grossPnl());
+					exitFees = exitFees.add(last.fee());
 					remaining = remaining.subtract(q);
 					tp1Done = true;
 				}
@@ -102,20 +102,25 @@ public final class PartialExitSimulator {
 			if (!tp2Done && remaining.signum() > 0 && tpTouched(side, bar, tp2)) {
 				BigDecimal q = qty2.min(remaining);
 				if (q.signum() > 0) {
-					Fill f = exit(side, entry, q, tp2, fee);
-					fills.add(f.fill());
-					gross = gross.add(f.fill().grossPnl());
-					exitFees = exitFees.add(f.fill().fee());
+					fills.add(exit(side, entry, q, tp2, fee, "TP2"));
+					ExitFill last = fills.get(fills.size() - 1);
+					gross = gross.add(last.grossPnl());
+					exitFees = exitFees.add(last.fee());
 					remaining = remaining.subtract(q);
 					tp2Done = true;
 				}
 			}
+			if (remaining.signum() == 0) {
+				finalReason = "TAKE_PROFIT";
+				closed = true;
+				break;
+			}
 			// TP3 closes the remainder (fires at most once)
 			if (!tp3Done && remaining.signum() > 0 && tpTouched(side, bar, tp3)) {
-				Fill f = exit(side, entry, remaining, tp3, fee);
-				fills.add(f.fill());
-				gross = gross.add(f.fill().grossPnl());
-				exitFees = exitFees.add(f.fill().fee());
+				fills.add(exit(side, entry, remaining, tp3, fee, "TP3"));
+				ExitFill last = fills.get(fills.size() - 1);
+				gross = gross.add(last.grossPnl());
+				exitFees = exitFees.add(last.fee());
 				remaining = BigDecimal.ZERO;
 				tp3Done = true;
 				finalReason = "TAKE_PROFIT";
@@ -130,16 +135,14 @@ public final class PartialExitSimulator {
 				finalReason, closed, fills);
 	}
 
-	private record Fill(ExitFill fill) {}
-
-	private static Fill exit(PositionSide side, BigDecimal entry, BigDecimal qty, BigDecimal price,
-			BigDecimal fee) {
+	private static ExitFill exit(PositionSide side, BigDecimal entry, BigDecimal qty, BigDecimal price,
+			BigDecimal fee, String reason) {
 		BigDecimal gross = side == PositionSide.LONG
 				? price.subtract(entry).multiply(qty)
 				: entry.subtract(price).multiply(qty);
 		gross = gross.setScale(8, RoundingMode.HALF_UP);
 		BigDecimal exitFee = price.multiply(qty).multiply(fee).setScale(8, RoundingMode.HALF_UP);
-		return new Fill(new ExitFill(price, qty, null, exitFee, gross));
+		return new ExitFill(price, qty, reason, exitFee, gross);
 	}
 
 	private static boolean stopTouched(PositionSide side, Bar bar, BigDecimal stop) {

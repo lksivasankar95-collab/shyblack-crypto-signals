@@ -44,12 +44,24 @@ public interface BacktestStrategy {
 	 * Emitted signal — entry, side, SL, TP. `referencePrice` is the price
 	 * the strategy would have observed when deciding (usually the current
 	 * candle's close); the engine uses it only for record-keeping.
+	 *
+	 * <p>{@code takeProfit2}/{@code takeProfit3} are optional (null = not
+	 * defined) and are only consumed by the opt-in partial-exit engine; the
+	 * default single-TP engine ignores them. The 5-arg constructor preserves
+	 * existing strategy implementations unchanged.</p>
 	 */
 	record Signal(
 			PositionSide side,
 			BigDecimal referencePrice,
 			BigDecimal stopLoss,
 			BigDecimal takeProfit,
+			BigDecimal takeProfit2,
+			BigDecimal takeProfit3,
 			String notes
-	) {}
+	) {
+		public Signal(PositionSide side, BigDecimal referencePrice, BigDecimal stopLoss,
+				BigDecimal takeProfit, String notes) {
+			this(side, referencePrice, stopLoss, takeProfit, null, null, notes);
+		}
+	}
 }
