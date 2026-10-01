@@ -1,6 +1,8 @@
 package com.shyblack.cryptosignals.entity;
 
+import com.shyblack.cryptosignals.entity.enums.AccountCategory;
 import com.shyblack.cryptosignals.entity.enums.AccountType;
+import com.shyblack.cryptosignals.entity.enums.ExchangeName;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -32,6 +34,25 @@ public class Portfolio extends BaseEntity {
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false)
 	private AccountType accountType;
+
+	/**
+	 * Read-model category of this portfolio. Added by the unified Portfolio architecture and
+	 * intentionally nullable: existing rows hold SQL NULL and load unchanged. NULL means "not yet
+	 * categorised" — a legacy paper row is presented as {@link AccountCategory#MAIN} by the read
+	 * model, never silently rewritten. Paper SPOT and FUTURES keep sharing this single row; the
+	 * category split is a query-layer partition, not a physical account split.
+	 */
+	@Enumerated(EnumType.STRING)
+	@Column(name = "account_category", length = 20)
+	private AccountCategory accountCategory;
+
+	/**
+	 * Exchange backing this portfolio. Null for a simulated account, which has no exchange; the
+	 * read model reports {@code PAPER} for those. Null is never defaulted to a fabricated exchange.
+	 */
+	@Enumerated(EnumType.STRING)
+	@Column(name = "exchange", length = 20)
+	private ExchangeName exchange;
 
 	@Column(nullable = false)
 	private String quoteCurrency = "USDT";
