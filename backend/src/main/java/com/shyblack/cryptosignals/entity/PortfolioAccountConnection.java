@@ -79,6 +79,15 @@ public class PortfolioAccountConnection extends BaseEntity {
 	@Column(name = "last_synced_at")
 	private Instant lastSyncedAt;
 
+	/**
+	 * Event time of the last applied user-data WebSocket event for this scope, used as the ordering
+	 * high-water mark that rejects out-of-order events and reveals gaps. Kept separate from
+	 * {@code lastSyncedAt}, which records the last REST snapshot: a stream event must never overwrite
+	 * the snapshot timestamp, and vice versa.
+	 */
+	@Column(name = "last_event_at")
+	private Instant lastEventAt;
+
 	/** Diagnostic text for the most recent synchronization outcome, never fabricated. */
 	@Column(name = "last_sync_message", length = 200)
 	private String lastSyncMessage;
