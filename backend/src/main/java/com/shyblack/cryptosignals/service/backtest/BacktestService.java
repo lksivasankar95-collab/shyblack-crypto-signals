@@ -52,6 +52,12 @@ public class BacktestService {
 	public BacktestRun startBacktest(User user, BacktestConfig config, Object requestSnapshot) {
 		validateConfig(config);
 		BacktestStrategy strategy = strategyRegistry.require(config.strategyId());
+		String requiredMarket = strategy.marketType();
+		if (requiredMarket != null && !requiredMarket.isBlank()
+				&& !requiredMarket.equalsIgnoreCase(config.tradingMode().name())) {
+			throw new BadRequestException("Strategy " + strategy.id() + " is " + requiredMarket
+					+ "-only and cannot run in " + config.tradingMode() + " mode");
+		}
 
 		BacktestRun run = new BacktestRun();
 		run.setUser(user);

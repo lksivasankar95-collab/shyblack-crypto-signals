@@ -46,7 +46,19 @@ abstract class BacktestingRepository {
 }
 
 class StrategyDescriptor {
-  const StrategyDescriptor({required this.id, required this.version});
+  const StrategyDescriptor({
+    required this.id,
+    required this.name,
+    required this.version,
+    required this.marketType,
+  });
+
   final String id;
+
+  /// Human-readable name supplied by the backend (not hardcoded in the UI).
+  final String name;
   final String version;
+
+  /// "SPOT" or "FUTURES" — determines which market the strategy may run in.
+  final String marketType;
 }

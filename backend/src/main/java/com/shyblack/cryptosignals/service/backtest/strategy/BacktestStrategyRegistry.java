@@ -43,9 +43,18 @@ public class BacktestStrategyRegistry {
 
 	public List<StrategyDescriptor> list() {
 		return byId.values().stream()
-				.map(s -> new StrategyDescriptor(s.id(), s.version()))
+				.map(s -> new StrategyDescriptor(s.id(), humanize(s.id()), s.version(), s.marketType()))
 				.toList();
 	}
 
-	public record StrategyDescriptor(String id, String version) {}
+	/** Display name derived from the registered identifier (no hardcoded names). */
+	static String humanize(String id) {
+		if (id == null || id.isBlank()) {
+			return id;
+		}
+		return id.replace('_', ' ').replace('-', ' ').trim().toUpperCase();
+	}
+
+	/** id, display name, version, and market type ("SPOT"/"FUTURES"). */
+	public record StrategyDescriptor(String id, String name, String version, String marketType) {}
 }

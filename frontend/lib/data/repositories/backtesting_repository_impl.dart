@@ -57,10 +57,17 @@ class BacktestingRepositoryImpl implements BacktestingRepository {
 
   @override
   Future<List<StrategyDescriptor>> listStrategies() async =>
-      (await _remote.listStrategies()).map((r) => StrategyDescriptor(
-            id: r['id'] as String? ?? '',
-            version: r['version'] as String? ?? '',
-          )).toList();
+      (await _remote.listStrategies()).map((r) {
+        final id = r['id'] as String? ?? '';
+        return StrategyDescriptor(
+          id: id,
+          name: (r['name'] as String?)?.trim().isNotEmpty == true
+              ? (r['name'] as String).trim()
+              : id,
+          version: r['version'] as String? ?? '',
+          marketType: ((r['marketType'] as String?) ?? 'SPOT').toUpperCase(),
+        );
+      }).toList();
 
   static String _mode(BacktestTradingMode m) => switch (m) {
         BacktestTradingMode.spot => 'SPOT',

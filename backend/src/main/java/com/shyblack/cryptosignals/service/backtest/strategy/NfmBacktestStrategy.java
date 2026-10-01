@@ -62,6 +62,7 @@ public class NfmBacktestStrategy implements EventAwareBacktestStrategy, Configur
 
 	@Override public String id() { return ID; }
 	@Override public String version() { return VERSION; }
+	@Override public String marketType() { return "FUTURES"; }
 	@Override public int warmup() { return Math.max(30, config.getAtrPeriod() + 2); }
 
 	@Override

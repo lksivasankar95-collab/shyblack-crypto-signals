@@ -26,6 +26,15 @@ public interface BacktestStrategy {
 	String version();
 
 	/**
+	 * Market this backtest strategy is registered for: "SPOT" or "FUTURES".
+	 * Metadata only (does not affect decision logic). Defaults to SPOT so
+	 * existing spot strategies need no change; Futures strategies override.
+	 */
+	default String marketType() {
+		return "SPOT";
+	}
+
+	/**
 	 * @param history      candles up to and INCLUDING the current candle
 	 *                     (never further). Oldest first.
 	 * @param currentIndex convenience — always {@code history.size() - 1}.

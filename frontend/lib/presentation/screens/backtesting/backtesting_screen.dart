@@ -86,6 +86,7 @@ class _ConfigFormState extends ConsumerState<_ConfigForm> {
   final _slipCtrl = TextEditingController(text: '0.05');
   final _leverageCtrl = TextEditingController(text: '1');
   BacktestTradingMode _mode = BacktestTradingMode.spot;
+  String? _strategyId;
   DateTime _start = DateTime.now().subtract(const Duration(days: 30));
   DateTime _end = DateTime.now();
   bool _submitting = false;
@@ -102,10 +103,33 @@ class _ConfigFormState extends ConsumerState<_ConfigForm> {
     super.dispose();
   }
 
+  /// Backend market type for the currently selected SPOT/FUTURES toggle.
+  String get _marketType =>
+      _mode == BacktestTradingMode.futures ? 'FUTURES' : 'SPOT';
+
+  /// Strategies registered by the backend that are eligible for this market.
+  List<StrategyDescriptor> get _eligible =>
+      widget.strategies.where((s) => s.marketType == _marketType).toList();
+
+  /// The selected strategy only if it is still eligible for the current market.
+  StrategyDescriptor? get _selected {
+    if (_strategyId == null) return null;
+    for (final s in _eligible) {
+      if (s.id == _strategyId) return s;
+    }
+    return null;
+  }
+
+  void _setMode(BacktestTradingMode m) {
+    setState(() {
+      _mode = m;
+      // Clear a selection that is no longer valid for the new market.
+      if (_selected == null) _strategyId = null;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    final strategyId = widget.strategies.isNotEmpty
-        ? widget.strategies.first.id : 'ema-rsi';
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -122,6 +146,8 @@ class _ConfigFormState extends ConsumerState<_ConfigForm> {
             const SizedBox(width: 8),
             Expanded(child: _text(_timeframeCtrl, 'Timeframe')),
           ]),
+          const SizedBox(height: 8),
+          _strategyField(),
           const SizedBox(height: 8),
           Row(children: [
             Expanded(child: _text(_capitalCtrl, 'Initial capital')),
@@ -144,7 +170,9 @@ class _ConfigFormState extends ConsumerState<_ConfigForm> {
           ]),
           const SizedBox(height: 10),
           FilledButton(
-            onPressed: _submitting ? null : () => _submit(strategyId),
+            onPressed: (_submitting || _selected == null)
+                ? null
+                : () => _submit(_selected!.id),
             child: _submitting
                 ? const SizedBox(width: 18, height: 18,
                     child: CircularProgressIndicator(strokeWidth: 2))
@@ -155,10 +183,66 @@ class _ConfigFormState extends ConsumerState<_ConfigForm> {
     );
   }
 
+  /// Dynamic Strategy selector. Options come from the backend registry and are
+  /// filtered to the current market type; nothing is hardcoded in the UI.
+  Widget _strategyField() {
+    final label = const TextStyle(color: AppColors.muted, fontSize: 12);
+    if (widget.strategies.isEmpty) {
+      return Container(
+        key: const Key('strategy_empty'),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
+        decoration: BoxDecoration(
+          color: AppColors.background,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppColors.muted.withValues(alpha: 0.5)),
+        ),
+        child: const Text('No strategies available',
+            style: TextStyle(color: AppColors.muted, fontSize: 13)),
+      );
+    }
+    final eligible = _eligible;
+    if (eligible.isEmpty) {
+      return Container(
+        key: const Key('strategy_empty_market'),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
+        decoration: BoxDecoration(
+          color: AppColors.background,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppColors.muted.withValues(alpha: 0.5)),
+        ),
+        child: Text('No $_marketType strategies available',
+            style: const TextStyle(color: AppColors.muted, fontSize: 13)),
+      );
+    }
+    return DropdownButtonFormField<String>(
+      key: const Key('strategy_dropdown'),
+      initialValue: _selected?.id,
+      isExpanded: true,
+      decoration: InputDecoration(
+        labelText: 'Strategy',
+        labelStyle: label,
+        filled: true,
+        fillColor: AppColors.background,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+      style: const TextStyle(color: AppColors.onCard, fontSize: 13),
+      hint: const Text('Select a strategy',
+          style: TextStyle(color: AppColors.muted, fontSize: 13)),
+      items: eligible
+          .map((s) => DropdownMenuItem<String>(
+                value: s.id,
+                child: Text(s.name, overflow: TextOverflow.ellipsis),
+              ))
+          .toList(),
+      onChanged: (value) => setState(() => _strategyId = value),
+    );
+  }
+
   Widget _modeButton(BacktestTradingMode m, String label) {
     final selected = _mode == m;
     return OutlinedButton(
-      onPressed: () => setState(() => _mode = m),
+      onPressed: () => _setMode(m),
       style: OutlinedButton.styleFrom(
         foregroundColor: selected ? AppColors.accent : AppColors.muted,
         side: BorderSide(color: selected ? AppColors.accent : AppColors.muted),
