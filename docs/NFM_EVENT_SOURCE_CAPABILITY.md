@@ -1,22 +1,23 @@
 # NFM Event Source Capability Registry
 
 Dataset: `NFM_EVENTS_2023_09_2026_09_V1` · Window `[2023-09-01, 2026-10-01)`.
-Status values: IMPLEMENTED · NOT_IMPLEMENTED · BLOCKED.
+Status: IMPLEMENTED · WORKING · PARTIAL · BLOCKED · INELIGIBLE · NOT_IMPLEMENTED.
 
-| SOURCE | STATUS | DATE COVERAGE | TIMESTAMP QUALITY | EVENT COUNT | BLOCKER |
-|---|---|---|---|---|---|
-| U.S. BLS (Schedule of Releases, `/schedule/YYYY/MM_sched.htm`) | **IMPLEMENTED** | 2023-09 → 2026-09 (37/38 months; 2026-01 parser bug fixed, re-run pending restart) | EXACT (ET→UTC, DST-aware) | 113 imported (CPI 34, NFP 46, PPI 33) | none (code fix applied; needs backend restart to re-run 2026-01) |
-| Federal Reserve (FOMC calendar/statements) | NOT_IMPLEMENTED | calendar page reachable (2023–2026) | UNKNOWN — page lists meeting **dates**, not release times | 0 | exact publication time not machine-verifiable from the page (2:00pm ET is a convention → would be UNKNOWN/ineligible) |
-| BEA (GDP, PCE) | NOT_IMPLEMENTED | schedule pages reachable (`/news/schedule`) | unknown (time not confirmed) | 0 | per-release ETL not built this pass |
-| U.S. Census (Retail Sales) | NOT_IMPLEMENTED | economic-indicators page reachable | unknown | 0 | per-release ETL not built this pass |
-| DOL/ETA (Initial Jobless Claims) | NOT_IMPLEMENTED | not probed | unknown | 0 | adapter not built |
-| ISM (PMI) | BLOCKED | n/a | n/a | 0 | ISM is a private body; no free auditable historical release-timestamp source |
-| ECB / BoE / BoJ / BoC / RBA / SNB | NOT_IMPLEMENTED | official press RSS reachable but **current-only**; historical calendars are HTML per-source | unknown | 0 | need per-bank historical calendar parsing (not built this pass) |
-| SEC / CFTC / Treasury (regulatory) | NOT_IMPLEMENTED | RSS reachable, current-only | EXACT for live only | 0 | historical structured archives not wired |
-| Crypto structural (ETF/upgrades/listings/unlocks/stablecoin) | NOT_IMPLEMENTED | n/a | mixed | 0 | requires curated, sourced records (no single authoritative machine feed) |
-| Security / exploits / depegs / outages | NOT_IMPLEMENTED | n/a | mixed | 0 | requires curated official incident reports; rumors must not become events |
+| SOURCE | STATUS | ACCESS | COVERAGE | TIMESTAMP | TIER | EVENTS | BLOCKER |
+|---|---|---|---|---|---|---|---|
+| BLS Schedule of Releases (`/schedule/YYYY/MM_sched.htm`) | IMPLEMENTED (WORKING) | public HTML, UA only | 2023-09→2026-09 | **EXACT** (ET→UTC, DST-aware) | 1 | 113 | 2026-01 parser bug fixed; re-run pending backend restart |
+| Federal Reserve FOMC statements | IMPLEMENTED | public HTML, UA only | 2023-09→2026-09 (26 statements) | **EXACT** — page states "For release at 2:00 p.m. EST/EDT" | 1 | 0 imported (pending restart) | code built; needs backend restart to run |
+| Federal Reserve FOMC minutes | NOT_IMPLEMENTED | public HTML | — | release date ≠ filename meeting date (needs per-page date) | 1 | 0 | deferred |
+| BEA — PCE / GDP | INELIGIBLE | public HTML | current schedule only | **date-only** for historical window (0 time tokens) | 1 | 0 | exact historical release time not available keyless; a midnight timestamp is forbidden |
+| Census — Retail Sales | INELIGIBLE | public HTML | date-only | **date-only** (0 time tokens) | 1 | 0 | as above |
+| DOL/ETA — Initial Jobless Claims | INELIGIBLE | public HTML/PDF | date-only | **date-only** (0 time tokens) | 1 | 0 | as above |
+| ISM | BLOCKED | — | — | — | — | 0 | private body; no free auditable historical timestamp source |
+| ECB/BoE/BoJ/BoC/RBA/SNB | NOT_IMPLEMENTED | RSS current-only; per-bank historical calendars | — | unknown | 1 | 0 | per-bank historical parsing not built |
+| SEC/CFTC/Treasury (regulatory) | NOT_IMPLEMENTED | RSS current-only | — | EXACT live only | 1 | 0 | historical structured archives not wired |
+| Crypto structural | NOT_IMPLEMENTED | — | — | mixed | — | 0 | curated records required |
+| Security/exploits/depegs | NOT_IMPLEMENTED | — | — | mixed | — | 0 | curated official incident reports required |
 
-## Notes
-- One source being blocked does not stop others (the collector runs each adapter independently and records per-source status).
-- Tier-4 (social/rumor) is never promoted to a confirmed event.
-- `expected`/`actual`/`surprise` are populated only from auditable sources; currently all NULL (BLS schedule pages carry release time, not consensus/actuals).
+## Policy
+- Exact event timestamp is mandatory for backtest eligibility; **date-only sources are INELIGIBLE** (not converted to midnight).
+- `expected`/`actual`/`surprise` are populated only from auditable sources; currently all NULL.
+- One blocked source never stops others; each adapter runs independently and records its own status.

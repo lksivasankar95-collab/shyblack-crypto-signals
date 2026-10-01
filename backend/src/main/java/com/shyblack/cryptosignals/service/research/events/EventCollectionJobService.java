@@ -132,41 +132,64 @@ public class EventCollectionJobService {
 				checkpoint.setStatus(JobStatus.RUNNING.name());
 				checkpointRepository.save(checkpoint);
 
-				YearMonth start = checkpoint.getLastCompletedMonth() == null
-						? YearMonth.from(job.from.atZone(ZoneOffset.UTC))
-						: YearMonth.parse(checkpoint.getLastCompletedMonth()).plusMonths(1);
-				int ok = 0, failed = 0;
-				for (YearMonth ym = start; !ym.isAfter(end); ym = ym.plusMonths(1)) {
-					if (job.pagesProcessed >= properties.maxPages() || Instant.now().isAfter(deadline)
-							|| collected.size() >= properties.maxRecords()) {
-						timedOut = Instant.now().isAfter(deadline);
-						break;
+				if (source instanceof BlsScheduleHistoricalEventSource bls) {
+					YearMonth start = checkpoint.getLastCompletedMonth() == null
+							? YearMonth.from(job.from.atZone(ZoneOffset.UTC))
+							: YearMonth.parse(checkpoint.getLastCompletedMonth()).plusMonths(1);
+					int ok = 0, failed = 0;
+					for (YearMonth ym = start; !ym.isAfter(end); ym = ym.plusMonths(1)) {
+						if (job.pagesProcessed >= properties.maxPages() || Instant.now().isAfter(deadline)
+								|| collected.size() >= properties.maxRecords()) {
+							timedOut = Instant.now().isAfter(deadline);
+							break;
+						}
+						job.currentMonth = ym.toString();
+						job.pagesProcessed++;
+						try {
+							List<NormalizedEvent> month = bls.fetchMonth(ym);
+							for (NormalizedEvent e : month) {
+								if (!e.eventTime().isBefore(job.from) && e.eventTime().isBefore(job.to)) {
+									collected.add(e);
+								}
+							}
+							checkpoint.setLastCompletedMonth(ym.toString());
+							checkpoint.setRecordsCollected((long) collected.size());
+							checkpointRepository.save(checkpoint);
+							ok++;
+							job.recordsCollected = collected.size();
+						} catch (Exception ex) {
+							failed++;
+							log.warn("[EventJob] month {} failed: {}", ym, ex.getMessage());
+						}
 					}
-					job.currentMonth = ym.toString();
-					job.pagesProcessed++;
+					boolean partial = failed > 0 || timedOut;
+					checkpoint.setStatus(timedOut ? JobStatus.TIMEOUT.name()
+							: partial ? JobStatus.PARTIAL.name() : JobStatus.COMPLETED.name());
+					checkpointRepository.save(checkpoint);
+					job.sources.add(new SourceSummary(source.sourceKey(),
+							checkpoint.getStatus(), (int) (ok + failed), "ok=" + ok + " failed=" + failed));
+				} else {
 					try {
-						List<NormalizedEvent> month = blsSource.fetchMonth(ym);
-						for (NormalizedEvent e : month) {
+						EventSourceResult result = source.collect(job.from, job.to);
+						for (NormalizedEvent e : result.events()) {
 							if (!e.eventTime().isBefore(job.from) && e.eventTime().isBefore(job.to)) {
 								collected.add(e);
 							}
 						}
-						checkpoint.setLastCompletedMonth(ym.toString());
+						job.recordsCollected = collected.size();
+						checkpoint.setLastCompletedMonth("ALL");
+						checkpoint.setStatus(result.status().name());
 						checkpoint.setRecordsCollected((long) collected.size());
 						checkpointRepository.save(checkpoint);
-						ok++;
-						job.recordsCollected = collected.size();
+						job.sources.add(new SourceSummary(source.sourceKey(), result.status().name(),
+								result.events().size(), result.note()));
 					} catch (Exception ex) {
-						failed++;
-						log.warn("[EventJob] month {} failed: {}", ym, ex.getMessage());
+						checkpoint.setStatus(EventSourceStatus.FAILED.name());
+						checkpointRepository.save(checkpoint);
+						job.sources.add(new SourceSummary(source.sourceKey(),
+								EventSourceStatus.FAILED.name(), 0, ex.getMessage()));
 					}
 				}
-				boolean partial = failed > 0 || timedOut;
-				checkpoint.setStatus(timedOut ? JobStatus.TIMEOUT.name()
-						: partial ? JobStatus.PARTIAL.name() : JobStatus.COMPLETED.name());
-				checkpointRepository.save(checkpoint);
-				job.sources.add(new SourceSummary(source.sourceKey(),
-						checkpoint.getStatus(), (int) (ok + failed), "ok=" + ok + " failed=" + failed));
 				if (timedOut) {
 					break;
 				}
@@ -180,8 +203,9 @@ public class EventCollectionJobService {
 				job.status = JobStatus.TIMEOUT;
 				job.message = "timed out after " + properties.collectionTimeoutMinutes()
 						+ " min; checkpoint saved (resumable)";
-			} else if (!job.sources.isEmpty()
-					&& job.sources.stream().allMatch(s -> JobStatus.COMPLETED.name().equals(s.status()))) {
+			} else if (!job.sources.isEmpty() && job.sources.stream()
+					.allMatch(s -> JobStatus.COMPLETED.name().equals(s.status())
+							|| EventSourceStatus.SUCCESS.name().equals(s.status()))) {
 				job.status = JobStatus.COMPLETED;
 				job.message = "collected=" + collected.size() + " imported=" + build.inserted();
 			} else {
