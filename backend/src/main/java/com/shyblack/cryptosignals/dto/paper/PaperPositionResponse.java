@@ -34,5 +34,12 @@ public record PaperPositionResponse(
 		UUID strategyId,
 		Integer strategyVersion,
 		String marketType,
-		String strategyName
+		String strategyName,
+		// NFM partial-exit state (additive)
+		BigDecimal originalSize,
+		BigDecimal remainingSize,
+		BigDecimal averageExitPrice,
+		boolean tp1Hit,
+		boolean tp2Hit,
+		boolean tp3Hit
 ) {}

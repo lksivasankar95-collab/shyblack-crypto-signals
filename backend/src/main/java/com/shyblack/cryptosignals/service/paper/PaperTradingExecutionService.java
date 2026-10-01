@@ -13,6 +13,7 @@ import com.shyblack.cryptosignals.repository.PositionLifecycleEventRepository;
 import com.shyblack.cryptosignals.repository.PositionRepository;
 import jakarta.persistence.OptimisticLockException;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
@@ -179,6 +180,100 @@ public class PaperTradingExecutionService {
 				"reason=" + reason + " exitFee=" + exitFee + " gross=" + gross);
 		writeEvent(saved, PositionLifecycleEventType.CLOSED, exitPrice, net, "closed reason=" + reason);
 
+		return Optional.of(saved);
+	}
+
+	/**
+	 * Partial exit of an open position (NFM TP1/TP2/TP3, or a stop that closes the
+	 * remainder). Uses the same locking and the same accounting conventions as
+	 * {@link #close}; entry fee is charged exactly once (on the final slice), exit
+	 * fees only on the exited quantity. Idempotent and quantity-clamped.
+	 */
+	@Transactional(propagation = Propagation.REQUIRES_NEW)
+	public Optional<Position> partialClose(UUID positionId, BigDecimal referencePrice, BigDecimal exitQuantity,
+			CloseReason reason) {
+		Position locked;
+		try {
+			locked = positionRepository.findByIdForUpdate(positionId).orElse(null);
+		} catch (ObjectOptimisticLockingFailureException | OptimisticLockException ex) {
+			return positionRepository.findById(positionId);
+		}
+		if (locked == null) return Optional.empty();
+		if (locked.getStatus() == PositionStatus.CLOSED) return Optional.of(locked); // idempotent
+
+		BigDecimal original = locked.originalQty();
+		BigDecimal remaining = locked.remainingQty();
+		if (remaining.signum() <= 0) return Optional.of(locked);
+		if (exitQuantity == null || exitQuantity.signum() <= 0) return Optional.of(locked);
+		BigDecimal qty = exitQuantity.min(remaining); // never exceed remaining
+		boolean finalSlice = qty.compareTo(remaining) >= 0;
+
+		if (locked.getOriginalSize() == null) locked.setOriginalSize(original);
+
+		BigDecimal exitPrice = pnl.applySlippage(referencePrice, locked.getSide(), false);
+		BigDecimal gross = pnl.grossPnl(locked.getSide(), locked.getEntryPrice(), exitPrice, qty);
+		BigDecimal exitFee = pnl.fee(pnl.notional(exitPrice, qty));
+		BigDecimal entryFee = safe(locked.getEntryFee());
+		BigDecimal sliceNet = finalSlice
+				? gross.subtract(entryFee).subtract(exitFee)
+				: gross.subtract(exitFee);
+
+		BigDecimal prevExited = original.subtract(remaining);
+		BigDecimal newExited = prevExited.add(qty);
+		BigDecimal prevAvg = locked.getAverageExitPrice();
+		BigDecimal newAvg = (prevAvg == null || prevExited.signum() == 0)
+				? exitPrice
+				: prevAvg.multiply(prevExited).add(exitPrice.multiply(qty))
+						.divide(newExited, 8, RoundingMode.HALF_UP);
+
+		locked.setAverageExitPrice(newAvg);
+		locked.setRemainingSize(remaining.subtract(qty));
+		locked.setRealizedPnl(safe(locked.getRealizedPnl()).add(sliceNet));
+		locked.setExitFee(safe(locked.getExitFee()).add(exitFee));
+		locked.setCurrentPrice(exitPrice);
+		locked.setUnrealizedPnl(BigDecimal.ZERO);
+
+		if (reason == CloseReason.TAKE_PROFIT) {
+			if (!locked.isTp1Hit()) locked.setTp1Hit(true);
+			else if (!locked.isTp2Hit()) locked.setTp2Hit(true);
+			else locked.setTp3Hit(true);
+		}
+		if (finalSlice) {
+			locked.setStatus(PositionStatus.CLOSED);
+			locked.setExitPrice(exitPrice);
+			locked.setCloseReason(reason);
+			locked.setClosedAt(Instant.now());
+		}
+		Position saved = positionRepository.save(locked);
+
+		Portfolio portfolio = portfolioRepository.findByIdForUpdate(locked.getPortfolio().getId())
+				.orElseThrow();
+		BigDecimal sliceEntryNotional = pnl.notional(locked.getEntryPrice(), qty);
+		portfolio.setInvested(portfolio.getInvested().subtract(sliceEntryNotional).max(BigDecimal.ZERO));
+		portfolio.setAvailableBalance(portfolio.getAvailableBalance()
+				.add(sliceEntryNotional).add(gross).subtract(exitFee));
+		portfolio.setRealizedPnl(portfolio.getRealizedPnl().add(sliceNet));
+		portfolio.setTotalFees(portfolio.getTotalFees().add(exitFee));
+		if (finalSlice) {
+			portfolio.setTotalTrades(portfolio.getTotalTrades() + 1);
+			BigDecimal cumulative = safe(saved.getRealizedPnl());
+			if (cumulative.signum() > 0) portfolio.setWinningTrades(portfolio.getWinningTrades() + 1);
+			else if (cumulative.signum() < 0) portfolio.setLosingTrades(portfolio.getLosingTrades() + 1);
+		}
+		portfolio.setTotalBalance(portfolio.getAvailableBalance().add(portfolio.getInvested()));
+		portfolioRepository.save(portfolio);
+
+		PositionLifecycleEventType type = switch (reason) {
+			case STOP_LOSS -> PositionLifecycleEventType.SL_HIT;
+			case TAKE_PROFIT -> PositionLifecycleEventType.TP_HIT;
+			case MANUAL -> PositionLifecycleEventType.MANUAL_CLOSE;
+			default -> PositionLifecycleEventType.CLOSED;
+		};
+		writeEvent(saved, type, exitPrice, sliceNet,
+				"partial qty=" + qty + " reason=" + reason + " exitFee=" + exitFee + " gross=" + gross);
+		if (finalSlice) {
+			writeEvent(saved, PositionLifecycleEventType.CLOSED, exitPrice, sliceNet, "closed reason=" + reason);
+		}
 		return Optional.of(saved);
 	}
 

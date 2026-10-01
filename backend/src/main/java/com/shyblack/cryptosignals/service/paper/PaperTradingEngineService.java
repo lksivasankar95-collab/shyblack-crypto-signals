@@ -18,6 +18,7 @@ import com.shyblack.cryptosignals.repository.UserRepository;
 import com.shyblack.cryptosignals.service.SignalGeneratedEvent;
 import jakarta.annotation.PostConstruct;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -134,12 +135,58 @@ public class PaperTradingEngineService {
 		if (symbol == null || lastPrice == null || lastPrice.signum() <= 0) return;
 		List<Position> open = openPositionsForSymbol(symbol);
 		for (Position p : open) {
-			CloseReason trigger = evaluateTrigger(p, lastPrice);
-			if (trigger != null) {
-				executionService.close(p.getId(), lastPrice, trigger);
-				log.info("[Paper] {} triggered {} on position={} @ {}", symbol, trigger, p.getId(), lastPrice);
+			// Legacy single-TP positions keep the original exact behavior.
+			if (p.getTakeProfit2() == null && p.getTakeProfit3() == null) {
+				CloseReason trigger = evaluateTrigger(p, lastPrice);
+				if (trigger != null) {
+					executionService.close(p.getId(), lastPrice, trigger);
+					log.info("[Paper] {} triggered {} on position={} @ {}", symbol, trigger, p.getId(), lastPrice);
+				}
+				continue;
 			}
+			evaluatePartial(p, lastPrice);
 		}
+	}
+
+	/** NFM partial-exit evaluation (SL first, then TP1/TP2/TP3, each once). */
+	private void evaluatePartial(Position p, BigDecimal price) {
+		PositionSide side = p.getSide();
+		// 1) SL first (conservative on a same-tick SL+TP).
+		if (stopTouched(side, price, p.getStopLoss())) {
+			executionService.partialClose(p.getId(), price, p.remainingQty(), CloseReason.STOP_LOSS);
+			log.info("[Paper] {} partial STOP_LOSS remaining on position={} @ {}", p.getSymbol(), p.getId(), price);
+			return;
+		}
+		BigDecimal original = p.originalQty();
+		BigDecimal third = original.divide(BigDecimal.valueOf(3), 8, RoundingMode.DOWN);
+		BigDecimal remaining = p.remainingQty();
+
+		if (!p.isTp1Hit() && remaining.signum() > 0 && tpTouched(side, price, p.getTakeProfit1())) {
+			BigDecimal q = third.min(remaining);
+			executionService.partialClose(p.getId(), price, q, CloseReason.TAKE_PROFIT);
+			remaining = remaining.subtract(q);
+			log.info("[Paper] {} TP1 partial qty={} position={}", p.getSymbol(), q, p.getId());
+		}
+		if (!p.isTp2Hit() && remaining.signum() > 0 && tpTouched(side, price, p.getTakeProfit2())) {
+			BigDecimal q = third.min(remaining);
+			executionService.partialClose(p.getId(), price, q, CloseReason.TAKE_PROFIT);
+			remaining = remaining.subtract(q);
+			log.info("[Paper] {} TP2 partial qty={} position={}", p.getSymbol(), q, p.getId());
+		}
+		if (!p.isTp3Hit() && remaining.signum() > 0 && tpTouched(side, price, p.getTakeProfit3())) {
+			executionService.partialClose(p.getId(), price, remaining, CloseReason.TAKE_PROFIT);
+			log.info("[Paper] {} TP3 close remaining position={}", p.getSymbol(), p.getId());
+		}
+	}
+
+	private static boolean stopTouched(PositionSide side, BigDecimal price, BigDecimal stop) {
+		if (stop == null) return false;
+		return side == PositionSide.LONG ? price.compareTo(stop) <= 0 : price.compareTo(stop) >= 0;
+	}
+
+	private static boolean tpTouched(PositionSide side, BigDecimal price, BigDecimal tp) {
+		if (tp == null) return false;
+		return side == PositionSide.LONG ? price.compareTo(tp) >= 0 : price.compareTo(tp) <= 0;
 	}
 
 	private CloseReason evaluateTrigger(Position position, BigDecimal price) {

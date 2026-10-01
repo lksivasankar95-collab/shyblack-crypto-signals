@@ -264,7 +264,13 @@ public class PaperTradingController {
 				p.getStrategyId(),
 				p.getStrategyVersion(),
 				marketType,
-				strategyName);
+				strategyName,
+				p.originalQty(),
+				p.remainingQty(),
+				p.getAverageExitPrice(),
+				p.isTp1Hit(),
+				p.isTp2Hit(),
+				p.isTp3Hit());
 	}
 
 	private User currentUser() {

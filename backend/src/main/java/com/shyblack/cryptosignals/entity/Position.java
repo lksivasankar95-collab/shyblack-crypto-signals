@@ -129,6 +129,38 @@ public class Position extends BaseEntity {
 	@Column
 	private Integer strategyVersion;
 
+	// ── Partial-exit state (NFM). Nullable/defaulted so legacy single-TP rows
+	//    (originalSize/remainingSize null) behave exactly as before. ──
+	@Column(name = "original_size", precision = 19, scale = 8)
+	private BigDecimal originalSize;
+
+	@Column(name = "remaining_size", precision = 19, scale = 8)
+	private BigDecimal remainingSize;
+
+	@Column(name = "average_exit_price", precision = 19, scale = 8)
+	private BigDecimal averageExitPrice;
+
+	// Nullable so adding these columns to a populated table is non-destructive;
+	// reading NULL into a primitive boolean yields false.
+	@Column(name = "tp1_hit")
+	private boolean tp1Hit = false;
+
+	@Column(name = "tp2_hit")
+	private boolean tp2Hit = false;
+
+	@Column(name = "tp3_hit")
+	private boolean tp3Hit = false;
+
+	/** Legacy-safe original quantity (falls back to {@link #size}). */
+	public BigDecimal originalQty() {
+		return originalSize != null ? originalSize : size;
+	}
+
+	/** Legacy-safe remaining quantity (falls back to {@link #size}). */
+	public BigDecimal remainingQty() {
+		return remainingSize != null ? remainingSize : size;
+	}
+
 	@Version
 	@Column(nullable = false)
 	private Long version = 0L;

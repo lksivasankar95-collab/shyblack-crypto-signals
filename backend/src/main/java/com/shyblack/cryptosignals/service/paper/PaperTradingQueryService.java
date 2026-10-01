@@ -43,7 +43,7 @@ public class PaperTradingQueryService {
 		BigDecimal totalUnrealized = BigDecimal.ZERO;
 		for (Position p : open) {
 			BigDecimal current = currentPrice(p);
-			BigDecimal u = pnl.grossPnl(p.getSide(), p.getEntryPrice(), current, p.getSize());
+			BigDecimal u = pnl.grossPnl(p.getSide(), p.getEntryPrice(), current, p.remainingQty());
 			totalUnrealized = totalUnrealized.add(u);
 		}
 		BigDecimal equity = portfolio.getAvailableBalance()
@@ -88,7 +88,7 @@ public class PaperTradingQueryService {
 	public BigDecimal unrealized(Position position) {
 		BigDecimal cur = currentPrice(position);
 		if (cur == null) return BigDecimal.ZERO;
-		return pnl.grossPnl(position.getSide(), position.getEntryPrice(), cur, position.getSize());
+		return pnl.grossPnl(position.getSide(), position.getEntryPrice(), cur, position.remainingQty());
 	}
 
 	public BigDecimal unrealizedPct(Position position) {
