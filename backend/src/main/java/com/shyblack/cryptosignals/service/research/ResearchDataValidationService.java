@@ -95,11 +95,26 @@ public class ResearchDataValidationService {
 		Long missingTier = scalarLong("SELECT count(*) FROM news_events WHERE dataset_version=? AND source_tier IS NULL", dv);
 		Long missingAssets = scalarLong("SELECT count(*) FROM news_events e WHERE e.dataset_version=? AND NOT EXISTS "
 				+ "(SELECT 1 FROM news_event_assets a WHERE a.news_event_id=e.id)", dv);
-		if ((missingTier != null && missingTier > 0) || (missingAssets != null && missingAssets > 0)) {
-			return new Check("events.quality", "WARN",
-					"missingTier=" + missingTier + " missingAssets=" + missingAssets);
-		}
-		return new Check("events.quality", "PASS", c + " events well-formed");
+		Long dupExternal = scalarLong("SELECT COALESCE(SUM(cnt-1),0) FROM (SELECT external_event_id, COUNT(*) cnt "
+				+ "FROM news_events WHERE dataset_version=? AND external_event_id IS NOT NULL "
+				+ "GROUP BY external_event_id HAVING COUNT(*)>1) d", dv);
+		Long outOfWindow = scalarLong("SELECT count(*) FROM news_events WHERE dataset_version=? AND "
+				+ "(event_time IS NULL OR event_time < TIMESTAMPTZ '2023-09-01T00:00:00Z' "
+				+ "OR event_time >= TIMESTAMPTZ '2026-10-01T00:00:00Z')", dv);
+		Long expected = scalarLong("SELECT count(*) FROM news_events WHERE dataset_version=? AND expected_value IS NOT NULL", dv);
+		Long actual = scalarLong("SELECT count(*) FROM news_events WHERE dataset_version=? AND actual_value IS NOT NULL", dv);
+		Long surprise = scalarLong("SELECT count(*) FROM news_events WHERE dataset_version=? AND surprise_value IS NOT NULL", dv);
+		String detail = "events=" + c + " expected=" + nz(expected) + " actual=" + nz(actual)
+				+ " surprise=" + nz(surprise) + " missingTier=" + nz(missingTier)
+				+ " missingAssets=" + nz(missingAssets) + " dupExternal=" + nz(dupExternal)
+				+ " outOfWindow=" + nz(outOfWindow);
+		boolean fail = nz(missingTier) > 0 || nz(missingAssets) > 0
+				|| nz(dupExternal) > 0 || nz(outOfWindow) > 0;
+		return new Check("events.quality", fail ? "FAIL" : "PASS", detail);
+	}
+
+	private static long nz(Long value) {
+		return value == null ? 0 : value;
 	}
 
 	private Long scalarLong(String sql, Object... args) {

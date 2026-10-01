@@ -87,6 +87,8 @@ app:
       enabled: ${RESEARCH_IMPORT_ENABLED:false}
       root: ${RESEARCH_IMPORT_ROOT:research-import}
       batch-size: ${RESEARCH_IMPORT_BATCH_SIZE:1000}
+      max-rejects-per-file: ${RESEARCH_IMPORT_MAX_REJECTS:200}
+      manifest: ${RESEARCH_IMPORT_MANIFEST:}
   settings:
     risk-per-trade-ceiling-pct: ${SETTINGS_RISK_PER_TRADE_CEILING_PCT:2.0}
     max-position-size-pct: ${SETTINGS_MAX_POSITION_SIZE_PCT:20.0}

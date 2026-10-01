@@ -64,6 +64,43 @@ remains the authoritative decision timestamp. The engine's no-look-ahead filter
 OI cadence/coverage, funding interval/boundary consistency, and event
 timestamp/tier/asset-mapping issues per dataset window.
 
+## 7a. Governed historical events (Phase K)
+
+Events are imported through the SAME `ResearchDataImportService` (kind `EVENT`),
+not a second framework. Input is **JSONL** (one event per line), mapped into the
+existing `news_events` / `news_event_assets` model.
+
+Schema (per line; only `external_event_id, event_time, category, event_type,
+source, source_tier, assets` are required):
+
+```json
+{"external_event_id":"FOMC-2023-11-01","event_time":"2023-11-01T18:00:00Z",
+ "confirmation_timestamp":"2023-11-01T18:00:00Z","category":"MACRO",
+ "event_type":"FOMC","event_stage":"OFFICIAL_CONFIRMATION","source":"Federal Reserve",
+ "source_tier":"TIER_1","headline":"...","summary":null,"market_interpretation":null,
+ "expected":null,"actual":null,"surprise":null,"surprise_direction":null,
+ "assets":"BTC:HIGH;ETH:HIGH"}
+```
+
+- `event_time` is the authoritative UTC release/publication timestamp. Accepted
+  formats: epoch ms, `yyyy-MM-dd HH:mm:ss` (UTC), or ISO-8601 (`...Z`).
+- Events must fall inside the frozen window `[2023-09-01, 2026-10-01)` or they are
+  quarantined.
+- **expected/actual/surprise are imported verbatim or left null — never computed**
+  from price or from later market movement.
+- Relevance per asset is `LOW|MEDIUM|HIGH|CRITICAL`. `source_tier=TIER_4` events
+  are stored `tradeable=false`.
+- Dedup is by `external_event_id` (`ON CONFLICT DO NOTHING`); provenance
+  (`source_dataset`, `dataset_version`) is recorded on every row.
+- `confirmation_timestamp` maps to `NewsEvent.releaseTimestamp`.
+
+**Status (this environment): no governed event source file was available, so
+0 events were imported. No events were fabricated.** Populate a JSONL file from
+governed sources (Fed/BLS/BEA/ECB/BoE/BoJ official releases = Tier 1; Reuters/
+Bloomberg/FT/WSJ = Tier 2; established crypto media = Tier 3) and import via the
+existing manifest/admin path. Expected-consensus values are typically Tier-2 and
+often paywalled; where unavailable leave `expected`/`surprise` null.
+
 ## 7. Liquidation
 
 No fabricated or inferred liquidation volume. State stays `UNKNOWN` unless a

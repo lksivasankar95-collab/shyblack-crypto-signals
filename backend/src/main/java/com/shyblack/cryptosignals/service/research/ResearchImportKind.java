@@ -5,5 +5,6 @@ public enum ResearchImportKind {
 	CANDLE,
 	OPEN_INTEREST,
 	FUNDING_RATE,
-	LIQUIDATION
+	LIQUIDATION,
+	EVENT
 }
