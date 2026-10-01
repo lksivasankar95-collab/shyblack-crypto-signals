@@ -75,4 +75,28 @@ class BacktestEngineEventNoLookAheadTest {
 		// Candle 0 → 1 event; 1 → 1; 2 → 2; 3 → 2; 4 → 3.
 		assertThat(strategy.visibleCounts).containsExactly(1, 1, 2, 2, 3);
 	}
+
+	@Test
+	void eventExactlyAtClose_isVisible_eventImmediatelyAfterClose_isNot() {
+		List<HistoricalCandle> candles = new ArrayList<>();
+		for (int i = 0; i < 3; i++) candles.add(candle(i));
+
+		// Exactly at candle 0 close (included) and 1ms after candle 1 close (excluded at candle 1).
+		List<HistoricalEvent> events = List.of(
+				event(candles.get(0).closeTime()),
+				event(candles.get(1).closeTime().plusMillis(1)));
+
+		BacktestConfig config = new BacktestConfig("capture", "BTCUSDT", "1m", TradingMode.FUTURES,
+				candles.get(0).openTime(), candles.get(2).closeTime(),
+				new BigDecimal("1000"), new BigDecimal("2"), new BigDecimal("0.1"),
+				new BigDecimal("0.05"), 1, BacktestExecutionModel.NEXT_CANDLE_OPEN,
+				BacktestSameCandlePolicy.SL_FIRST, null);
+
+		CapturingStrategy strategy = new CapturingStrategy();
+		BacktestEngine.run(new BacktestRun(), config, strategy, candles, events, new AtomicBoolean(false));
+
+		// candle0: the at-close event only (1). candle1: still excludes the +1ms event (1).
+		// candle2: both events now visible (2).
+		assertThat(strategy.visibleCounts).containsExactly(1, 1, 2);
+	}
 }
