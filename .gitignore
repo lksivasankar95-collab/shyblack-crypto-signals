@@ -1,0 +1,10 @@
+# Generated research datasets / downloads (never commit)
+research-import/
+
+# Build outputs
+backend/build/
+backend/.gradle/
+
+# Secrets / env
+.env
+*.env

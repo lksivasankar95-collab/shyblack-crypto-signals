@@ -10,6 +10,7 @@ import com.shyblack.cryptosignals.config.NewsNotificationProperties;
 import com.shyblack.cryptosignals.config.NewsProperties;
 import com.shyblack.cryptosignals.config.PaperTradingProperties;
 import com.shyblack.cryptosignals.config.ResearchBacktestProperties;
+import com.shyblack.cryptosignals.config.ResearchEventProperties;
 import com.shyblack.cryptosignals.config.ResearchImportProperties;
 import com.shyblack.cryptosignals.config.SettingsProperties;
 import org.springframework.boot.SpringApplication;
@@ -21,7 +22,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @SpringBootApplication
 @EnableJpaAuditing
 @EnableScheduling
-@EnableConfigurationProperties({JwtProperties.class, MarketProperties.class, NewsProperties.class, NewsNotificationProperties.class, SettingsProperties.class, PaperTradingProperties.class, LiveTradingProperties.class, FuturesTradingProperties.class, BacktestingProperties.class, NfmProperties.class, ResearchBacktestProperties.class, ResearchImportProperties.class})
+@EnableConfigurationProperties({JwtProperties.class, MarketProperties.class, NewsProperties.class, NewsNotificationProperties.class, SettingsProperties.class, PaperTradingProperties.class, LiveTradingProperties.class, FuturesTradingProperties.class, BacktestingProperties.class, NfmProperties.class, ResearchBacktestProperties.class, ResearchImportProperties.class, ResearchEventProperties.class})
 public class ShyblackBackendApplication {
 
 	public static void main(String[] args) {

@@ -89,6 +89,12 @@ app:
       batch-size: ${RESEARCH_IMPORT_BATCH_SIZE:1000}
       max-rejects-per-file: ${RESEARCH_IMPORT_MAX_REJECTS:200}
       manifest: ${RESEARCH_IMPORT_MANIFEST:}
+    events:
+      max-retries: ${RESEARCH_EVENTS_MAX_RETRIES:2}
+      retry-backoff-ms: ${RESEARCH_EVENTS_RETRY_BACKOFF_MS:1000}
+      collection-timeout-minutes: ${RESEARCH_EVENTS_TIMEOUT_MINUTES:10}
+      max-pages: ${RESEARCH_EVENTS_MAX_PAGES:200}
+      max-records: ${RESEARCH_EVENTS_MAX_RECORDS:20000}
   settings:
     risk-per-trade-ceiling-pct: ${SETTINGS_RISK_PER_TRADE_CEILING_PCT:2.0}
     max-position-size-pct: ${SETTINGS_MAX_POSITION_SIZE_PCT:20.0}

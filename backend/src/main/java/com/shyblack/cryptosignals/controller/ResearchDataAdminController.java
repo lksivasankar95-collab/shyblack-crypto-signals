@@ -5,6 +5,10 @@ import com.shyblack.cryptosignals.service.research.ResearchDataImportService;
 import com.shyblack.cryptosignals.service.research.ResearchDataValidationService;
 import com.shyblack.cryptosignals.service.research.ResearchImportKind;
 import com.shyblack.cryptosignals.service.research.ResearchImportSummary;
+import com.shyblack.cryptosignals.exception.ResourceNotFoundException;
+import com.shyblack.cryptosignals.service.research.events.EventCollectionJobService;
+import java.time.Instant;
+import java.util.UUID;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -13,6 +17,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -33,6 +38,26 @@ public class ResearchDataAdminController {
 
 	private final ResearchDataImportService importService;
 	private final ResearchDataValidationService validationService;
+	private final EventCollectionJobService eventCollectionJobService;
+
+	@Operation(summary = "Start a bounded official-event collection job (ADMIN, async)")
+	@PostMapping("/events/collect")
+	public EventCollectionJobService.JobView collectEvents(
+			@RequestParam(defaultValue = "NFM_EVENTS_2023_09_2026_09_V1") String datasetVersion,
+			@RequestParam(defaultValue = "2023-09-01T00:00:00Z") String from,
+			@RequestParam(defaultValue = "2026-10-01T00:00:00Z") String to) {
+		return eventCollectionJobService.start(datasetVersion, Instant.parse(from), Instant.parse(to));
+	}
+
+	@Operation(summary = "Collection job status (ADMIN)")
+	@GetMapping("/events/collection/{id}")
+	public EventCollectionJobService.JobView collectionStatus(@PathVariable UUID id) {
+		EventCollectionJobService.JobView view = eventCollectionJobService.status(id);
+		if (view == null) {
+			throw new ResourceNotFoundException("Collection job not found: " + id);
+		}
+		return view;
+	}
 
 	public record ImportRequest(
 			@NotNull ResearchImportKind kind,
