@@ -36,6 +36,11 @@ dependencies {
 	runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.12.6")
 	runtimeOnly("org.postgresql:postgresql")
 
+	// DEV ONLY: auto-restart on classpath change when run via `bootRun`.
+	// The `developmentOnly` configuration is excluded from bootJar, so this can
+	// never ship to production.
+	developmentOnly("org.springframework.boot:spring-boot-devtools")
+
 	compileOnly("org.projectlombok:lombok")
 	annotationProcessor("org.projectlombok:lombok")
 
