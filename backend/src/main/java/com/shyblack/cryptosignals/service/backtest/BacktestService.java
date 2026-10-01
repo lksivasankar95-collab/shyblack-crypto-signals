@@ -45,6 +45,7 @@ public class BacktestService {
 	private final BacktestEquityPointRepository equityRepo;
 	private final BacktestJobRunner jobRunner;
 	private final BacktestingProperties props;
+	private final BacktestLimits limits;
 	private final BacktestStrategyRegistry strategyRegistry;
 
 	@Transactional
@@ -87,9 +88,9 @@ public class BacktestService {
 				|| !config.startDate().isBefore(config.endDate()))
 			throw new BadRequestException("invalid date range");
 		Duration window = Duration.between(config.startDate(), config.endDate());
-		if (window.toDays() > props.maxRangeDays())
+		if (window.toDays() > limits.maxRangeDays())
 			throw new BadRequestException("date range exceeds "
-					+ props.maxRangeDays() + " days");
+					+ limits.maxRangeDays() + " days");
 		if (config.initialCapital() == null || config.initialCapital().signum() <= 0)
 			throw new BadRequestException("initialCapital must be positive");
 		if (config.riskPerTradePct() == null || config.riskPerTradePct().signum() <= 0)

@@ -42,7 +42,8 @@ import lombok.Setter;
 @Table(
 		name = "news_events",
 		uniqueConstraints = {
-				@UniqueConstraint(name = "uk_news_events_article", columnNames = "article_id")
+				@UniqueConstraint(name = "uk_news_events_article", columnNames = "article_id"),
+				@UniqueConstraint(name = "uk_news_events_external_id", columnNames = "external_event_id")
 		},
 		indexes = {
 				@Index(name = "idx_news_events_event_time", columnList = "event_time"),
@@ -59,6 +60,16 @@ public class NewsEvent extends BaseEntity {
 	/** Optional link to a parent event (e.g. ETF launch follows ETF approval). */
 	@Column(name = "parent_event_id")
 	private UUID parentEventId;
+
+	/** Stable id from the source research dataset; unique so imports are idempotent. */
+	@Column(name = "external_event_id", length = 200)
+	private String externalEventId;
+
+	@Column(name = "source_dataset", length = 100)
+	private String sourceDataset;
+
+	@Column(name = "dataset_version", length = 100)
+	private String datasetVersion;
 
 	/** Authoritative event time (provider publication time or scheduled release time). */
 	@Column(name = "event_time", nullable = false)

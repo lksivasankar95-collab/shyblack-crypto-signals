@@ -47,6 +47,7 @@ public class BacktestJobRunner {
 	private static final Logger log = LoggerFactory.getLogger(BacktestJobRunner.class);
 
 	private final BacktestingProperties props;
+	private final BacktestLimits limits;
 	private final BacktestRunRepository runRepo;
 	private final BacktestTradeRepository tradeRepo;
 	private final BacktestSignalRepository signalRepo;
@@ -60,7 +61,7 @@ public class BacktestJobRunner {
 
 	@PostConstruct
 	void init() {
-		this.executor = Executors.newFixedThreadPool(props.maxConcurrentRuns(),
+		this.executor = Executors.newFixedThreadPool(limits.maxConcurrentRuns(),
 				r -> {
 					Thread t = new Thread(r, "backtest-worker");
 					t.setDaemon(true);
@@ -114,8 +115,8 @@ public class BacktestJobRunner {
 			markFailed(runId, "No historical candles for the requested range");
 			return;
 		}
-		if (candles.size() > props.maxCandles()) {
-			markFailed(runId, "Requested range exceeds " + props.maxCandles() + " candles");
+		if (candles.size() > limits.maxCandles()) {
+			markFailed(runId, "Requested range exceeds " + limits.maxCandles() + " candles");
 			return;
 		}
 		updateTotals(runId, candles.size());

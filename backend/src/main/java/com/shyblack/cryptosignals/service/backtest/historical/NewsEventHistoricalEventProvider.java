@@ -32,9 +32,11 @@ public class NewsEventHistoricalEventProvider implements HistoricalEventProvider
 	public List<HistoricalEvent> load(String symbol, Instant start, Instant end) {
 		String base = baseOf(symbol);
 		List<HistoricalEvent> result = new ArrayList<>();
-		for (NewsEvent event : eventRepository.findByEventTimeAfterOrderByEventTimeDesc(start)) {
+		// Bounded range pushed into SQL (start inclusive, end exclusive, ascending).
+		for (NewsEvent event : eventRepository
+				.findByEventTimeGreaterThanEqualAndEventTimeLessThanOrderByEventTimeAsc(start, end)) {
 			Instant time = event.getEventTime();
-			if (time == null || time.isBefore(start) || !time.isBefore(end)) {
+			if (time == null) {
 				continue;
 			}
 			NewsEventAsset match = matchAsset(event, base);

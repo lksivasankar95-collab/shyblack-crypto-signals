@@ -8,6 +8,7 @@ import com.shyblack.cryptosignals.entity.enums.NfmAction;
 import com.shyblack.cryptosignals.entity.enums.PositionSide;
 import com.shyblack.cryptosignals.market.DerivativesSnapshot;
 import com.shyblack.cryptosignals.service.backtest.historical.HistoricalCandle;
+import com.shyblack.cryptosignals.service.backtest.historical.HistoricalDerivativesProvider;
 import com.shyblack.cryptosignals.service.backtest.historical.HistoricalEvent;
 import com.shyblack.cryptosignals.signal.IndicatorEngine;
 import com.shyblack.cryptosignals.signal.nfm.NfmAssessment;
@@ -39,14 +40,21 @@ public class NfmBacktestStrategy implements EventAwareBacktestStrategy, Configur
 
 	private static final ObjectMapper MAPPER = new ObjectMapper();
 
+	private final HistoricalDerivativesProvider derivativesProvider;
 	private final NfmFuturesConfig config;
 	private int lastSignalIndex = Integer.MIN_VALUE;
 
 	public NfmBacktestStrategy() {
-		this(NfmFuturesConfig.defaults());
+		this(null, NfmFuturesConfig.defaults());
 	}
 
-	public NfmBacktestStrategy(NfmFuturesConfig config) {
+	@org.springframework.beans.factory.annotation.Autowired
+	public NfmBacktestStrategy(HistoricalDerivativesProvider derivativesProvider) {
+		this(derivativesProvider, NfmFuturesConfig.defaults());
+	}
+
+	NfmBacktestStrategy(HistoricalDerivativesProvider derivativesProvider, NfmFuturesConfig config) {
+		this.derivativesProvider = derivativesProvider;
 		this.config = config == null ? NfmFuturesConfig.defaults() : config;
 	}
 
@@ -56,7 +64,7 @@ public class NfmBacktestStrategy implements EventAwareBacktestStrategy, Configur
 
 	@Override
 	public BacktestStrategy create(String paramsJson) {
-		return new NfmBacktestStrategy(NfmFuturesConfig.fromJson(MAPPER, paramsJson));
+		return new NfmBacktestStrategy(derivativesProvider, NfmFuturesConfig.fromJson(MAPPER, paramsJson));
 	}
 
 	@Override
@@ -88,7 +96,7 @@ public class NfmBacktestStrategy implements EventAwareBacktestStrategy, Configur
 				event.expectedValue(), event.actualValue(), event.surpriseValue(), null, event.time());
 
 		NfmAssessment a = NfmFuturesAnalyzer.analyze(event.symbol(), view, klines,
-				DerivativesSnapshot.unavailable(), regime, config);
+				snapshot(event.symbol(), current.closeTime()), regime, config);
 		if (!a.actionable() || a.entry() == null || a.stopLoss() == null || a.tp1() == null) {
 			return Optional.empty();
 		}
@@ -96,6 +104,19 @@ public class NfmBacktestStrategy implements EventAwareBacktestStrategy, Configur
 		PositionSide side = a.action() == NfmAction.LONG ? PositionSide.LONG : PositionSide.SHORT;
 		return Optional.of(new Signal(side, a.entry(), a.stopLoss(), a.tp1(),
 				"NFM grade=" + a.grade() + " score=" + a.score() + " " + a.reason()));
+	}
+
+	/** As-of derivatives snapshot; unavailable on any failure (never zero). */
+	private DerivativesSnapshot snapshot(String symbol, java.time.Instant time) {
+		if (derivativesProvider == null || symbol == null || time == null) {
+			return DerivativesSnapshot.unavailable();
+		}
+		try {
+			DerivativesSnapshot s = derivativesProvider.asOf(symbol, time);
+			return s == null ? DerivativesSnapshot.unavailable() : s;
+		} catch (Exception ex) {
+			return DerivativesSnapshot.unavailable();
+		}
 	}
 
 	private HistoricalEvent latestEligible(List<HistoricalEvent> events, HistoricalCandle current) {

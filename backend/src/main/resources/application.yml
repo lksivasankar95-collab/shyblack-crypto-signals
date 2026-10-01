@@ -75,6 +75,18 @@ app:
     # default to Tier-1/2/3 built-ins when omitted.
     enabled: ${NFM_ENABLED:true}
     event-max-age-minutes: ${NFM_EVENT_MAX_AGE_MINUTES:180}
+  research:
+    # Research-only overrides. Disabled by default so production backtest
+    # limits (app.backtesting) are unchanged.
+    backtest:
+      enabled: ${RESEARCH_BACKTEST_ENABLED:false}
+      max-candles: ${RESEARCH_BACKTEST_MAX_CANDLES:2000000}
+      max-range-days: ${RESEARCH_BACKTEST_MAX_RANGE_DAYS:1200}
+      max-concurrent-runs: ${RESEARCH_BACKTEST_MAX_CONCURRENT:1}
+    import:
+      enabled: ${RESEARCH_IMPORT_ENABLED:false}
+      root: ${RESEARCH_IMPORT_ROOT:research-import}
+      batch-size: ${RESEARCH_IMPORT_BATCH_SIZE:1000}
   settings:
     risk-per-trade-ceiling-pct: ${SETTINGS_RISK_PER_TRADE_CEILING_PCT:2.0}
     max-position-size-pct: ${SETTINGS_MAX_POSITION_SIZE_PCT:20.0}
