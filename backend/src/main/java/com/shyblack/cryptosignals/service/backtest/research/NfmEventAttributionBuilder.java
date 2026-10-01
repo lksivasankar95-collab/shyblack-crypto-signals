@@ -84,22 +84,36 @@ public final class NfmEventAttributionBuilder {
 		String outcome = net == null ? null
 				: net.signum() > 0 ? "WIN" : net.signum() < 0 ? "LOSS" : "BREAKEVEN";
 
+		com.shyblack.cryptosignals.signal.nfm.NfmDecisionContext ctx =
+				signal == null ? null : signal.decisionContext();
+
 		return new NfmEventAttribution(
 				symbol,
 				primary == null ? null : primary.id(),
-				primary == null || primary.eventType() == null ? null : primary.eventType().name(),
-				primary == null || primary.eventStage() == null ? null : primary.eventStage().name(),
-				primary == null || primary.sourceTier() == null ? null : primary.sourceTier().name(),
+				primary != null && primary.eventType() != null ? primary.eventType().name()
+						: ctx == null ? null : ctx.eventType(),
+				primary != null && primary.eventStage() != null ? primary.eventStage().name()
+						: ctx == null ? null : ctx.eventStage(),
+				primary != null && primary.sourceTier() != null ? primary.sourceTier().name()
+						: ctx == null ? null : ctx.sourceTier(),
 				primary == null ? null : primary.time(),
 				List.copyOf(ids),
 				direction,
-				null, // signalScore: not exposed by the engine (UNKNOWN)
-				null, // signalGrade: not exposed by the engine (UNKNOWN)
+				ctx == null || ctx.score() == null ? null : BigDecimal.valueOf(ctx.score()),
+				ctx == null ? null : ctx.grade(),
 				status,
-				primary == null ? null : primary.expectedValue(),
-				primary == null ? null : primary.actualValue(),
-				primary == null ? null : primary.surpriseValue(),
-				null, null, null, null, null, null, // reaction/derivatives/regime UNKNOWN
+				primary != null && primary.expectedValue() != null ? primary.expectedValue()
+						: ctx == null ? null : ctx.expected(),
+				primary != null && primary.actualValue() != null ? primary.actualValue()
+						: ctx == null ? null : ctx.actual(),
+				primary != null && primary.surpriseValue() != null ? primary.surpriseValue()
+						: ctx == null ? null : ctx.surprise(),
+				ctx == null ? null : ctx.priceReaction(),
+				ctx == null ? null : ctx.volumeRatio(),
+				ctx == null ? null : ctx.oiChange(),
+				ctx == null ? null : ctx.funding(),
+				ctx == null ? null : ctx.liquidation(),
+				ctx == null ? null : ctx.marketRegime(),
 				entry.entryPrice(),
 				exitPrice,
 				signal == null ? null : signal.stopLoss(),
@@ -112,7 +126,8 @@ public final class NfmEventAttributionBuilder {
 				null, // slippage folded into entry by the engine (UNKNOWN)
 				net,
 				outcome,
-				attributed ? "ATTRIBUTED" : "EVENT_ATTRIBUTION_UNKNOWN");
+				attributed ? "ATTRIBUTED" : "EVENT_ATTRIBUTION_UNKNOWN",
+				ctx);
 	}
 
 	private static boolean hasFill(PartialExitSimulator.Lifecycle lc, String reason) {

@@ -53,6 +53,8 @@ public record NfmEventAttribution(
 		BigDecimal netPnl,
 		String tradeOutcome,
 		// ATTRIBUTED | EVENT_ATTRIBUTION_UNKNOWN | NO_TRADE
-		String attributionStatus
+		String attributionStatus,
+		// observational decision snapshot (null = not captured)
+		com.shyblack.cryptosignals.signal.nfm.NfmDecisionContext decisionContext
 ) {
 }

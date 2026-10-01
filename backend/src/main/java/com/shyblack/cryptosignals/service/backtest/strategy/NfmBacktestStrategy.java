@@ -12,6 +12,7 @@ import com.shyblack.cryptosignals.service.backtest.historical.HistoricalDerivati
 import com.shyblack.cryptosignals.service.backtest.historical.HistoricalEvent;
 import com.shyblack.cryptosignals.signal.IndicatorEngine;
 import com.shyblack.cryptosignals.signal.nfm.NfmAssessment;
+import com.shyblack.cryptosignals.signal.nfm.NfmDecisionContext;
 import com.shyblack.cryptosignals.signal.nfm.NfmEventView;
 import com.shyblack.cryptosignals.signal.nfm.NfmFuturesAnalyzer;
 import java.time.Duration;
@@ -103,8 +104,9 @@ public class NfmBacktestStrategy implements EventAwareBacktestStrategy, Configur
 		lastSignalIndex = currentIndex;
 		PositionSide side = a.action() == NfmAction.LONG ? PositionSide.LONG : PositionSide.SHORT;
 		List<java.util.UUID> eventIds = eligibleEventIds(eventsUpToNow, current);
+		NfmDecisionContext context = decisionContext(event, a, regime, eventIds, current);
 		return Optional.of(new Signal(side, a.entry(), a.stopLoss(), a.tp1(), a.tp2(), a.tp3(),
-				"NFM grade=" + a.grade() + " score=" + a.score() + " " + a.reason(), eventIds));
+				"NFM grade=" + a.grade() + " score=" + a.score() + " " + a.reason(), eventIds, context));
 	}
 
 	/** As-of derivatives snapshot; unavailable on any failure (never zero). */
@@ -135,6 +137,36 @@ public class NfmBacktestStrategy implements EventAwareBacktestStrategy, Configur
 			}
 		}
 		return best;
+	}
+
+	/**
+	 * Observational snapshot built ONLY from values the analyzer already produced.
+	 * No recalculation, no effect on the decision.
+	 */
+	private static NfmDecisionContext decisionContext(HistoricalEvent event, NfmAssessment a,
+			MarketRegime regime, List<java.util.UUID> eventIds, HistoricalCandle current) {
+		Long ageSeconds = event == null || event.time() == null || current == null
+				|| current.closeTime() == null ? null
+				: Duration.between(event.time(), current.closeTime()).getSeconds();
+		return new NfmDecisionContext(
+				eventIds == null ? List.of() : List.copyOf(eventIds),
+				a.score(),
+				a.grade() == null ? null : a.grade().name(),
+				event == null || event.eventType() == null ? null : event.eventType().name(),
+				event == null || event.eventStage() == null ? null : event.eventStage().name(),
+				event == null || event.sourceTier() == null ? null : event.sourceTier().name(),
+				a.priceReactionPct(),
+				a.volumeMultiplier(),
+				a.oiChangePct(),
+				null, // funding rate value not exposed by the assessment (state only)
+				null, // liquidation volume value not exposed by the assessment (state only)
+				regime == null ? null : regime.name(),
+				a.action() == null ? null : a.action().name(),
+				a.actionable() ? null : a.reason(),
+				ageSeconds,
+				event == null ? null : event.expectedValue(),
+				event == null ? null : event.actualValue(),
+				event == null ? null : event.surpriseValue());
 	}
 
 	/**

@@ -60,16 +60,24 @@ public interface BacktestStrategy {
 			BigDecimal takeProfit3,
 			String notes,
 			/** Attributed event ids (additive analytics metadata; null = unattributed). Never affects decisions. */
-			List<UUID> eventIds
+			List<UUID> eventIds,
+			/** Observational NFM decision context (additive; null = not captured). Never affects decisions. */
+			com.shyblack.cryptosignals.signal.nfm.NfmDecisionContext decisionContext
 	) {
 		public Signal(PositionSide side, BigDecimal referencePrice, BigDecimal stopLoss,
 				BigDecimal takeProfit, String notes) {
-			this(side, referencePrice, stopLoss, takeProfit, null, null, notes, null);
+			this(side, referencePrice, stopLoss, takeProfit, null, null, notes, null, null);
 		}
 
 		public Signal(PositionSide side, BigDecimal referencePrice, BigDecimal stopLoss,
 				BigDecimal takeProfit, BigDecimal takeProfit2, BigDecimal takeProfit3, String notes) {
-			this(side, referencePrice, stopLoss, takeProfit, takeProfit2, takeProfit3, notes, null);
+			this(side, referencePrice, stopLoss, takeProfit, takeProfit2, takeProfit3, notes, null, null);
+		}
+
+		public Signal(PositionSide side, BigDecimal referencePrice, BigDecimal stopLoss,
+				BigDecimal takeProfit, BigDecimal takeProfit2, BigDecimal takeProfit3, String notes,
+				List<UUID> eventIds) {
+			this(side, referencePrice, stopLoss, takeProfit, takeProfit2, takeProfit3, notes, eventIds, null);
 		}
 	}
 }

@@ -79,17 +79,19 @@ Status legend: **MEASURED** (real data), **UNKNOWN** (null, not zero), **NOT_AVA
 4. **Event type stats** — `NfmValidationAnalytics.byEventType` (event/signal/trade/long/short/win/loss/net/PF); score/reaction/drawdown UNKNOWN.
 5. **Symbol stats** — per BTCUSDT/ETHUSDT; descriptive only, no ranking.
 6. **Direction stats** — LONG/SHORT separately; no BEST_DIRECTION field.
-7. **Score/grade stats** — NOT_AVAILABLE (grade/score not surfaced by the engine); no threshold recommendation.
-8. **Reaction stats** — NOT_AVAILABLE (windows/series not captured); priceReaction/volumeRatio/oiChange/funding/liquidation UNKNOWN.
-9. **Regime stats** — NOT_AVAILABLE (regime not surfaced per trade); no new regime algorithm.
-10. **No-trade reasons** — NOT_AVAILABLE (reject/block reasons not captured per signal); no invented categories.
+7. **Score/grade stats** — **MEASURED** when a decision context is captured: score/grade come verbatim from `NfmAssessment` (`NfmDecisionContext`), grouped into A/B/C and score buckets 65–69/70–74/75–84/85–100. No threshold recommendation.
+8. **Reaction stats** — **MEASURED** when captured: priceReaction (`priceReactionPct`), volumeRatio (`volumeMultiplier`), oiChange (`oiChangePct`) exposed unchanged; multi-window averages remain NOT_AVAILABLE; funding/liquidation *values* remain UNKNOWN (assessment exposes `FundingState`/`LiquidationState` classifications, not rates/volumes). Missing ⇒ NULL.
+9. **Regime stats** — **MEASURED** when captured (`byRegime` from the strategy's existing causal regime); UNKNOWN when absent. No new regime algorithm, no ranking.
+10. **No-trade reasons** — **NOT_AVAILABLE**: the engine emits `Optional.empty()` for non-actionable assessments (`WAIT_CONFIRMATION`/`NO_TRADE`/`RISK_BLOCKED`), so per-signal reject reasons are not observable without changing the engine; `rejectReason` is null, never inferred.
 11. **Trade lifecycle** — MEASURED from lifecycle fills: TP1/TP2/TP3/SL hit rates; timing UNKNOWN (bar timestamps not captured).
 12. **OOS attribution** — separated via `runType=OOS` and `NfmValidationDetail` (test window); wins/organised separately from in-sample.
 13. **Walk-forward attribution** — per-window rows retained in `research_nfm_validation_detail` (kind WINDOW); never collapsed, no best window.
 14. **Sensitivity attribution** — per-variant rows (kind VARIANT) with `paramsJson` + `configurationHash`; never ranked.
 15. **Data limitations** — Fed runtime-pending; BEA/Census/DOL + central banks INELIGIBLE; crypto/regulatory/security uncovered; liquidation UNKNOWN; surprise data absent → SURPRISE_DATA_UNAVAILABLE.
 
-All analytics are descriptive; no profitability/edge/best claim. Run-scoped analytics endpoints and attribution persistence are **NOT_AVAILABLE** in this revision (analytics are produced from engine-captured entries in-process).
+All analytics are descriptive; no profitability/edge/best claim. Run-scoped analytics endpoints and attribution persistence are **NOT_AVAILABLE** in this revision (analytics are produced from engine-captured entries in-process; see ATTRIBUTION_PERSISTENCE_DEFERRED).
+
+**Decision-context exposure (data only):** `NfmDecisionContext` is attached additively to `BacktestStrategy.Signal`, carried through `PartialExitBacktestEngine.Entry` and `NfmEventAttribution`. It is populated only from values `NfmFuturesAnalyzer` already computed — the trading decision is provably unchanged. No-trade contexts are NOT_AVAILABLE (non-actionable assessments return `Optional.empty()`).
 
 ## 16. Validation conclusion
 Factual status only. **Real NFM validation has NOT been completed.** It remains
