@@ -140,16 +140,30 @@ public class Position extends BaseEntity {
 	@Column(name = "average_exit_price", precision = 19, scale = 8)
 	private BigDecimal averageExitPrice;
 
-	// Nullable so adding these columns to a populated table is non-destructive;
-	// reading NULL into a primitive boolean yields false.
+	// Nullable columns: rows created before these columns existed hold SQL NULL.
+	// They MUST be boxed (Boolean) so Hibernate can hydrate NULL — a primitive
+	// boolean cannot hold SQL NULL and hydration fails. Read via the null-safe
+	// isX() accessors below; NULL is treated as "not hit".
 	@Column(name = "tp1_hit")
-	private boolean tp1Hit = false;
+	private Boolean tp1Hit;
 
 	@Column(name = "tp2_hit")
-	private boolean tp2Hit = false;
+	private Boolean tp2Hit;
 
 	@Column(name = "tp3_hit")
-	private boolean tp3Hit = false;
+	private Boolean tp3Hit;
+
+	public boolean isTp1Hit() {
+		return Boolean.TRUE.equals(tp1Hit);
+	}
+
+	public boolean isTp2Hit() {
+		return Boolean.TRUE.equals(tp2Hit);
+	}
+
+	public boolean isTp3Hit() {
+		return Boolean.TRUE.equals(tp3Hit);
+	}
 
 	/** Legacy-safe original quantity (falls back to {@link #size}). */
 	public BigDecimal originalQty() {
