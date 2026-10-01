@@ -64,12 +64,21 @@ public final class NfmFuturesAnalyzer {
 
 		long eventMillis = event.eventTime() == null
 				? candles.get(0).openTime() : event.eventTime().toEpochMilli();
-		int eventIndex = 0;
+		int eventIndex = -1;
 		for (int i = 0; i < candles.size(); i++) {
 			if (candles.get(i).openTime() >= eventMillis) {
 				eventIndex = i;
 				break;
 			}
+		}
+		if (eventIndex < 0) {
+			// The event falls inside the latest (in-progress) candle and no
+			// later candle exists yet. Defaulting to 0 measured reaction from
+			// the first candle of the series ("since-inception"), producing
+			// wildly inflated values (observed +60%..+335%). Use the current
+			// candle instead, so reaction is 0 until a post-event candle exists.
+			// Still causal: only candles up to the current index are read.
+			eventIndex = candles.size() - 1;
 		}
 		double priceAtEvent = closeAt(candles, eventIndex, lastClose);
 		BigDecimal priceReactionPct = pct(priceAtEvent, lastClose);
