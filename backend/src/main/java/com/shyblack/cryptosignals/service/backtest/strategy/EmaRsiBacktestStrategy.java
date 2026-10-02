@@ -18,7 +18,11 @@ import org.springframework.stereotype.Component;
  * LONG: ema20 > ema50 (trend up) AND close crosses above ema20 AND rsi > 50 AND rsi < 70.
  * SHORT: ema20 < ema50 (trend down) AND close crosses below ema20 AND rsi < 50 AND rsi > 30.
  *
- * SL = 1.5 × ATR from entry; TP = 3 × ATR from entry (R:R ≈ 2).
+ * SL = 1.5 × ATR from entry; TP = 3 × ATR from entry (R:R ≈ 2). A side whose
+ * derived level is not positive (possible when 1.5 × ATR ≥ close) is not
+ * emitted: a stop at or below zero has no price level to trigger on, so the
+ * engine's risk-based sizing rejects it and the run would otherwise record a
+ * signal that can never become a trade.
  *
  * This is a deliberately simple v1 that ships with the module. The live spot
  * signal engine is multi-timeframe (4H+1H+15M) and reusing it verbatim would
@@ -66,6 +70,7 @@ public class EmaRsiBacktestStrategy implements BacktestStrategy {
 					.setScale(8, RoundingMode.HALF_UP);
 			BigDecimal tp = ref.add(atrBd.multiply(BigDecimal.valueOf(3)))
 					.setScale(8, RoundingMode.HALF_UP);
+			if (stop.signum() <= 0) return Optional.empty();
 			return Optional.of(new Signal(PositionSide.LONG, ref, stop, tp,
 					"emaRsi crossUp rsi=" + String.format("%.1f", rsi)));
 		}
@@ -74,6 +79,7 @@ public class EmaRsiBacktestStrategy implements BacktestStrategy {
 					.setScale(8, RoundingMode.HALF_UP);
 			BigDecimal tp = ref.subtract(atrBd.multiply(BigDecimal.valueOf(3)))
 					.setScale(8, RoundingMode.HALF_UP);
+			if (tp.signum() <= 0) return Optional.empty();
 			return Optional.of(new Signal(PositionSide.SHORT, ref, stop, tp,
 					"emaRsi crossDown rsi=" + String.format("%.1f", rsi)));
 		}

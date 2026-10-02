@@ -87,8 +87,12 @@ class _ConfigFormState extends ConsumerState<_ConfigForm> {
   final _leverageCtrl = TextEditingController(text: '1');
   BacktestTradingMode _mode = BacktestTradingMode.spot;
   String? _strategyId;
-  DateTime _start = DateTime.now().subtract(const Duration(days: 30));
-  DateTime _end = DateTime.now();
+  // The backend bounds a run by maxRangeDays and the strategy's own warmup,
+  // so the form deliberately requests a fixed trailing 30-day window. Exposed
+  // here only so it is obvious that this is a constant, not a user setting —
+  // there is no date picker on this form.
+  final DateTime _start = DateTime.now().subtract(const Duration(days: 30));
+  final DateTime _end = DateTime.now();
   bool _submitting = false;
 
   @override
@@ -357,10 +361,10 @@ class _RunCard extends ConsumerWidget {
               padding: const EdgeInsets.only(top: 6),
               child: Row(children: [
                 _kv('Net P&L', pnl.toStringAsFixed(2), pnlColor),
-                _kv('Return', '${(run.totalReturnPct ?? 0).toStringAsFixed(2)}%'),
-                _kv('Trades', '${run.totalTrades}'),
-                _kv('Win %', '${(run.winRatePct ?? 0).toStringAsFixed(1)}'),
-                _kv('MaxDD', '${(run.maxDrawdownPct ?? 0).toStringAsFixed(2)}%'),
+                _kv('Return', _pct(run.totalReturnPct)),
+                _kv('Trades', run.totalTrades.toString()),
+                _kv('Win %', _pct(run.winRatePct, 1)),
+                _kv('MaxDD', _pct(run.maxDrawdownPct)),
               ]),
             ),
             if (run.failureReason != null)
@@ -505,20 +509,20 @@ class _SummaryCard extends StatelessWidget {
           const SizedBox(height: 10),
           Row(children: [
             _kv('Net P&L', pnl.toStringAsFixed(2), pnlColor),
-            _kv('Return', '${(run.totalReturnPct ?? 0).toStringAsFixed(2)}%'),
-            _kv('Trades', '${run.totalTrades}'),
+            _kv('Return', _pct(run.totalReturnPct)),
+            _kv('Trades', run.totalTrades.toString()),
           ]),
           const SizedBox(height: 6),
           Row(children: [
-            _kv('Win %', '${(run.winRatePct ?? 0).toStringAsFixed(1)}'),
-            _kv('Profit factor', (run.profitFactor ?? 0).toStringAsFixed(2)),
-            _kv('Sharpe', (run.sharpeRatio ?? 0).toStringAsFixed(2)),
+            _kv('Win %', _pct(run.winRatePct, 1)),
+            _kv('Profit factor', _num(run.profitFactor)),
+            _kv('Sharpe', _num(run.sharpeRatio)),
           ]),
           const SizedBox(height: 6),
           Row(children: [
-            _kv('MaxDD', '${(run.maxDrawdownPct ?? 0).toStringAsFixed(2)}%'),
-            _kv('Fees', (run.totalFees ?? 0).toStringAsFixed(2)),
-            _kv('Expectancy', (run.expectancy ?? 0).toStringAsFixed(3)),
+            _kv('MaxDD', _pct(run.maxDrawdownPct)),
+            _kv('Fees', _num(run.totalFees)),
+            _kv('Expectancy', _num(run.expectancy, 3)),
           ]),
         ],
       ),
@@ -533,6 +537,18 @@ class _SummaryCard extends StatelessWidget {
         ]),
       );
 }
+
+/// Formats a percentage metric, distinguishing "undefined" from zero.
+///
+/// The backend returns null rather than a sentinel when a metric cannot be
+/// computed (e.g. profit factor with no losing trades, or no trades at all).
+/// Coercing that to 0 would report a real measurement the run never made.
+String _pct(double? value, [int digits = 2]) =>
+    value == null ? '—' : '${value.toStringAsFixed(digits)}%';
+
+/// Formats a plain metric with the same null-is-undefined rule.
+String _num(double? value, [int digits = 2]) =>
+    value == null ? '—' : value.toStringAsFixed(digits);
 
 class _EquityChart extends StatelessWidget {
   const _EquityChart({required this.points});

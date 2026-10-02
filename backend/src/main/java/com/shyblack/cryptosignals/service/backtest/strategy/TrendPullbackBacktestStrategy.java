@@ -71,7 +71,6 @@ public class TrendPullbackBacktestStrategy
 
     @Override
     public Optional<Signal> evaluate(List<HistoricalCandle> history, int currentIndex) {
-        int ratio = TimeframeAggregator.ratio(config.getHtf(), config.getEntryTimeframe());
         int window = windowCandles();
         int from = Math.max(0, currentIndex + 1 - window);
 

@@ -10,6 +10,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *                     remain identifiable if the engine changes later.
  * maxCandles          hard cap on the number of candles processed per run.
  * maxConcurrentRuns   worker pool size.
+ * maxQueueDepth       hard cap on queued (not yet running) jobs. Bounding the
+ *                     pool alone still leaves an unbounded queue behind it.
  * maxRangeDays        wall-clock window between startDate and endDate.
  */
 @ConfigurationProperties(prefix = "app.backtesting")
@@ -17,6 +19,7 @@ public record BacktestingProperties(
 		String engineVersion,
 		int maxCandles,
 		int maxConcurrentRuns,
+		int maxQueueDepth,
 		int maxRangeDays,
 		int defaultWarmupCandles
 ) {
@@ -24,6 +27,7 @@ public record BacktestingProperties(
 		if (engineVersion == null || engineVersion.isBlank()) engineVersion = "backtest-engine/v1";
 		if (maxCandles <= 0) maxCandles = 20_000;
 		if (maxConcurrentRuns <= 0) maxConcurrentRuns = 2;
+		if (maxQueueDepth <= 0) maxQueueDepth = 100;
 		if (maxRangeDays <= 0) maxRangeDays = 365;
 		if (defaultWarmupCandles <= 0) defaultWarmupCandles = 200;
 	}

@@ -137,5 +137,12 @@ class _FakeRepo implements BacktestingRepository {
 
   @override
   Future<List<StrategyDescriptor>> listStrategies() async =>
-      const [StrategyDescriptor(id: 'ema-rsi', version: 'v1')];
+      const [
+        StrategyDescriptor(
+          id: 'ema-rsi',
+          name: 'EMA + RSI',
+          version: 'v1',
+          marketType: 'SPOT',
+        ),
+      ];
 }

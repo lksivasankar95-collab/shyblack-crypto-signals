@@ -83,6 +83,7 @@ app:
       max-candles: ${RESEARCH_BACKTEST_MAX_CANDLES:2000000}
       max-range-days: ${RESEARCH_BACKTEST_MAX_RANGE_DAYS:1200}
       max-concurrent-runs: ${RESEARCH_BACKTEST_MAX_CONCURRENT:1}
+      max-queue-depth: ${RESEARCH_BACKTEST_MAX_QUEUE_DEPTH:20}
     import:
       enabled: ${RESEARCH_IMPORT_ENABLED:false}
       root: ${RESEARCH_IMPORT_ROOT:research-import}
@@ -161,5 +162,6 @@ app:
     engine-version: ${BACKTEST_ENGINE_VERSION:backtest-engine/v1}
     max-candles: ${BACKTEST_MAX_CANDLES:20000}
     max-concurrent-runs: ${BACKTEST_MAX_CONCURRENT:2}
+    max-queue-depth: ${BACKTEST_MAX_QUEUE_DEPTH:100}
     max-range-days: ${BACKTEST_MAX_RANGE_DAYS:365}
     default-warmup-candles: ${BACKTEST_DEFAULT_WARMUP:200}

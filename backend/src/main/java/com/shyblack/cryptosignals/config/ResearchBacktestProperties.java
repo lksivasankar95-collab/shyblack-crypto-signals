@@ -12,11 +12,13 @@ public record ResearchBacktestProperties(
 		boolean enabled,
 		int maxCandles,
 		int maxRangeDays,
-		int maxConcurrentRuns
+		int maxConcurrentRuns,
+		int maxQueueDepth
 ) {
 	public ResearchBacktestProperties {
 		if (maxCandles <= 0) maxCandles = 2_000_000;
 		if (maxRangeDays <= 0) maxRangeDays = 1_200;
 		if (maxConcurrentRuns <= 0) maxConcurrentRuns = 1;
+		if (maxQueueDepth <= 0) maxQueueDepth = 20;
 	}
 }

@@ -65,7 +65,7 @@ public final class BacktestMetricsCalculator {
 				: BigDecimal.valueOf(wins).multiply(BigDecimal.valueOf(100))
 						.divide(BigDecimal.valueOf(total), 4, RoundingMode.HALF_UP);
 		BigDecimal profitFactor = grossLoss.signum() == 0
-				? (grossWin.signum() > 0 ? null : null)
+				? null // undefined with no losing trades — never a sentinel 0
 				: grossWin.divide(grossLoss, 4, RoundingMode.HALF_UP);
 		BigDecimal avgWin = wins == 0 ? null
 				: grossWin.divide(BigDecimal.valueOf(wins), 8, RoundingMode.HALF_UP);
@@ -78,15 +78,17 @@ public final class BacktestMetricsCalculator {
 		BigDecimal maxDdPct = BigDecimal.ZERO;
 		for (BacktestEquityPoint p : equity) {
 			BigDecimal dd = p.getDrawdown() == null ? BigDecimal.ZERO : p.getDrawdown();
-			if (dd.compareTo(maxDd) > 0) {
-				maxDd = dd;
-				maxDdPct = p.getDrawdownPct() == null ? BigDecimal.ZERO : p.getDrawdownPct();
-			}
+			BigDecimal ddPct = p.getDrawdownPct() == null ? BigDecimal.ZERO : p.getDrawdownPct();
+			if (dd.compareTo(maxDd) > 0) maxDd = dd;
+			// Tracked independently of the absolute maximum: the deepest
+			// percentage drawdown can occur on a different, shallower point
+			// once the running peak has fallen.
+			if (ddPct.compareTo(maxDdPct) > 0) maxDdPct = ddPct;
 		}
 		BigDecimal finalEquity = equity.isEmpty()
 				? initialCapital
-				: equity.get(equity.size() - 1).getEquity();
-		BigDecimal returnPct = initialCapital.signum() == 0 ? null
+				: safe(equity.get(equity.size() - 1).getEquity());
+		BigDecimal returnPct = initialCapital == null || initialCapital.signum() == 0 ? null
 				: finalEquity.subtract(initialCapital)
 						.multiply(BigDecimal.valueOf(100))
 						.divide(initialCapital, 4, RoundingMode.HALF_UP);
@@ -101,30 +103,32 @@ public final class BacktestMetricsCalculator {
 	}
 
 	/**
-	 * Non-annualized Sharpe / Sortino computed over per-trade returns. Values
-	 * are indicative — sub-daily backtests should scale by trades/day. We do
-	 * not fabricate an annualization factor when we don't know the strategy
-	 * cadence.
+	 * Non-annualized Sharpe / Sortino computed over per-trade P&amp;L. Values are
+	 * indicative — sub-daily backtests should scale by trades/day. We do not
+	 * fabricate an annualization factor when we don't know the strategy cadence.
+	 *
+	 * <p>Sharpe = mean / standard deviation of all per-trade P&amp;L.
+	 * Sortino = mean / <em>downside</em> deviation, where only returns below the
+	 * mean contribute: {@code sqrt( Σ min(0, xᵢ − mean)² / n )}. Squaring raw
+	 * negative values instead would measure the magnitude of losing trades
+	 * rather than their deviation from the mean, and dividing by the count of
+	 * losers rather than the full sample would make the ratio grow as losses are
+	 * added — neither is a Sortino ratio.
 	 */
 	private static BigDecimal ratio(List<BacktestTrade> trades, boolean downsideOnly) {
-		double mean = 0;
 		int n = trades.size();
-		for (BacktestTrade t : trades) mean += t.getNetPnl().doubleValue();
+		if (n == 0) return null;
+		double mean = 0;
+		for (BacktestTrade t : trades) mean += safe(t.getNetPnl()).doubleValue();
 		mean /= n;
-		double variance = 0;
-		int downCount = 0;
+
+		double sumOfSquares = 0;
 		for (BacktestTrade t : trades) {
-			double x = t.getNetPnl().doubleValue();
-			double d = x - mean;
-			if (downsideOnly) {
-				if (x < 0) { variance += x * x; downCount++; }
-			} else {
-				variance += d * d;
-			}
+			double x = safe(t.getNetPnl()).doubleValue();
+			double deviation = downsideOnly ? Math.min(0, x - mean) : x - mean;
+			sumOfSquares += deviation * deviation;
 		}
-		int denom = downsideOnly ? Math.max(downCount, 1) : n;
-		variance = variance / denom;
-		double sd = Math.sqrt(variance);
+		double sd = Math.sqrt(sumOfSquares / n);
 		if (sd <= 0) return null;
 		return BigDecimal.valueOf(mean / sd).setScale(4, RoundingMode.HALF_UP);
 	}

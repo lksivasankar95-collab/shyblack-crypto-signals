@@ -74,7 +74,9 @@ public final class BacktestExecutionSimulator {
 				&& touched(candle, side, takeProfit, false);
 
 		if (liqTouched) {
-			// Liquidation exit: no protective slippage — the exchange liquidates at market.
+			// Forced exit at (approximately) the liquidation level. Adverse
+			// slippage still applies — a liquidation order is a market order,
+			// so it does not fill exactly at the trigger level.
 			return new LiquidationTrigger(applySlippage(liquidationPrice, side, false, slippagePct));
 		}
 
@@ -158,5 +160,28 @@ public final class BacktestExecutionSimulator {
 		BigDecimal riskAmount = availableBalance.multiply(riskPct)
 				.divide(BigDecimal.valueOf(100), 8, RoundingMode.HALF_UP);
 		return riskAmount.divide(distance, 8, RoundingMode.DOWN);
+	}
+
+	/**
+	 * Largest quantity the available balance can actually fund once margin is
+	 * reserved: SPOT locks the full notional, FUTURES locks notional/leverage.
+	 *
+	 * <p>{@link #riskBasedQuantity} is a <em>risk budget</em>, not an
+	 * affordability check, and it deliberately ignores leverage. Whenever
+	 * {@code riskPct × (1 / stopDistancePct) > 1} the budgeted notional
+	 * exceeds the balance (e.g. balance 1000, risk 2%, stop 1% away ⇒ notional
+	 * 2000). Opening that position debits more than is held and drives
+	 * {@code availableBalance} negative, after which every subsequent sizing
+	 * call returns zero — so the run silently reports a single trade no matter
+	 * how many signals fired. The engine therefore clamps the risk-based
+	 * quantity with this value.
+	 */
+	public static BigDecimal affordableQuantity(BigDecimal availableBalance,
+			BigDecimal entryPrice, TradingMode mode, int leverage) {
+		if (availableBalance == null || availableBalance.signum() <= 0) return BigDecimal.ZERO;
+		if (entryPrice == null || entryPrice.signum() <= 0) return BigDecimal.ZERO;
+		int effectiveLeverage = mode == TradingMode.FUTURES ? Math.max(1, leverage) : 1;
+		return availableBalance.multiply(BigDecimal.valueOf(effectiveLeverage))
+				.divide(entryPrice, 8, RoundingMode.DOWN);
 	}
 }

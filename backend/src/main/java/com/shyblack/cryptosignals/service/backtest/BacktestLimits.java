@@ -35,4 +35,8 @@ public class BacktestLimits {
 	public int maxConcurrentRuns() {
 		return researchEnabled() ? research.maxConcurrentRuns() : production.maxConcurrentRuns();
 	}
+
+	public int maxQueueDepth() {
+		return researchEnabled() ? research.maxQueueDepth() : production.maxQueueDepth();
+	}
 }

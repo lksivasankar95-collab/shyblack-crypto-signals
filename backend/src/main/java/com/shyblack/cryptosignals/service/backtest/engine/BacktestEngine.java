@@ -26,8 +26,14 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *      fill its entry at THIS candle's open + slippage
  *      (NEXT_CANDLE_OPEN model).
  *   3. Run the strategy against candles ≤ this one. If a signal fires,
- *      queue it for entry at the NEXT candle's open.
+ *      queue it for entry at the NEXT candle's open. Signal emission is
+ *      suppressed until the strategy's declared {@link BacktestStrategy#warmup()}
+ *      has elapsed.
  *   4. Snapshot equity (mark-to-market on the candle's close).
+ *
+ * After the loop an open position is force-closed at the last processed
+ * candle's close and a terminal equity point is appended, so the equity curve
+ * ends flat and its last value equals initialCapital + realized net P&L.
  *
  * This ordering guarantees no look-ahead: the strategy never sees future
  * candles, and entries never use the candle whose close triggered them.
@@ -61,6 +67,8 @@ public final class BacktestEngine {
 
 		BacktestStrategy.Signal pendingSignal = null;
 		UUID pendingSignalId = null;
+		int warmup = Math.max(0, strategy.warmup());
+		HistoricalCandle lastProcessed = null;
 
 		int processed = 0;
 		for (int i = 0; i < n; i++) {
@@ -69,6 +77,7 @@ public final class BacktestEngine {
 			}
 			HistoricalCandle candle = candles.get(i);
 			if (!candle.isValid()) continue;
+			lastProcessed = candle;
 
 			// 1) Evaluate an open position first — a stop can fire before any new entry.
 			if (portfolio.hasOpenPosition()) {
@@ -92,6 +101,12 @@ public final class BacktestEngine {
 				BigDecimal qty = BacktestExecutionSimulator.riskBasedQuantity(
 						portfolio.availableBalance(), config.riskPerTradePct(),
 						entryPrice, pendingSignal.stopLoss());
+				// The risk budget is not an affordability check — clamp it to
+				// what the balance can actually fund so availableBalance never
+				// goes negative (which would silently disable all later trades).
+				qty = qty.min(BacktestExecutionSimulator.affordableQuantity(
+						portfolio.availableBalance(), entryPrice,
+						config.tradingMode(), config.leverage()));
 				if (qty.signum() > 0) {
 					BigDecimal notional = qty.multiply(entryPrice);
 					BigDecimal entryFee = notional.multiply(config.feePct())
@@ -107,15 +122,17 @@ public final class BacktestEngine {
 			}
 
 			// 3) Ask the strategy — only for candles ≤ current. Strategy sees NO future data.
-			List<HistoricalCandle> history = candles.subList(0, i + 1);
-			BacktestStrategy.Signal emitted;
-			if (strategy instanceof EventAwareBacktestStrategy eventAware) {
-				List<HistoricalEvent> visible = eventStream.stream()
-						.filter(e -> e.time() != null && !e.time().isAfter(candle.closeTime()))
-						.toList();
-				emitted = eventAware.evaluate(history, i, visible).orElse(null);
-			} else {
-				emitted = strategy.evaluate(history, i).orElse(null);
+			//    Emissions are suppressed until the strategy's declared warmup has
+			//    elapsed; candles are still monitored for open positions above.
+			BacktestStrategy.Signal emitted = null;
+			if (i + 1 >= warmup) {
+				List<HistoricalCandle> history = candles.subList(0, i + 1);
+				if (strategy instanceof EventAwareBacktestStrategy eventAware) {
+					List<HistoricalEvent> visible = visibleEvents(eventStream, candle);
+					emitted = eventAware.evaluate(history, i, visible).orElse(null);
+				} else {
+					emitted = strategy.evaluate(history, i).orElse(null);
+				}
 			}
 			if (emitted != null && !portfolio.hasOpenPosition() && i + 1 < n) {
 				pendingSignal = emitted;
@@ -136,17 +153,51 @@ public final class BacktestEngine {
 			processed++;
 		}
 
-		// 5) End-of-test — close any open position at the final candle close.
-		if (portfolio.hasOpenPosition() && !candles.isEmpty()) {
-			HistoricalCandle last = candles.get(candles.size() - 1);
+		// 5) End-of-test — close any open position at the final PROCESSED candle's
+		//    close. Using the last element of the input list would trust a candle
+		//    that the validity gate may have skipped (step 0 above).
+		boolean forcedClose = false;
+		if (portfolio.hasOpenPosition() && lastProcessed != null) {
 			BacktestPortfolio.OpenPosition open = portfolio.openPosition();
 			BigDecimal exitPrice = BacktestExecutionSimulator.applySlippage(
-					last.close(), open.side, false, config.slippagePct());
+					lastProcessed.close(), open.side, false, config.slippagePct());
 			BigDecimal exitFee = exitFee(open.entryPrice.multiply(open.quantity), config.feePct());
 			BacktestPortfolio.ClosedPosition closed = portfolio.closePosition(exitPrice, exitFee);
-			trades.add(toTrade(run, closed, BacktestExitReason.END_OF_TEST, last.closeTime()));
+			trades.add(toTrade(run, closed, BacktestExitReason.END_OF_TEST, lastProcessed.closeTime()));
+			forcedClose = true;
+		}
+
+		// 6) Terminal equity point. When step 5 forced a close, the last snapshot
+		//    from step 4 still carries unrealized P&L, so the curve would end on a
+		//    mark-to-market value instead of the realized one. Downstream that
+		//    makes returnPct (derived from the final equity point) disagree with
+		//    the run's finalEquity (= initialCapital + realized net P&L), and it
+		//    hides the drawdown the forced close itself causes.
+		if (forcedClose) {
+			BigDecimal equityValue = portfolio.equity(lastProcessed.close());
+			BigDecimal drawdown = portfolio.drawdownAgainst(equityValue);
+			BigDecimal drawdownPct = portfolio.peakEquity().signum() == 0
+					? BigDecimal.ZERO
+					: drawdown.multiply(BigDecimal.valueOf(100))
+							.divide(portfolio.peakEquity(), 4, RoundingMode.HALF_UP);
+			equity.add(toEquityPoint(run, lastProcessed.closeTime(), equityValue, portfolio,
+					BigDecimal.ZERO, drawdown, drawdownPct));
 		}
 		return new Result(signals, trades, equity, processed, null);
+	}
+
+	/**
+	 * Events visible at a candle's close, so the no-look-ahead contract holds
+	 * exactly as before while the filter stays a single pass per candle.
+	 */
+	private static List<HistoricalEvent> visibleEvents(List<HistoricalEvent> eventStream,
+			HistoricalCandle candle) {
+		if (eventStream.isEmpty() || candle.closeTime() == null) return List.of();
+		List<HistoricalEvent> visible = new ArrayList<>(4);
+		for (HistoricalEvent e : eventStream) {
+			if (e.time() != null && !e.time().isAfter(candle.closeTime())) visible.add(e);
+		}
+		return visible;
 	}
 
 	// ── Helpers ─────────────────────────────────────────────────
@@ -206,7 +257,10 @@ public final class BacktestEngine {
 	private static BacktestSignal toSignal(BacktestRun run, BacktestConfig cfg,
 			BacktestStrategy strategy, BacktestStrategy.Signal emitted, java.time.Instant time, UUID id) {
 		BacktestSignal s = new BacktestSignal();
-		s.setId(id);
+		// The primary key is database-generated, so the engine's correlation id
+		// travels in signalRef and is rewritten onto the trade by
+		// BacktestRunPersistence once the row exists.
+		s.setSignalRef(id);
 		s.setRun(run);
 		s.setSymbol(cfg.symbol());
 		s.setSide(emitted.side());
