@@ -128,6 +128,21 @@ app:
     auto-execute: ${FUTURES_AUTO_EXECUTE:false}
     reconcile-interval-ms: ${FUTURES_RECONCILE_MS:30000}
     balance-refresh-ms: ${FUTURES_BALANCE_REFRESH_MS:60000}
+  execution:
+    # Phase 8 execution router. Both switches default to false, so a deployment
+    # that has not been configured for automatic execution does not execute.
+    #
+    # enabled=false  the router records every decision but places no live order.
+    #                PAPER routing is unaffected: paper places no exchange order.
+    # dry-run=true   the router evaluates every gate and builds the full execution
+    #                request, but sends nothing. This is how the routing boundary is
+    #                validated while live execution stays disabled.
+    #
+    # There is no environment-conditional activation anywhere. A human operator
+    # must set EXECUTION_ENABLED=true (and LIVE_AUTO_EXECUTE / FUTURES_AUTO_EXECUTE)
+    # explicitly to enable live execution.
+    enabled: ${EXECUTION_ENABLED:false}
+    dry-run: ${EXECUTION_DRY_RUN:false}
   live-trading:
     # MOCK (default) = in-process simulator, safe for dev + tests.
     # EXCHANGE = real Binance signed API. Requires explicit ops flip.

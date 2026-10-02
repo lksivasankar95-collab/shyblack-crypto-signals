@@ -1,0 +1,26 @@
+-- Phase 8 is backend-only. No Flutter file changed: no execution UI, no trading
+-- control, no Buy/Sell/Close button. Verified with `git status`.
+--
+-- Phase 7 frontend suite (59 tests) and `flutter analyze` (9 pre-existing issues,
+-- none in Phase 7 files) are unaffected because nothing was touched.
+--
+-- Unchanged, and re-verified by the backend suite:
+--   - Paper trading semantics (partial exits, TP1-3, SL, fees, realised P&L,
+--     position locking).
+--   - NFM, Spot strategies, Futures strategies.
+--   - Backtesting.
+--   - The portfolio read model and API.
+
+-- Nothing here enables live execution. The switches below are the router's own
+-- configuration and both default to false, recorded for operators:
+
+--   EXECUTION_ENABLED       default false. Master switch for the execution router.
+--   EXECUTION_DRY_RUN       default false. Evaluate every gate and build the full
+--                            execution request, but send nothing.
+--   LIVE_AUTO_EXECUTE       default false (unchanged, pre-existing).
+--   FUTURES_AUTO_EXECUTE    default false (unchanged, pre-existing).
+--
+-- LIVE execution therefore requires a human operator to set at least three
+-- independent values, on top of per-account activation, acknowledgement,
+-- connection status, liveTradingAllowed, and a clear kill switch. There is no
+-- environment-conditional activation anywhere in the codebase.

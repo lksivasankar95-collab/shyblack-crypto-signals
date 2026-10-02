@@ -17,9 +17,6 @@ import com.shyblack.cryptosignals.entity.enums.PositionStatus;
 import com.shyblack.cryptosignals.entity.enums.SignalStatus;
 import com.shyblack.cryptosignals.market.MarketBook;
 import com.shyblack.cryptosignals.repository.PositionRepository;
-import com.shyblack.cryptosignals.repository.SignalRepository;
-import com.shyblack.cryptosignals.repository.UserRepository;
-import com.shyblack.cryptosignals.service.SignalGeneratedEvent;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
@@ -28,19 +25,24 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
- * Signal → paper fan-out eligibility. Proves that an ACTIVE signal automatically
- * reaches enabled PAPER accounts only (never LIVE or disabled), and that the
- * engine creates exactly one paper execution per eligible account via the
- * signal-id idempotency enforced in the execution service.
+ * Per-account paper execution, exercised through the engine's delegation entry
+ * point {@link PaperTradingEngineService#executeForUser}.
+ *
+ * <p><b>Why this test changed shape in Phase 8.</b> The engine no longer listens
+ * for {@code SignalGeneratedEvent} and no longer performs fan-out or
+ * eligibility filtering — the execution router owns both. These tests therefore
+ * drive the account-specific path directly, and the fan-out behaviour they used
+ * to assert is now covered by {@code ExecutionRouterTest}. What is asserted here
+ * is unchanged paper behaviour: one position per eligible account, and the
+ * max-active-positions guard.
  */
 class PaperTradingEngineServiceTest {
 
 	private final MarketBook marketBook = mock(MarketBook.class);
-	private final SignalRepository signalRepository = mock(SignalRepository.class);
 	private final PositionRepository positionRepository = mock(PositionRepository.class);
-	private final UserRepository userRepository = mock(UserRepository.class);
 	private final PaperTradingAccountService accountService = mock(PaperTradingAccountService.class);
-	private final PaperTradingExecutionService executionService = mock(PaperTradingExecutionService.class);
+	private final PaperTradingExecutionService executionService =
+			mock(PaperTradingExecutionService.class);
 
 	private PaperTradingProperties props;
 	private PaperTradingEngineService engine;
@@ -49,8 +51,7 @@ class PaperTradingEngineServiceTest {
 	void setUp() {
 		props = new PaperTradingProperties(null, null, new BigDecimal("100"), 10, null, null);
 		engine = new PaperTradingEngineService(
-				marketBook, signalRepository, positionRepository, userRepository,
-				accountService, executionService, props);
+				marketBook, positionRepository, accountService, executionService, props);
 	}
 
 	private Signal activeSignal() {
@@ -80,110 +81,86 @@ class PaperTradingEngineServiceTest {
 	}
 
 	@Test
-	void activeSignalOpensPaperTradeForEnabledPaperAccount() {
+	void activeSignalOpensPaperTradeForTheDelegatedAccount() {
 		Signal signal = activeSignal();
 		User paperUser = user(true, AccountType.PAPER);
 		Portfolio p = portfolio();
-		when(signalRepository.findById(signal.getId())).thenReturn(Optional.of(signal));
-		when(userRepository.findAll()).thenReturn(List.of(paperUser));
 		when(accountService.getOrCreate(paperUser)).thenReturn(p);
 		when(positionRepository.findByPortfolioAndStatus(p, PositionStatus.OPEN)).thenReturn(List.of());
 		when(executionService.openFromSignal(p, signal)).thenReturn(Optional.of(new Position()));
 
-		engine.onSignalGenerated(new SignalGeneratedEvent(signal.getId()));
+		engine.executeForUser(paperUser, signal);
 
 		verify(executionService, times(1)).openFromSignal(p, signal);
-	}
-
-	@Test
-	void disabledPaperAccountDoesNotReceiveTrade() {
-		Signal signal = activeSignal();
-		User disabled = user(false, AccountType.PAPER);
-		when(signalRepository.findById(signal.getId())).thenReturn(Optional.of(signal));
-		when(userRepository.findAll()).thenReturn(List.of(disabled));
-
-		engine.onSignalGenerated(new SignalGeneratedEvent(signal.getId()));
-
-		verify(accountService, never()).getOrCreate(any());
-		verify(executionService, never()).openFromSignal(any(), any());
-	}
-
-	@Test
-	void liveAccountDoesNotReceivePaperTrade() {
-		Signal signal = activeSignal();
-		User liveUser = user(true, AccountType.LIVE);
-		when(signalRepository.findById(signal.getId())).thenReturn(Optional.of(signal));
-		when(userRepository.findAll()).thenReturn(List.of(liveUser));
-
-		engine.onSignalGenerated(new SignalGeneratedEvent(signal.getId()));
-
-		verify(accountService, never()).getOrCreate(any());
-		verify(executionService, never()).openFromSignal(any(), any());
-	}
-
-	@Test
-	void nonActiveSignalIsIgnored() {
-		Signal signal = activeSignal();
-		signal.setStatus(SignalStatus.PENDING);
-		when(signalRepository.findById(signal.getId())).thenReturn(Optional.of(signal));
-
-		engine.onSignalGenerated(new SignalGeneratedEvent(signal.getId()));
-
-		verify(userRepository, never()).findAll();
-		verify(executionService, never()).openFromSignal(any(), any());
-	}
-
-	@Test
-	void unknownSignalIsIgnored() {
-		UUID id = UUID.randomUUID();
-		when(signalRepository.findById(id)).thenReturn(Optional.empty());
-
-		engine.onSignalGenerated(new SignalGeneratedEvent(id));
-
-		verify(userRepository, never()).findAll();
-		verify(executionService, never()).openFromSignal(any(), any());
 	}
 
 	@Test
 	void maxActivePositionsRejectsFurtherTrades() {
 		props = new PaperTradingProperties(null, null, new BigDecimal("100"), 1, null, null);
 		engine = new PaperTradingEngineService(
-				marketBook, signalRepository, positionRepository, userRepository,
-				accountService, executionService, props);
+				marketBook, positionRepository, accountService, executionService, props);
 
 		Signal signal = activeSignal();
 		User paperUser = user(true, AccountType.PAPER);
 		Portfolio p = portfolio();
-		when(signalRepository.findById(signal.getId())).thenReturn(Optional.of(signal));
-		when(userRepository.findAll()).thenReturn(List.of(paperUser));
 		when(accountService.getOrCreate(paperUser)).thenReturn(p);
 		when(positionRepository.findByPortfolioAndStatus(p, PositionStatus.OPEN))
 				.thenReturn(List.of(new Position()));
 
-		engine.onSignalGenerated(new SignalGeneratedEvent(signal.getId()));
+		engine.executeForUser(paperUser, signal);
 
 		verify(executionService, never()).openFromSignal(any(), any());
 	}
 
 	@Test
-	void oneSignalFansOutToEveryEligiblePaperAccount() {
+	void eachAccountGetsItsOwnPortfolioAndPosition() {
 		Signal signal = activeSignal();
 		User a = user(true, AccountType.PAPER);
 		User b = user(true, AccountType.PAPER);
-		User live = user(true, AccountType.LIVE);
 		Portfolio pa = portfolio();
 		Portfolio pb = portfolio();
-		when(signalRepository.findById(signal.getId())).thenReturn(Optional.of(signal));
-		when(userRepository.findAll()).thenReturn(List.of(a, b, live));
 		when(accountService.getOrCreate(a)).thenReturn(pa);
 		when(accountService.getOrCreate(b)).thenReturn(pb);
 		when(positionRepository.findByPortfolioAndStatus(any(), any())).thenReturn(List.of());
 		when(executionService.openFromSignal(any(), any())).thenReturn(Optional.of(new Position()));
 
-		engine.onSignalGenerated(new SignalGeneratedEvent(signal.getId()));
+		engine.executeForUser(a, signal);
+		engine.executeForUser(b, signal);
 
 		verify(executionService, times(1)).openFromSignal(pa, signal);
 		verify(executionService, times(1)).openFromSignal(pb, signal);
-		verify(accountService, never()).getOrCreate(live);
+	}
+
+	@Test
+	void aFailingAccountDoesNotPreventTheNextAccountFromExecuting() {
+		Signal signal = activeSignal();
+		User failing = user(true, AccountType.PAPER);
+		User healthy = user(true, AccountType.PAPER);
+		Portfolio healthyPortfolio = portfolio();
+		when(accountService.getOrCreate(failing)).thenThrow(new IllegalStateException("boom"));
+		when(accountService.getOrCreate(healthy)).thenReturn(healthyPortfolio);
+		when(positionRepository.findByPortfolioAndStatus(any(), any())).thenReturn(List.of());
+		when(executionService.openFromSignal(any(), any())).thenReturn(Optional.of(new Position()));
+
+		engine.executeForUser(failing, signal);
+		engine.executeForUser(healthy, signal);
+
+		verify(executionService, times(1)).openFromSignal(healthyPortfolio, signal);
+	}
+
+	@Test
+	void aDelegationFailureIsContainedAndDoesNotEscape() {
+		// The router calls this entry point inside a fan-out, so one account's failure
+		// must not propagate and abort the remaining accounts.
+		Signal signal = activeSignal();
+		User paperUser = user(true, AccountType.PAPER);
+		Portfolio p = portfolio();
+		when(accountService.getOrCreate(paperUser)).thenThrow(new IllegalStateException("boom"));
+
+		org.assertj.core.api.Assertions.assertThatCode(
+				() -> engine.executeForUser(paperUser, signal))
+				.doesNotThrowAnyException();
+
+		verify(executionService, never()).openFromSignal(any(), any());
 	}
 }

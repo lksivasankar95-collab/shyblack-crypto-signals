@@ -1,6 +1,5 @@
 package com.shyblack.cryptosignals.service.live;
 
-import com.shyblack.cryptosignals.config.LiveTradingProperties;
 import com.shyblack.cryptosignals.entity.LiveOrder;
 import com.shyblack.cryptosignals.entity.LiveTradingAccount;
 import com.shyblack.cryptosignals.entity.Signal;
@@ -12,36 +11,39 @@ import com.shyblack.cryptosignals.entity.enums.LiveOrderStatus;
 import com.shyblack.cryptosignals.entity.enums.LiveOrderType;
 import com.shyblack.cryptosignals.entity.enums.LiveTradingRiskReason;
 import com.shyblack.cryptosignals.entity.enums.ProtectionStatus;
-import com.shyblack.cryptosignals.entity.enums.SignalStatus;
 import com.shyblack.cryptosignals.entity.enums.TradingMode;
 import com.shyblack.cryptosignals.repository.LiveOrderRepository;
 import com.shyblack.cryptosignals.exchange.ExchangeTradingAdapter;
 import com.shyblack.cryptosignals.exchange.SymbolRules;
 import com.shyblack.cryptosignals.market.MarketBook;
-import com.shyblack.cryptosignals.repository.LiveTradingAccountRepository;
 import com.shyblack.cryptosignals.repository.SignalRepository;
 import java.math.BigDecimal;
-import java.util.List;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.event.TransactionPhase;
-import org.springframework.transaction.event.TransactionalEventListener;
 
 /**
- * Orchestrates the signal → live-order pipeline.
+ * Orchestrates the signal → live-order pipeline for ONE already-gated account.
  *
- * Listens to {@code SignalGeneratedEvent}. For each user whose live account
- * is enabled + not killed + matching trading mode:
+ * Since Phase 8 this engine no longer listens for {@code SignalGeneratedEvent}
+ * and performs no fan-out: {@code service.execution.ExecutionRouter} is the
+ * single authoritative routing decision and calls {@link #executeForAccount}
+ * only after mode, category, account state, operator approval, idempotency and
+ * the risk service have all passed.
  *
- *   1. Risk gate
+ * Given one approved account and a SPOT signal:
+ *
+ *   1. Re-check risk (defence in depth at the point of submission)
  *   2. Fetch exchange symbol rules
  *   3. Size the trade
  *   4. Create local intent (committed)
  *   5. Submit exchange MARKET buy
  *   6. On fill, create protective SL (STOP_LOSS_LIMIT)
+ *
+ * Step 6 fires only on a status the exchange actually reported as filled or
+ * partially filled. A submitted or acknowledged order is never treated as
+ * filled.
  *
  * Nothing here touches paper trading — the two engines live in separate
  * packages by design.
@@ -52,9 +54,6 @@ public class LiveTradingEngineService {
 
 	private static final Logger log = LoggerFactory.getLogger(LiveTradingEngineService.class);
 
-	private final LiveTradingProperties props;
-	private final LiveTradingAccountRepository accountRepository;
-	private final SignalRepository signalRepository;
 	private final LiveTradingRiskService riskService;
 	private final LiveTradingSizingService sizingService;
 	private final LiveTradingExecutionService executionService;
@@ -62,25 +61,26 @@ public class LiveTradingEngineService {
 	private final MarketBook marketBook;
 	private final LiveOrderRepository liveOrderRepository;
 
-	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-	public void onSignalGenerated(com.shyblack.cryptosignals.service.SignalGeneratedEvent event) {
-		if (!props.autoExecute()) {
-			log.debug("[Live] autoExecute=false — skipping signal fan-out");
-			return;
-		}
-		Optional<Signal> maybe = signalRepository.findById(event.getSignalId());
-		if (maybe.isEmpty()) return;
-		Signal signal = maybe.get();
-		if (signal.getStatus() != SignalStatus.ACTIVE) return;
-
-		List<LiveTradingAccount> candidates = accountRepository.findByEnabledTrueAndKillSwitchActiveFalse();
-		for (LiveTradingAccount account : candidates) {
-			try {
-				processForAccount(account, signal);
-			} catch (Exception ex) {
-				log.warn("[Live] fan-out failed account={} signal={} err={}",
-						account.getId(), signal.getId(), ex.getMessage());
-			}
+	/**
+	 * Entry point for one specific live spot account.
+	 *
+	 * <p>Since Phase 8 this engine no longer listens for {@code SignalGeneratedEvent}
+	 * itself. {@code service.execution.ExecutionRouter} is the single authoritative
+	 * routing decision; it has already resolved the mode, category, account state,
+	 * operator approval and idempotency, and it calls this method only when every
+	 * gate passed. The engine therefore performs no fan-out and no mode gating of
+	 * its own, while the execution behaviour below is unchanged.
+	 *
+	 * <p>The defensive risk re-check below is deliberately retained. The router
+	 * already called the same risk service, but re-checking at the point of
+	 * submission means a change between the two calls still cannot place an order.
+	 */
+	public void executeForAccount(LiveTradingAccount account, Signal signal) {
+		try {
+			processForAccount(account, signal);
+		} catch (Exception ex) {
+			log.warn("[Live] execution failed account={} signal={} err={}",
+					account.getId(), signal.getId(), ex.getMessage());
 		}
 	}
 

@@ -13,29 +13,23 @@ import com.shyblack.cryptosignals.entity.enums.FuturesPositionStatus;
 import com.shyblack.cryptosignals.entity.enums.FuturesProtectionStatus;
 import com.shyblack.cryptosignals.entity.enums.FuturesRiskReason;
 import com.shyblack.cryptosignals.entity.enums.PositionSide;
-import com.shyblack.cryptosignals.entity.enums.SignalStatus;
 import com.shyblack.cryptosignals.entity.enums.TradingMode;
 import com.shyblack.cryptosignals.exchange.SymbolRules;
 import com.shyblack.cryptosignals.exchange.futures.FuturesExchangeAdapter;
 import com.shyblack.cryptosignals.market.MarketBook;
 import com.shyblack.cryptosignals.repository.FuturesOrderLifecycleEventRepository;
 import com.shyblack.cryptosignals.repository.FuturesPositionRepository;
-import com.shyblack.cryptosignals.repository.FuturesTradingAccountRepository;
-import com.shyblack.cryptosignals.repository.SignalRepository;
 import com.shyblack.cryptosignals.entity.FuturesOrderLifecycleEvent;
 import com.shyblack.cryptosignals.service.SignalGeneratedEvent;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.event.TransactionPhase;
-import org.springframework.transaction.event.TransactionalEventListener;
 
 /**
  * Orchestrates FUTURES signal → live-order pipeline.
@@ -63,8 +57,6 @@ public class FuturesEngineService {
 	private static final Logger log = LoggerFactory.getLogger(FuturesEngineService.class);
 
 	private final FuturesTradingProperties props;
-	private final FuturesTradingAccountRepository accountRepository;
-	private final SignalRepository signalRepository;
 	private final FuturesRiskService riskService;
 	private final FuturesTradingSizingService sizingService;
 	private final FuturesLiquidationService liquidationService;
@@ -75,25 +67,32 @@ public class FuturesEngineService {
 	private final FuturesPositionRepository positionRepository;
 	private final FuturesOrderLifecycleEventRepository lifecycleRepository;
 
-	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-	public void onSignalGenerated(SignalGeneratedEvent event) {
-		if (!props.autoExecute()) return;
-		Optional<Signal> maybe = signalRepository.findById(event.getSignalId());
-		if (maybe.isEmpty()) return;
-		Signal signal = maybe.get();
-		if (signal.getStatus() != SignalStatus.ACTIVE) return;
-		if (signal.getTradingMode() != TradingMode.FUTURES) return; // SPOT handled elsewhere
-
-		for (FuturesTradingAccount account : accountRepository.findByEnabledTrueAndKillSwitchActiveFalse()) {
-			try { processForAccount(account, signal); }
-			catch (Exception ex) {
-				log.warn("[FutEngine] fan-out failed account={} signal={} err={}",
-						account.getId(), signal.getId(), ex.getMessage());
-			}
+	/**
+	 * Entry point for one specific live futures account.
+	 *
+	 * <p>Since Phase 8 this engine no longer listens for {@code SignalGeneratedEvent}
+	 * and performs no fan-out. {@code service.execution.ExecutionRouter} is the
+	 * single authoritative routing decision; it has already resolved mode,
+	 * category, account state (including acknowledgement and kill switch),
+	 * operator approval and idempotency, and it calls this method only when every
+	 * gate passed. Execution behaviour below is unchanged.
+	 *
+	 * <p>The defensive risk and leverage re-checks are retained: the router already
+	 * called the same services, but re-checking at the point of submission means a
+	 * change between the two calls still cannot place an order.
+	 */
+	public void executeForAccount(FuturesTradingAccount account, Signal signal) {
+		try {
+			processForAccount(account, signal);
+		} catch (Exception ex) {
+			log.warn("[FutEngine] execution failed account={} signal={} err={}",
+					account.getId(), signal.getId(), ex.getMessage());
 		}
 	}
 
 	private void processForAccount(FuturesTradingAccount account, Signal signal) {
+		if (signal.getTradingMode() != TradingMode.FUTURES) return; // SPOT handled elsewhere
+
 		FuturesRiskReason risk = riskService.check(account.getUser(), account, signal);
 		if (risk != FuturesRiskReason.OK) {
 			log.info("[FutEngine] signal={} account={} BLOCKED reason={}",

@@ -9,13 +9,9 @@ import com.shyblack.cryptosignals.entity.enums.AccountType;
 import com.shyblack.cryptosignals.entity.enums.CloseReason;
 import com.shyblack.cryptosignals.entity.enums.PositionSide;
 import com.shyblack.cryptosignals.entity.enums.PositionStatus;
-import com.shyblack.cryptosignals.entity.enums.SignalStatus;
 import com.shyblack.cryptosignals.market.MarketBook;
 import com.shyblack.cryptosignals.market.MarketTicker;
 import com.shyblack.cryptosignals.repository.PositionRepository;
-import com.shyblack.cryptosignals.repository.SignalRepository;
-import com.shyblack.cryptosignals.repository.UserRepository;
-import com.shyblack.cryptosignals.service.SignalGeneratedEvent;
 import jakarta.annotation.PostConstruct;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -26,8 +22,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.event.TransactionPhase;
-import org.springframework.transaction.event.TransactionalEventListener;
 
 /**
  * Orchestrates the full paper-trading lifecycle:
@@ -51,9 +45,7 @@ public class PaperTradingEngineService {
 	private static final Logger log = LoggerFactory.getLogger(PaperTradingEngineService.class);
 
 	private final MarketBook marketBook;
-	private final SignalRepository signalRepository;
 	private final PositionRepository positionRepository;
-	private final UserRepository userRepository;
 	private final PaperTradingAccountService accountService;
 	private final PaperTradingExecutionService executionService;
 	private final PaperTradingProperties props;
@@ -65,34 +57,25 @@ public class PaperTradingEngineService {
 		log.info("[Paper] engine wired to spot + futures ticker streams");
 	}
 
-	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-	public void onSignalGenerated(SignalGeneratedEvent event) {
-		Optional<Signal> maybeSignal = signalRepository.findById(event.getSignalId());
-		if (maybeSignal.isEmpty()) {
-			log.warn("[Paper] SignalGeneratedEvent id={} not found in DB", event.getSignalId());
-			return;
-		}
-		Signal signal = maybeSignal.get();
-		if (signal.getStatus() != SignalStatus.ACTIVE) {
-			log.debug("[Paper] skipping non-ACTIVE signal {} status={}", signal.getId(), signal.getStatus());
-			return;
-		}
-		fanOutForSignal(signal);
-	}
-
-	private void fanOutForSignal(Signal signal) {
-		// Application-generated signals fan out to every enabled PAPER account.
-		// Trading mode is no longer a user-level eligibility preference.
-		List<User> users = userRepository.findAll();
-		for (User user : users) {
-			if (!user.isEnabled()) continue;
-			if (user.getAccountType() != AccountType.PAPER) continue;
-			try {
-				openForUser(user, signal);
-			} catch (Exception ex) {
-				log.warn("[Paper] failed to open position for user={} signal={} err={}",
-						user.getId(), signal.getId(), ex.getMessage());
-			}
+	/**
+	 * Entry point for one specific paper account.
+	 *
+	 * <p>Since Phase 8 this engine no longer listens for {@code SignalGeneratedEvent}
+	 * itself: {@code service.execution.ExecutionRouter} is the single authoritative
+	 * routing decision and calls this method for each paper candidate. The engine
+	 * therefore performs no fan-out and no mode gating of its own — both are the
+	 * router's responsibility — while the actual position-opening behaviour below
+	 * is unchanged.
+	 *
+	 * <p>Public so the router can delegate. It is not a Spring bean method any
+	 * other component should call.
+	 */
+	public void executeForUser(User user, Signal signal) {
+		try {
+			openForUser(user, signal);
+		} catch (Exception ex) {
+			log.warn("[Paper] failed to open position for user={} signal={} err={}",
+					user.getId(), signal.getId(), ex.getMessage());
 		}
 	}
 
