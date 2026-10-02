@@ -17,7 +17,10 @@ import com.shyblack.cryptosignals.exchange.SymbolRules;
 import com.shyblack.cryptosignals.exchange.futures.FuturesAccountSnapshot;
 import com.shyblack.cryptosignals.exchange.futures.FuturesExchangeAdapter;
 import com.shyblack.cryptosignals.exchange.futures.FuturesExchangePosition;
+import com.shyblack.cryptosignals.exchange.futures.FuturesIncomeSnapshot;
 import com.shyblack.cryptosignals.exchange.futures.FuturesOrderResult;
+import com.shyblack.cryptosignals.exchange.futures.FuturesOrderSnapshot;
+import com.shyblack.cryptosignals.exchange.futures.FuturesTradeSnapshot;
 import com.shyblack.cryptosignals.exchange.futures.PlaceFuturesOrderRequest;
 import com.shyblack.cryptosignals.security.ExchangeCredentialEncryptor;
 import java.math.BigDecimal;
@@ -262,6 +265,167 @@ public class BinanceFuturesLiveAdapter implements FuturesExchangeAdapter {
 		String body = signedRequest(credential, HttpMethod.DELETE, "/fapi/v1/order", params);
 		return parse(new PlaceFuturesOrderRequest(
 				symbol, null, null, null, false, BigDecimal.ZERO, null, null, clientOrderId), body);
+	}
+
+	@Override
+	public List<FuturesOrderSnapshot> getOpenOrders(ExchangeCredential credential, String symbol) {
+		Map<String, String> params = new LinkedHashMap<>();
+		if (symbol != null && !symbol.isBlank()) {
+			params.put("symbol", symbol.toUpperCase());
+		}
+		return parseOrderHistory(signedGet(credential, "/fapi/v1/openOrders", params));
+	}
+
+	@Override
+	public List<FuturesOrderSnapshot> getAllOrders(
+			ExchangeCredential credential, String symbol, Instant from, Instant to, int limit) {
+		requireSymbol(symbol, "all-orders");
+		Map<String, String> params = new LinkedHashMap<>();
+		params.put("symbol", symbol.toUpperCase());
+		putIfPresent(params, "startTime", from);
+		putIfPresent(params, "endTime", to);
+		params.put("limit", Integer.toString(limit));
+		return parseOrderHistory(signedGet(credential, "/fapi/v1/allOrders", params));
+	}
+
+	@Override
+	public List<FuturesTradeSnapshot> getTrades(
+			ExchangeCredential credential, String symbol, Instant from, Instant to, int limit) {
+		Map<String, String> params = new LinkedHashMap<>();
+		if (symbol != null && !symbol.isBlank()) {
+			params.put("symbol", symbol.toUpperCase());
+		}
+		putIfPresent(params, "startTime", from);
+		putIfPresent(params, "endTime", to);
+		params.put("limit", Integer.toString(limit));
+		return parseTradeHistory(signedGet(credential, "/fapi/v1/userTrades", params));
+	}
+
+	@Override
+	public List<FuturesIncomeSnapshot> getIncome(
+			ExchangeCredential credential, String incomeType, Instant from, Instant to, int limit) {
+		Map<String, String> params = new LinkedHashMap<>();
+		if (incomeType != null && !incomeType.isBlank()) {
+			params.put("incomeType", incomeType);
+		}
+		putIfPresent(params, "startTime", from);
+		putIfPresent(params, "endTime", to);
+		params.put("limit", Integer.toString(limit));
+		return parseIncome(signedGet(credential, "/fapi/v1/income", params));
+	}
+
+	/** The exchange requires a symbol for the all-orders endpoint, so it is enforced explicitly. */
+	private static void requireSymbol(String symbol, String what) {
+		if (symbol == null || symbol.isBlank()) {
+			throw new ExchangeAdapterException(
+					"A symbol is required for the exchange " + what + " endpoint",
+					null, false, null, null);
+		}
+	}
+
+	private static void putIfPresent(Map<String, String> params, String key, Instant value) {
+		if (value != null) {
+			params.put(key, Long.toString(value.toEpochMilli()));
+		}
+	}
+
+	private static List<FuturesOrderSnapshot> parseOrderHistory(String body) {
+		JsonArray array = JsonParser.parseString(body).getAsJsonArray();
+		List<FuturesOrderSnapshot> orders = new ArrayList<>(array.size());
+		for (JsonElement element : array) {
+			JsonObject o = element.getAsJsonObject();
+			orders.add(new FuturesOrderSnapshot(
+					histStr(o, "symbol"),
+					histLong(o, "orderId"),
+					histStr(o, "clientOrderId"),
+					histStr(o, "side"),
+					histStr(o, "positionSide"),
+					histStr(o, "type"),
+					histStr(o, "status"),
+					o.has("reduceOnly") && !o.get("reduceOnly").isJsonNull()
+							? o.get("reduceOnly").getAsBoolean() : null,
+					histDec(o, "price"),
+					histDec(o, "origQty"),
+					histDec(o, "executedQty"),
+					histDec(o, "cumQuote"),
+					histMillis(o, "time"),
+					histMillis(o, "updateTime")));
+		}
+		return List.copyOf(orders);
+	}
+
+	private static List<FuturesTradeSnapshot> parseTradeHistory(String body) {
+		JsonArray array = JsonParser.parseString(body).getAsJsonArray();
+		List<FuturesTradeSnapshot> trades = new ArrayList<>(array.size());
+		for (JsonElement element : array) {
+			JsonObject t = element.getAsJsonObject();
+			trades.add(new FuturesTradeSnapshot(
+					histStr(t, "symbol"),
+					histLong(t, "tradeId"),
+					histLong(t, "orderId"),
+					histStr(t, "side"),
+					histStr(t, "positionSide"),
+					histDec(t, "price"),
+					histDec(t, "qty"),
+					histDec(t, "quoteQty"),
+					histDec(t, "commission"),
+					histStr(t, "commissionAsset"),
+					histDec(t, "realizedPnl"),
+					histStr(t, "marginAsset"),
+					t.has("maker") && !t.get("maker").isJsonNull() ? t.get("maker").getAsBoolean() : null,
+					histMillis(t, "time")));
+		}
+		return List.copyOf(trades);
+	}
+
+	private static List<FuturesIncomeSnapshot> parseIncome(String body) {
+		JsonArray array = JsonParser.parseString(body).getAsJsonArray();
+		List<FuturesIncomeSnapshot> records = new ArrayList<>(array.size());
+		for (JsonElement element : array) {
+			JsonObject i = element.getAsJsonObject();
+			records.add(new FuturesIncomeSnapshot(
+					histStr(i, "symbol"),
+					histStr(i, "incomeType"),
+					histDec(i, "income"),
+					histStr(i, "asset"),
+					histLong(i, "tranId"),
+					histMillis(i, "time")));
+		}
+		return List.copyOf(records);
+	}
+
+	private static String histStr(JsonObject json, String key) {
+		JsonElement el = json.get(key);
+		return el == null || el.isJsonNull() ? null : el.getAsString();
+	}
+
+	private static Long histLong(JsonObject json, String key) {
+		JsonElement el = json.get(key);
+		if (el == null || el.isJsonNull()) {
+			return null;
+		}
+		try {
+			return el.getAsLong();
+		} catch (Exception ex) {
+			return null;
+		}
+	}
+
+	private static BigDecimal histDec(JsonObject json, String key) {
+		JsonElement el = json.get(key);
+		if (el == null || el.isJsonNull()) {
+			return null;
+		}
+		try {
+			return new BigDecimal(el.getAsString());
+		} catch (NumberFormatException ex) {
+			return null;
+		}
+	}
+
+	private static Instant histMillis(JsonObject json, String key) {
+		Long value = histLong(json, key);
+		return value == null ? null : Instant.ofEpochMilli(value);
 	}
 
 	// ------------------------------------------------------------------

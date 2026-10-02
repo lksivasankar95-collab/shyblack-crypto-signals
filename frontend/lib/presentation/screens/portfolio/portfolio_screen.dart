@@ -194,10 +194,597 @@ class _ScopeBody extends ConsumerWidget {
               ),
             _PositionsSection(data: data),
           ],
+          const SizedBox(height: 18),
+          const _HoldingsSection(),
+          const SizedBox(height: 18),
+          const _SyncStatusSection(),
+          const SizedBox(height: 18),
+          const _HistorySection(),
         ],
       ),
     );
   }
+}
+
+/// Per-asset wallet holdings. Only LIVE spot has them, and they are deliberately
+/// labelled as holdings: the spot API has no open-position concept.
+class _HoldingsSection extends ConsumerWidget {
+  const _HoldingsSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final scope = ref.watch(portfolioSelectionProvider);
+    final holdings = ref.watch(portfolioHoldingsProvider);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'HOLDINGS',
+          style: TextStyle(
+            color: AppColors.muted,
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.8,
+          ),
+        ),
+        const SizedBox(height: 10),
+        holdings.when(
+          loading: () => const PortfolioCard(
+            child: Text(
+              'Loading holdings...',
+              style: TextStyle(color: AppColors.muted, fontSize: 12),
+            ),
+          ),
+          error: (error, stack) => PortfolioStatePanel(
+            title: 'Holdings unavailable',
+            message:
+                'Wallet balances could not be read. This is a transport or server problem, not an '
+                'empty wallet.',
+            icon: Icons.cloud_off,
+            isError: true,
+          ),
+          data: (data) {
+            // Holdings are a property of the mode's spot wallet, not of the
+            // selected category, so only the mode is matched here. The category
+            // is deliberately not compared: a FUTURES selection must still be
+            // able to see that the spot wallet holds nothing, rather than a
+            // response silently disappearing.
+            if (data.accountMode != scope.mode) {
+              return const SizedBox.shrink();
+            }
+            if (data.isEmptyBecauseUnsupported) {
+              return PortfolioStatePanel(
+                title: data.availability.isUnsupported
+                    ? 'No wallet holdings'
+                    : 'Holdings unavailable',
+                message: data.statusMessage ??
+                    'This scope does not expose per-asset wallet balances.',
+                icon: Icons.info_outline,
+              );
+            }
+            if (data.holdings.isEmpty) {
+              return const PortfolioCard(
+                child: Text(
+                  'No assets held in this wallet.',
+                  style: TextStyle(color: AppColors.muted, fontSize: 12),
+                ),
+              );
+            }
+            return Column(
+              children: data.holdings
+                  .map((h) => Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: _HoldingRow(holding: h),
+                      ))
+                  .toList(),
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _HoldingRow extends StatelessWidget {
+  const _HoldingRow({required this.holding});
+
+  final PortfolioHolding holding;
+
+  @override
+  Widget build(BuildContext context) {
+    return PortfolioCard(
+      padding: const EdgeInsets.all(12),
+      // Wrap rather than Row: three labelled figures plus the asset name do not
+      // fit a narrow phone, and an overflow would be worse than a wrapped row.
+      child: Wrap(
+        spacing: 18,
+        runSpacing: 12,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          SizedBox(
+            width: 88,
+            child: Text(
+              holding.asset,
+              style: const TextStyle(
+                color: AppColors.onCard,
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          PortfolioKpi(
+            label: 'Free',
+            value: PortfolioValue(value: holding.free),
+          ),
+          PortfolioKpi(
+            label: 'Locked',
+            value: PortfolioValue(value: holding.locked),
+          ),
+          PortfolioKpi(
+            label: 'Total',
+            value: PortfolioValue(value: holding.total, emphasise: true),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Connection state, freshness and why a scope is not current. A stale scope is
+/// always labelled as stale; the figures above it are never silently presented as
+/// current.
+class _SyncStatusSection extends ConsumerWidget {
+  const _SyncStatusSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final scope = ref.watch(portfolioSelectionProvider);
+    final status = ref.watch(portfolioSyncStatusControllerProvider);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'SYNC STATUS',
+          style: TextStyle(
+            color: AppColors.muted,
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.8,
+          ),
+        ),
+        const SizedBox(height: 10),
+        status.when(
+          loading: () => const SizedBox.shrink(),
+          error: (error, stack) => PortfolioStatePanel(
+            title: 'Sync status unavailable',
+            message: 'The synchronization state of this scope could not be read.',
+            icon: Icons.cloud_off,
+            isError: true,
+          ),
+          data: (data) {
+            if (data.accountMode != scope.mode ||
+                data.accountCategory != scope.category) {
+              return const SizedBox.shrink();
+            }
+            final rows = <Widget>[
+              if (data.connectionStatus != null)
+                _StatusRow(label: 'Connection', value: data.connectionStatus!),
+              if (data.lastRestSync != null)
+                _StatusRow(
+                  label: 'Last REST sync',
+                  value: _stamp(data.lastRestSync!),
+                ),
+              if (data.lastEvent != null)
+                _StatusRow(
+                  label: 'Last stream event',
+                  value: _stamp(data.lastEvent!),
+                ),
+            ];
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (data.isStale)
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 8),
+                    child: PortfolioStatePanel(
+                      title: 'Data is stale',
+                      message:
+                          'The values above are the last known ones and are past the freshness '
+                          'window. They must not be read as current.',
+                      icon: Icons.history_toggle_off,
+                      isError: true,
+                    ),
+                  ),
+                if (rows.isEmpty &&
+                    data.message != null &&
+                    data.message!.isNotEmpty)
+                  PortfolioStatePanel(
+                    title: 'Not synchronised',
+                    message: data.message!,
+                    icon: Icons.info_outline,
+                  )
+                else if (rows.isNotEmpty)
+                  PortfolioCard(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: rows,
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  static String _stamp(DateTime value) =>
+      '${value.toIso8601String().substring(0, 19)}Z';
+}
+
+class _StatusRow extends StatelessWidget {
+  const _StatusRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      // The value is the long part here (a full UTC timestamp), so it takes the
+      // remaining width and wraps instead of forcing the row to overflow.
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(color: AppColors.muted, fontSize: 11),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: const TextStyle(
+                color: AppColors.onCard,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Exchange history for the selected scope: orders, fills or income over an
+/// explicit window.
+class _HistorySection extends ConsumerWidget {
+  const _HistorySection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final query = ref.watch(portfolioHistorySelectionProvider);
+    final history = ref.watch(portfolioHistoryControllerProvider);
+    final scope = ref.watch(portfolioSelectionProvider);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Text(
+              'HISTORY',
+              style: TextStyle(
+                color: AppColors.muted,
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.8,
+              ),
+            ),
+            const Spacer(),
+            // The count is read only from a value already in hand, so it never
+            // renders for a scope other than the one on screen.
+            if (history.asData?.value case final loaded?
+                when loaded.entries.isNotEmpty)
+              Text(
+                '${loaded.entries.length} records',
+                style: const TextStyle(color: AppColors.muted, fontSize: 11),
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        _HistoryTypeTabs(
+          selected: query.type,
+          onChanged: (type) => ref
+              .read(portfolioHistorySelectionProvider.notifier)
+              .selectType(type),
+        ),
+        const SizedBox(height: 8),
+        // Spot order and fill history is per symbol on the exchange, so the
+        // symbol is requested explicitly rather than silently omitted.
+        if (scope.category == PortfolioCategory.spot)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: _SymbolField(
+              initial: query.symbol,
+              onSubmitted: (value) => ref
+                  .read(portfolioHistorySelectionProvider.notifier)
+                  .setSymbol(value),
+            ),
+          ),
+        const SizedBox(height: 4),
+        history.when(
+          loading: () => const PortfolioCard(
+            child: Text(
+              'Loading history...',
+              style: TextStyle(color: AppColors.muted, fontSize: 12),
+            ),
+          ),
+          error: (error, stack) => PortfolioStatePanel(
+            title: 'History unavailable',
+            message:
+                'The exchange history could not be read. This is a transport or server problem, '
+                'not an account with no activity.',
+            icon: Icons.cloud_off,
+            isError: true,
+          ),
+          data: (data) {
+            if (data.accountMode != scope.mode ||
+                data.accountCategory != scope.category) {
+              return const SizedBox.shrink();
+            }
+            if (data.isEmptyBecauseUnsupported) {
+              return PortfolioStatePanel(
+                title: 'No history available',
+                message: data.statusMessage ??
+                    'This scope does not expose exchange history.',
+                icon: Icons.info_outline,
+              );
+            }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (data.isPartial)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: PortfolioStatePanel(
+                      title: 'Partial window',
+                      message: data.statusMessage ??
+                          'The record cap was reached, so this is not the whole period.',
+                      icon: Icons.warning_amber_rounded,
+                      isError: true,
+                    ),
+                  ),
+                if (data.windowFrom != null && data.windowTo != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text(
+                      '${_stamp(data.windowFrom!)} to ${_stamp(data.windowTo!)}',
+                      style: const TextStyle(color: AppColors.muted, fontSize: 10),
+                    ),
+                  ),
+                if (data.entries.isEmpty)
+                  const PortfolioCard(
+                    child: Text(
+                      'No records in this window.',
+                      style: TextStyle(color: AppColors.muted, fontSize: 12),
+                    ),
+                  )
+                else
+                  ...data.entries.map(
+                    (entry) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: _HistoryCard(entry: entry),
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  static String _stamp(DateTime value) =>
+      value.toIso8601String().substring(0, 19);
+}
+
+class _HistoryTypeTabs extends StatelessWidget {
+  const _HistoryTypeTabs({required this.selected, required this.onChanged});
+
+  final PortfolioHistoryType selected;
+  final ValueChanged<PortfolioHistoryType> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: PortfolioHistoryType.values.map((type) {
+        final active = type == selected;
+        return Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(right: 6),
+            child: InkWell(
+              onTap: () => onChanged(type),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 7),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: active
+                      ? AppColors.accent.withValues(alpha: 0.16)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: active ? AppColors.accent : const Color(0xFF2A2A2A),
+                  ),
+                ),
+                child: Text(
+                  type.apiValue,
+                  style: TextStyle(
+                    color: active ? AppColors.accent : AppColors.muted,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.6,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+}
+
+class _SymbolField extends StatefulWidget {
+  const _SymbolField({required this.initial, required this.onSubmitted});
+
+  final String? initial;
+  final ValueChanged<String?> onSubmitted;
+
+  @override
+  State<_SymbolField> createState() => _SymbolFieldState();
+}
+
+class _SymbolFieldState extends State<_SymbolField> {
+  late final TextEditingController _controller =
+      TextEditingController(text: widget.initial ?? '');
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: _controller,
+      style: const TextStyle(color: AppColors.onCard, fontSize: 12),
+      textInputAction: TextInputAction.search,
+      onSubmitted: (value) {
+        final trimmed = value.trim();
+        widget.onSubmitted(trimmed.isEmpty ? null : trimmed.toUpperCase());
+      },
+      decoration: InputDecoration(
+        isDense: true,
+        hintText: 'Symbol, e.g. BTCUSDT',
+        hintStyle: const TextStyle(color: AppColors.muted, fontSize: 12),
+        prefixIcon: const Icon(Icons.search, color: AppColors.muted, size: 18),
+        enabledBorder: OutlineInputBorder(
+          borderSide: const BorderSide(color: Color(0xFF2A2A2A)),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderSide: const BorderSide(color: AppColors.accent),
+          borderRadius: BorderRadius.circular(6),
+        ),
+      ),
+    );
+  }
+}
+
+class _HistoryCard extends StatelessWidget {
+  const _HistoryCard({required this.entry});
+
+  final PortfolioHistoryEntry entry;
+
+  @override
+  Widget build(BuildContext context) {
+    return PortfolioCard(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                entry.symbol ?? entry.entryType,
+                style: const TextStyle(
+                  color: AppColors.onCard,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(width: 8),
+              if (entry.side != null)
+                Text(
+                  entry.side!,
+                  style: const TextStyle(
+                    color: AppColors.muted,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              const Spacer(),
+              if (entry.status != null)
+                Text(
+                  entry.status!,
+                  style: const TextStyle(color: AppColors.muted, fontSize: 9),
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 16,
+            runSpacing: 10,
+            children: [
+              PortfolioKpi(
+                label: 'Price',
+                value: PortfolioValue(value: entry.price),
+              ),
+              PortfolioKpi(
+                label: 'Quantity',
+                value: PortfolioValue(value: entry.quantity),
+              ),
+              if (entry.fee != null)
+                PortfolioKpi(
+                  label: 'Fee${entry.feeAsset != null ? ' (${entry.feeAsset})' : ''}',
+                  value: PortfolioValue(value: entry.fee),
+                ),
+              if (entry.realizedPnl != null)
+                PortfolioKpi(
+                  label: 'Realized P&L',
+                  value: PortfolioValue(value: entry.realizedPnl, signed: true),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              if (entry.orderId != null)
+                Text(
+                  'order ${entry.orderId}',
+                  style: const TextStyle(color: AppColors.muted, fontSize: 9),
+                ),
+              if (entry.tradeId != null) ...[
+                const SizedBox(width: 8),
+                Text(
+                  'trade ${entry.tradeId}',
+                  style: const TextStyle(color: AppColors.muted, fontSize: 9),
+                ),
+              ],
+              const Spacer(),
+              if (entry.occurredAt != null)
+                Text(
+                  _stamp(entry.occurredAt!),
+                  style: const TextStyle(color: AppColors.muted, fontSize: 9),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  static String _stamp(DateTime value) =>
+      value.toIso8601String().substring(0, 19).replaceFirst('T', ' ');
 }
 
 class _Summary extends StatelessWidget {

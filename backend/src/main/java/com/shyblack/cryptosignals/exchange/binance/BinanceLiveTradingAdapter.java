@@ -14,6 +14,8 @@ import com.shyblack.cryptosignals.exchange.ExchangeAdapterException;
 import com.shyblack.cryptosignals.exchange.ExchangeAssetBalance;
 import com.shyblack.cryptosignals.exchange.ExchangeBalances;
 import com.shyblack.cryptosignals.exchange.ExchangeOrderResult;
+import com.shyblack.cryptosignals.exchange.ExchangeOrderSnapshot;
+import com.shyblack.cryptosignals.exchange.ExchangeTradeSnapshot;
 import com.shyblack.cryptosignals.exchange.ExchangeTradingAdapter;
 import com.shyblack.cryptosignals.exchange.PlaceOrderRequest;
 import com.shyblack.cryptosignals.exchange.SymbolRules;
@@ -22,6 +24,8 @@ import java.math.BigDecimal;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -227,6 +231,135 @@ public class BinanceLiveTradingAdapter implements ExchangeTradingAdapter {
 		String body = signedRequest(credential, HttpMethod.DELETE, "/api/v3/order", params);
 		return parseOrderResponse(new PlaceOrderRequest(
 				symbol, null, null, BigDecimal.ZERO, null, null, clientOrderId), body);
+	}
+
+	@Override
+	public List<ExchangeOrderSnapshot> getOpenOrders(ExchangeCredential credential, String symbol) {
+		Map<String, String> params = new LinkedHashMap<>();
+		if (symbol != null && !symbol.isBlank()) {
+			params.put("symbol", symbol.toUpperCase());
+		}
+		return parseOrders(signedGet(credential, "/api/v3/openOrders", params));
+	}
+
+	@Override
+	public List<ExchangeOrderSnapshot> getAllOrders(
+			ExchangeCredential credential, String symbol, Instant from, Instant to, int limit) {
+		requireSymbol(symbol, "all-orders");
+		Map<String, String> params = new LinkedHashMap<>();
+		params.put("symbol", symbol.toUpperCase());
+		putIfPresent(params, "startTime", from);
+		putIfPresent(params, "endTime", to);
+		params.put("limit", Integer.toString(limit));
+		return parseOrders(signedGet(credential, "/api/v3/allOrders", params));
+	}
+
+	@Override
+	public List<ExchangeTradeSnapshot> getTrades(
+			ExchangeCredential credential, String symbol, Instant from, Instant to, int limit) {
+		requireSymbol(symbol, "trade-history");
+		Map<String, String> params = new LinkedHashMap<>();
+		params.put("symbol", symbol.toUpperCase());
+		putIfPresent(params, "startTime", from);
+		putIfPresent(params, "endTime", to);
+		params.put("limit", Integer.toString(limit));
+		return parseTrades(signedGet(credential, "/api/v3/myTrades", params));
+	}
+
+	/**
+	 * The exchange requires a symbol for these endpoints, so a missing one is rejected explicitly
+	 * rather than being silently widened into a cross-symbol query.
+	 */
+	private static void requireSymbol(String symbol, String what) {
+		if (symbol == null || symbol.isBlank()) {
+			throw new ExchangeAdapterException(
+					"A symbol is required for the exchange " + what + " endpoint",
+					null, false, null, null);
+		}
+	}
+
+	private static void putIfPresent(Map<String, String> params, String key, Instant value) {
+		if (value != null) {
+			params.put(key, Long.toString(value.toEpochMilli()));
+		}
+	}
+
+	private static List<ExchangeOrderSnapshot> parseOrders(String body) {
+		JsonArray array = JsonParser.parseString(body).getAsJsonArray();
+		List<ExchangeOrderSnapshot> orders = new ArrayList<>(array.size());
+		for (JsonElement element : array) {
+			JsonObject o = element.getAsJsonObject();
+			orders.add(new ExchangeOrderSnapshot(
+					str(o, "symbol"),
+					longOrNull(o, "orderId"),
+					str(o, "clientOrderId"),
+					str(o, "side"),
+					str(o, "type"),
+					str(o, "status"),
+					dec(o, "price"),
+					dec(o, "origQty"),
+					dec(o, "executedQty"),
+					dec(o, "cummulativeQuoteQty"),
+					millis(o, "time"),
+					millis(o, "updateTime")));
+		}
+		return List.copyOf(orders);
+	}
+
+	private static List<ExchangeTradeSnapshot> parseTrades(String body) {
+		JsonArray array = JsonParser.parseString(body).getAsJsonArray();
+		List<ExchangeTradeSnapshot> trades = new ArrayList<>(array.size());
+		for (JsonElement element : array) {
+			JsonObject t = element.getAsJsonObject();
+			trades.add(new ExchangeTradeSnapshot(
+					str(t, "symbol"),
+					longOrNull(t, "tradeId"),
+					longOrNull(t, "orderId"),
+					str(t, "side"),
+					dec(t, "price"),
+					dec(t, "qty"),
+					// Spot myTrades omits the quote quantity; it stays null rather than derived.
+					dec(t, "quoteQty"),
+					dec(t, "commission"),
+					str(t, "commissionAsset"),
+					t.has("isMaker") && !t.get("isMaker").isJsonNull() ? t.get("isMaker").getAsBoolean() : null,
+					millis(t, "time")));
+		}
+		return List.copyOf(trades);
+	}
+
+	private static String str(JsonObject json, String key) {
+		JsonElement el = json.get(key);
+		return el == null || el.isJsonNull() ? null : el.getAsString();
+	}
+
+	private static Long longOrNull(JsonObject json, String key) {
+		JsonElement el = json.get(key);
+		if (el == null || el.isJsonNull()) {
+			return null;
+		}
+		try {
+			return el.getAsLong();
+		} catch (Exception ex) {
+			return null;
+		}
+	}
+
+	private static BigDecimal dec(JsonObject json, String key) {
+		JsonElement el = json.get(key);
+		if (el == null || el.isJsonNull()) {
+			return null;
+		}
+		try {
+			return new BigDecimal(el.getAsString());
+		} catch (NumberFormatException ex) {
+			return null;
+		}
+	}
+
+	private static Instant millis(JsonObject json, String key) {
+		Long value = longOrNull(json, key);
+		return value == null ? null : Instant.ofEpochMilli(value);
 	}
 
 	// ------------------------------------------------------------------

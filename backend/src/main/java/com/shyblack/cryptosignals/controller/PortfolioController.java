@@ -1,17 +1,27 @@
 package com.shyblack.cryptosignals.controller;
 
 import com.shyblack.cryptosignals.dto.portfolio.PortfolioAccountView;
+import com.shyblack.cryptosignals.dto.portfolio.PortfolioHistoryResponse;
+import com.shyblack.cryptosignals.dto.portfolio.PortfolioHoldingsResponse;
 import com.shyblack.cryptosignals.dto.portfolio.PortfolioOverviewResponse;
+import com.shyblack.cryptosignals.dto.portfolio.PortfolioSyncStatusResponse;
 import com.shyblack.cryptosignals.dto.portfolio.PortfolioPositionsResponse;
+import com.shyblack.cryptosignals.entity.PortfolioAccountConnection;
 import com.shyblack.cryptosignals.entity.User;
+import com.shyblack.cryptosignals.entity.enums.AccountAvailability;
 import com.shyblack.cryptosignals.entity.enums.AccountCategory;
 import com.shyblack.cryptosignals.entity.enums.AccountMode;
 import com.shyblack.cryptosignals.exception.BadRequestException;
 import com.shyblack.cryptosignals.exception.ResourceNotFoundException;
+import com.shyblack.cryptosignals.repository.PortfolioAccountConnectionRepository;
 import com.shyblack.cryptosignals.repository.UserRepository;
 import com.shyblack.cryptosignals.security.UserPrincipal;
+import com.shyblack.cryptosignals.service.portfolio.HistoryWindow;
 import com.shyblack.cryptosignals.service.portfolio.PortfolioAccountReadService;
+import com.shyblack.cryptosignals.service.portfolio.PortfolioHistoryService;
+import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -55,6 +65,8 @@ public class PortfolioController {
 	private static final AccountMode DEFAULT_MODE = AccountMode.PAPER;
 
 	private final PortfolioAccountReadService readService;
+	private final PortfolioHistoryService historyService;
+	private final PortfolioAccountConnectionRepository connectionRepository;
 	private final UserRepository userRepository;
 
 	@Operation(summary = "Portfolio overview for one account mode",
@@ -92,6 +104,83 @@ public class PortfolioController {
 			@Parameter(description = "PAPER or LIVE. Defaults to PAPER.")
 			@RequestParam(name = "mode", required = false) AccountMode mode) {
 		return readService.listPositions(currentUser(), mode == null ? DEFAULT_MODE : mode, category);
+	}
+
+	@Operation(summary = "Per-asset wallet holdings for one account scope",
+			description = "Authoritative exchange wallet balances. These are holdings, not trading "
+					+ "positions: Binance Spot has no open-position concept. No valuation is derived, "
+					+ "because no approved price feed is available for one.")
+	@GetMapping("/{category}/holdings")
+	public PortfolioHoldingsResponse holdings(
+			@PathVariable AccountCategory category,
+			@RequestParam(name = "mode", required = false) AccountMode mode) {
+		AccountMode effective = mode == null ? DEFAULT_MODE : mode;
+		return historyService.holdings(currentUser(), effective, category);
+	}
+
+	@Operation(summary = "Orders, fills or income for one account scope",
+			description = "Read-only exchange history over an explicit window. Records are read from "
+					+ "the exchange and are never reconstructed from local orders or signals. A window is "
+					+ "always returned, and a result that hit the record cap is marked partial.")
+	@GetMapping("/{category}/history")
+	public PortfolioHistoryResponse history(
+			@PathVariable AccountCategory category,
+			@Parameter(description = "PAPER or LIVE. Defaults to PAPER.")
+			@RequestParam(name = "mode", required = false) AccountMode mode,
+			@Parameter(description = "ORDER, TRADE or INCOME. Defaults to ORDER.")
+			@RequestParam(name = "type", required = false) String type,
+			@RequestParam(name = "symbol", required = false) String symbol,
+			@RequestParam(name = "from", required = false) Instant from,
+			@RequestParam(name = "to", required = false) Instant to,
+			@RequestParam(name = "limit", required = false) Integer limit) {
+		AccountMode effective = mode == null ? DEFAULT_MODE : mode;
+		HistoryWindow window = HistoryWindow.resolve(from, to, limit);
+		return historyService.history(currentUser(), effective, category, type, window, symbol);
+	}
+
+	@Operation(summary = "Synchronization and reconciliation status for one account scope",
+			description = "Connection state, data freshness and the reason a scope is not current. "
+					+ "Exposes no credential, listen key or internal identifier.")
+	@GetMapping("/{category}/sync-status")
+	public PortfolioSyncStatusResponse syncStatus(
+			@PathVariable AccountCategory category,
+			@RequestParam(name = "mode", required = false) AccountMode mode) {
+AccountMode effective = mode == null ? DEFAULT_MODE : mode;
+		User user = currentUser();
+		PortfolioAccountView view = readService.getAccount(user, effective, category);
+		Optional<PortfolioAccountConnection> connection = connectionRepository
+				.findByUserAndAccountModeAndAccountCategory(user, effective, category);
+
+		/*
+		 * The connection row is the single authority for a scope's synchronisation state: it is
+		 * written by both the REST snapshot sync and the user-stream event processor. The read
+		 * model's availability is derived from the credential/account records instead, so taking
+		 * availability from one source and the timestamps from the other can report
+		 * "connected, synced just now" alongside "not connected". Availability is therefore taken
+		 * from the connection row whenever it exists, and the read model is the fallback only.
+		 */
+		AccountAvailability availability = connection
+				.map(PortfolioAccountConnection::getAvailability)
+				.filter(value -> value != null)
+				.orElse(view.availability());
+
+		boolean stale = availability == AccountAvailability.STALE
+				|| (view.availability() == AccountAvailability.STALE);
+
+		String message = connection
+				.map(PortfolioAccountConnection::getLastSyncMessage)
+				.filter(value -> !value.isBlank())
+				.orElse(view.statusMessage());
+
+		return new PortfolioSyncStatusResponse(
+				effective,
+				category,
+				connection.map(PortfolioAccountConnection::getConnectionStatus).orElse(null),
+				availability,
+				connection.map(PortfolioAccountConnection::getLastSyncedAt).orElse(null),
+				connection.map(PortfolioAccountConnection::getLastEventAt).orElse(null),
+				stale,
+				message);
 	}
 
 	/**

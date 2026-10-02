@@ -7,17 +7,22 @@ import com.shyblack.cryptosignals.entity.enums.LiveOrderType;
 import com.shyblack.cryptosignals.exchange.ExchangeAccountSnapshot;
 import com.shyblack.cryptosignals.exchange.ExchangeAssetBalance;
 import com.shyblack.cryptosignals.exchange.ExchangeBalances;
+import com.shyblack.cryptosignals.exchange.ExchangeAdapterException;
 import com.shyblack.cryptosignals.exchange.ExchangeOrderResult;
+import com.shyblack.cryptosignals.exchange.ExchangeOrderSnapshot;
+import com.shyblack.cryptosignals.exchange.ExchangeTradeSnapshot;
 import com.shyblack.cryptosignals.exchange.ExchangeTradingAdapter;
 import com.shyblack.cryptosignals.exchange.PlaceOrderRequest;
 import com.shyblack.cryptosignals.exchange.SymbolRules;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * In-process exchange simulator. Used when {@code app.live-trading.mode=MOCK}
@@ -39,6 +44,8 @@ public class MockExchangeTradingAdapter implements ExchangeTradingAdapter {
 	private final Map<String, ExchangeOrderResult> orders = new ConcurrentHashMap<>();
 	private final Map<String, SymbolRules> rules = new ConcurrentHashMap<>();
 	private final Map<String, ExchangeAssetBalance> assets = new ConcurrentHashMap<>();
+	private final List<ExchangeOrderSnapshot> seededOrders = new CopyOnWriteArrayList<>();
+	private final List<ExchangeTradeSnapshot> seededTrades = new CopyOnWriteArrayList<>();
 	private BigDecimal availableBalance = new BigDecimal("10000");
 	private BigDecimal totalBalance = new BigDecimal("10000");
 
@@ -107,6 +114,8 @@ public class MockExchangeTradingAdapter implements ExchangeTradingAdapter {
 		orders.clear();
 		rules.clear();
 		assets.clear();
+		seededOrders.clear();
+		seededTrades.clear();
 		availableBalance = new BigDecimal("10000");
 		totalBalance = new BigDecimal("10000");
 	}
@@ -179,6 +188,67 @@ public class MockExchangeTradingAdapter implements ExchangeTradingAdapter {
 				"MOCK cancel");
 		orders.put(clientOrderId, cancelled);
 		return cancelled;
+	}
+
+	// ---- Read-only history fixtures ------------------------------------
+
+	@Override
+	public List<ExchangeOrderSnapshot> getOpenOrders(ExchangeCredential credential, String symbol) {
+		List<ExchangeOrderSnapshot> result = new ArrayList<>();
+		for (ExchangeOrderSnapshot order : seededOrders) {
+			if (symbol == null || symbol.isBlank() || symbol.equalsIgnoreCase(order.symbol())) {
+				result.add(order);
+			}
+		}
+		return List.copyOf(result);
+	}
+
+	@Override
+	public List<ExchangeOrderSnapshot> getAllOrders(
+			ExchangeCredential credential, String symbol, Instant from, Instant to, int limit) {
+		if (symbol == null || symbol.isBlank()) {
+			throw new ExchangeAdapterException(
+					"A symbol is required for the exchange all-orders endpoint", null, false, null, null);
+		}
+		return seededOrders.stream()
+				.filter(o -> symbol.equalsIgnoreCase(o.symbol()))
+				.filter(o -> inWindow(o.createdAt(), from, to))
+				.limit(limit)
+				.toList();
+	}
+
+	@Override
+	public List<ExchangeTradeSnapshot> getTrades(
+			ExchangeCredential credential, String symbol, Instant from, Instant to, int limit) {
+		if (symbol == null || symbol.isBlank()) {
+			throw new ExchangeAdapterException(
+					"A symbol is required for the exchange trade-history endpoint", null, false, null, null);
+		}
+		return seededTrades.stream()
+				.filter(t -> symbol.equalsIgnoreCase(t.symbol()))
+				.filter(t -> inWindow(t.tradedAt(), from, to))
+				.limit(limit)
+				.toList();
+	}
+
+	/** Seeds exchange-reported order history. Test-only; never an exchange call. */
+	public void putOrder(ExchangeOrderSnapshot order) {
+		seededOrders.add(order);
+	}
+
+	/** Seeds exchange-reported fill history. Test-only; never an exchange call. */
+	public void putTrade(ExchangeTradeSnapshot trade) {
+		seededTrades.add(trade);
+	}
+
+	private static boolean inWindow(Instant value, Instant from, Instant to) {
+		if (value == null) {
+			return true;
+		}
+		if (from != null && value.isBefore(from)) {
+			return false;
+		}
+		return to == null || value.isBefore(to);
 	}
 
 	// ---- Test hooks -----------------------------------------------------

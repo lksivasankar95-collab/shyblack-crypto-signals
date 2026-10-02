@@ -7,7 +7,11 @@ import com.shyblack.cryptosignals.entity.enums.FuturesOrderStatus;
 import com.shyblack.cryptosignals.entity.enums.FuturesOrderType;
 import com.shyblack.cryptosignals.entity.enums.FuturesPositionMode;
 import com.shyblack.cryptosignals.entity.enums.PositionSide;
+import com.shyblack.cryptosignals.exchange.ExchangeAdapterException;
 import com.shyblack.cryptosignals.exchange.SymbolRules;
+import com.shyblack.cryptosignals.exchange.futures.FuturesIncomeSnapshot;
+import com.shyblack.cryptosignals.exchange.futures.FuturesOrderSnapshot;
+import com.shyblack.cryptosignals.exchange.futures.FuturesTradeSnapshot;
 import com.shyblack.cryptosignals.exchange.futures.FuturesAccountSnapshot;
 import com.shyblack.cryptosignals.exchange.futures.FuturesExchangeAdapter;
 import com.shyblack.cryptosignals.exchange.futures.FuturesExchangePosition;
@@ -16,7 +20,9 @@ import com.shyblack.cryptosignals.exchange.futures.PlaceFuturesOrderRequest;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -34,6 +40,9 @@ public class MockFuturesExchangeAdapter implements FuturesExchangeAdapter {
 	private final Map<String, Integer> leverages = new ConcurrentHashMap<>();
 	private final Map<String, FuturesMarginMode> marginModes = new ConcurrentHashMap<>();
 	private final Map<String, FuturesExchangePosition> positions = new ConcurrentHashMap<>();
+	private final List<FuturesOrderSnapshot> seededOrders = new CopyOnWriteArrayList<>();
+	private final List<FuturesTradeSnapshot> seededTrades = new CopyOnWriteArrayList<>();
+	private final List<FuturesIncomeSnapshot> seededIncome = new CopyOnWriteArrayList<>();
 	private BigDecimal walletBalance = new BigDecimal("10000");
 	private BigDecimal availableBalance = new BigDecimal("10000");
 	private FuturesPositionMode positionMode = FuturesPositionMode.ONE_WAY;
@@ -97,6 +106,9 @@ public class MockFuturesExchangeAdapter implements FuturesExchangeAdapter {
 		leverages.clear();
 		marginModes.clear();
 		positions.clear();
+		seededOrders.clear();
+		seededTrades.clear();
+		seededIncome.clear();
 		walletBalance = new BigDecimal("10000");
 		availableBalance = new BigDecimal("10000");
 		positionMode = FuturesPositionMode.ONE_WAY;
@@ -163,6 +175,75 @@ public class MockFuturesExchangeAdapter implements FuturesExchangeAdapter {
 				existing.fee(), existing.feeAsset(), Instant.now(), "MOCK cancel");
 		orders.put(clientOrderId, cancelled);
 		return cancelled;
+	}
+
+	// ---- Read-only history fixtures ------------------------------------
+
+	@Override
+	public List<FuturesOrderSnapshot> getOpenOrders(ExchangeCredential credential, String symbol) {
+		return seededOrders.stream()
+				.filter(o -> symbol == null || symbol.isBlank() || symbol.equalsIgnoreCase(o.symbol()))
+				.toList();
+	}
+
+	@Override
+	public List<FuturesOrderSnapshot> getAllOrders(
+			ExchangeCredential credential, String symbol, Instant from, Instant to, int limit) {
+		if (symbol == null || symbol.isBlank()) {
+			throw new ExchangeAdapterException(
+					"A symbol is required for the exchange all-orders endpoint", null, false, null, null);
+		}
+		return seededOrders.stream()
+				.filter(o -> symbol.equalsIgnoreCase(o.symbol()))
+				.filter(o -> inWindow(o.createdAt(), from, to))
+				.limit(limit)
+				.toList();
+	}
+
+	@Override
+	public List<FuturesTradeSnapshot> getTrades(
+			ExchangeCredential credential, String symbol, Instant from, Instant to, int limit) {
+		return seededTrades.stream()
+				.filter(t -> symbol == null || symbol.isBlank() || symbol.equalsIgnoreCase(t.symbol()))
+				.filter(t -> inWindow(t.tradedAt(), from, to))
+				.limit(limit)
+				.toList();
+	}
+
+	@Override
+	public List<FuturesIncomeSnapshot> getIncome(
+			ExchangeCredential credential, String incomeType, Instant from, Instant to, int limit) {
+		return seededIncome.stream()
+				.filter(i -> incomeType == null || incomeType.isBlank()
+						|| incomeType.equalsIgnoreCase(i.incomeType()))
+				.filter(i -> inWindow(i.time(), from, to))
+				.limit(limit)
+				.toList();
+	}
+
+	/** Seeds exchange-reported futures order history. Test-only; never an exchange call. */
+	public void putOrder(FuturesOrderSnapshot order) {
+		seededOrders.add(order);
+	}
+
+	/** Seeds exchange-reported futures fill history. Test-only; never an exchange call. */
+	public void putTrade(FuturesTradeSnapshot trade) {
+		seededTrades.add(trade);
+	}
+
+	/** Seeds exchange-reported income records. Test-only; never an exchange call. */
+	public void putIncome(FuturesIncomeSnapshot income) {
+		seededIncome.add(income);
+	}
+
+	private static boolean inWindow(Instant value, Instant from, Instant to) {
+		if (value == null) {
+			return true;
+		}
+		if (from != null && value.isBefore(from)) {
+			return false;
+		}
+		return to == null || value.isBefore(to);
 	}
 
 	// Test hooks --------------------------------------------------------

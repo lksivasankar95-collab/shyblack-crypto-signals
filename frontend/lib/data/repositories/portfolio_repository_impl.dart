@@ -31,4 +31,44 @@ class PortfolioRepositoryImpl implements PortfolioRepository {
     final json = await _remote.getPositions(mode.apiValue, category.apiValue);
     return PortfolioAccountModel.positionsFromJson(json);
   }
+
+  @override
+  Future<PortfolioHoldings> getHoldings(
+    PortfolioMode mode,
+    PortfolioCategory category,
+  ) async {
+    final json = await _remote.getHoldings(mode.apiValue, category.apiValue);
+    return PortfolioAccountModel.holdingsFromJson(json);
+  }
+
+  @override
+  Future<PortfolioHistory> getHistory({
+    required PortfolioMode mode,
+    required PortfolioCategory category,
+    required PortfolioHistoryType type,
+    String? symbol,
+    DateTime? from,
+    DateTime? to,
+    int? limit,
+  }) async {
+    final json = await _remote.getHistory(
+      mode: mode.apiValue,
+      category: category.apiValue,
+      type: type.apiValue,
+      symbol: symbol,
+      from: from,
+      to: to,
+      limit: limit,
+    );
+    return PortfolioAccountModel.historyFromJson(json);
+  }
+
+  @override
+  Future<PortfolioSyncStatus> getSyncStatus(
+    PortfolioMode mode,
+    PortfolioCategory category,
+  ) async {
+    final json = await _remote.getSyncStatus(mode.apiValue, category.apiValue);
+    return PortfolioAccountModel.syncStatusFromJson(json);
+  }
 }

@@ -247,3 +247,198 @@ class PortfolioPositions {
   /// unavailable, rather than because the account genuinely holds nothing.
   bool get isEmptyBecauseUnsupported => positions.isEmpty && !availability.isAvailable;
 }
+
+/// One asset held in an exchange wallet.
+///
+/// This is a wallet HOLDING, not a trading position. The spot API has no
+/// open-position concept, so the distinction is carried in the type rather than
+/// left to the widget layer.
+///
+/// There is deliberately no valuation field. Converting a balance into a quote
+/// currency needs a trusted price feed, and an unpriced holding is far more
+/// honest than a fabricated one.
+class PortfolioHolding {
+  const PortfolioHolding({
+    required this.asset,
+    this.free,
+    this.locked,
+    this.total,
+  });
+
+  final String asset;
+  final double? free;
+  final double? locked;
+  final double? total;
+}
+
+/// Per-asset wallet holdings for one account scope.
+///
+/// Only LIVE spot has them. Every other scope reports [PortfolioAvailability]
+/// .unsupported with an empty list, so an absent capability can never be
+/// mistaken for an empty wallet.
+class PortfolioHoldings {
+  const PortfolioHoldings({
+    required this.accountMode,
+    required this.accountCategory,
+    required this.availability,
+    required this.holdings,
+    this.source,
+    this.statusMessage,
+  });
+
+  final PortfolioMode accountMode;
+  final PortfolioCategory accountCategory;
+  final PortfolioAvailability availability;
+
+  /// EXCHANGE or LOCAL_PAPER, so the two sources are never conflated.
+  final String? source;
+  final List<PortfolioHolding> holdings;
+  final String? statusMessage;
+
+  /// True when there are no holdings because the scope has no such capability,
+  /// rather than because the wallet is genuinely empty.
+  bool get isEmptyBecauseUnsupported => holdings.isEmpty && !availability.isAvailable;
+}
+
+/// What kind of history record is being shown.
+///
+/// Mirrors the backend `type` parameter. [income] exists only for futures, where
+/// the exchange publishes realized P&L as income records.
+enum PortfolioHistoryType {
+  order('ORDER'),
+  trade('TRADE'),
+  income('INCOME');
+
+  const PortfolioHistoryType(this.apiValue);
+
+  final String apiValue;
+
+  static PortfolioHistoryType parse(Object? raw) {
+    for (final value in PortfolioHistoryType.values) {
+      if (value.apiValue == raw) return value;
+    }
+    return PortfolioHistoryType.order;
+  }
+}
+
+/// One exchange-reported history record: an order, a fill or an income record.
+///
+/// Every record originates from an exchange endpoint. Nothing here is
+/// reconstructed from a signal or a local order, so a record that the exchange
+/// did not report is simply absent rather than approximated.
+class PortfolioHistoryEntry {
+  const PortfolioHistoryEntry({
+    required this.entryType,
+    required this.accountMode,
+    required this.accountCategory,
+    this.symbol,
+    this.orderId,
+    this.tradeId,
+    this.side,
+    this.status,
+    this.price,
+    this.quantity,
+    this.quoteQuantity,
+    this.fee,
+    this.feeAsset,
+    this.realizedPnl,
+    this.occurredAt,
+  });
+
+  final String entryType;
+  final PortfolioMode accountMode;
+  final PortfolioCategory accountCategory;
+  final String? symbol;
+  final int? orderId;
+
+  /// Natural identity of a fill. Null for an order or income record.
+  final int? tradeId;
+  final String? side;
+
+  /// Order status for an order record, exchange income type for an income
+  /// record, null for a fill.
+  final String? status;
+  final double? price;
+  final double? quantity;
+  final double? quoteQuantity;
+  final double? fee;
+  final String? feeAsset;
+
+  /// Realized P&L exactly as the exchange reported it. Null when the exchange
+  /// reported none; it is never derived from local state.
+  final double? realizedPnl;
+  final DateTime? occurredAt;
+}
+
+/// History for one account scope over an explicit window.
+///
+/// [windowFrom] and [windowTo] are always present so the user can see exactly
+/// which period is covered. [complete] is false when the backend stopped at its
+/// record cap, in which case the history is partial and must be labelled as
+/// such instead of being presented as the full period.
+class PortfolioHistory {
+  const PortfolioHistory({
+    required this.accountMode,
+    required this.accountCategory,
+    required this.availability,
+    required this.entries,
+    this.source,
+    this.entryType,
+    this.windowFrom,
+    this.windowTo,
+    this.complete = true,
+    this.statusMessage,
+  });
+
+  final PortfolioMode accountMode;
+  final PortfolioCategory accountCategory;
+  final PortfolioAvailability availability;
+  final String? source;
+  final String? entryType;
+  final DateTime? windowFrom;
+  final DateTime? windowTo;
+  final bool complete;
+  final List<PortfolioHistoryEntry> entries;
+  final String? statusMessage;
+
+  /// True when the backend truncated the window at its record cap, so what is
+  /// shown is not the whole period.
+  bool get isPartial => !complete;
+
+  bool get isEmptyBecauseUnsupported => entries.isEmpty && !availability.isAvailable;
+}
+
+/// Synchronization and reconciliation status for one account scope.
+///
+/// Exposes no credential, listen key or internal identifier, and carries the
+/// reason a scope is not current so stale data can be labelled rather than
+/// shown as fact.
+class PortfolioSyncStatus {
+  const PortfolioSyncStatus({
+    required this.accountMode,
+    required this.accountCategory,
+    required this.availability,
+    required this.stale,
+    this.connectionStatus,
+    this.lastRestSync,
+    this.lastEvent,
+    this.message,
+  });
+
+  final PortfolioMode accountMode;
+  final PortfolioCategory accountCategory;
+  final PortfolioAvailability availability;
+  final String? connectionStatus;
+
+  /// REST snapshot time, distinct from the user-stream event time.
+  final DateTime? lastRestSync;
+
+  /// Last applied user-data stream event time, null when none has arrived.
+  final DateTime? lastEvent;
+
+  /// True when the scope holds data that is past the freshness window.
+  final bool stale;
+  final String? message;
+
+  bool get isStale => stale || availability.isStale;
+}

@@ -46,6 +46,18 @@ abstract final class ApiConstants {
   static String portfolioAccount(String category) => '/v1/portfolio/$category';
   static String portfolioPositions(String category) =>
       '/v1/portfolio/$category/positions';
+
+  // Phase 7 read-only information layer. Holdings are wallet balances, history is
+  // read from the exchange over an explicit bounded window, and sync status
+  // reports freshness. All three are read-only; none of them can place an order.
+  static String portfolioHoldings(String category) =>
+      '/v1/portfolio/$category/holdings';
+
+  static String portfolioHistory(String category) =>
+      '/v1/portfolio/$category/history';
+
+  static String portfolioSyncStatus(String category) =>
+      '/v1/portfolio/$category/sync-status';
   static const String signals = '/v1/signals';
   static const String watchlist = '/v1/watchlist';
   static const String notifications = '/v1/notifications';

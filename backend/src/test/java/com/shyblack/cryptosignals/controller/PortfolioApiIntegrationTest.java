@@ -29,7 +29,10 @@ import com.shyblack.cryptosignals.entity.enums.SignalStatus;
 import com.shyblack.cryptosignals.entity.enums.TradingMode;
 import com.shyblack.cryptosignals.exchange.futures.FuturesExchangePosition;
 import com.shyblack.cryptosignals.exchange.futures.mock.MockFuturesExchangeAdapter;
+import com.shyblack.cryptosignals.exchange.futures.FuturesIncomeSnapshot;
 import com.shyblack.cryptosignals.exchange.mock.MockExchangeTradingAdapter;
+import com.shyblack.cryptosignals.exchange.ExchangeOrderSnapshot;
+import com.shyblack.cryptosignals.exchange.ExchangeTradeSnapshot;
 import com.shyblack.cryptosignals.repository.ExchangeCredentialRepository;
 import com.shyblack.cryptosignals.repository.FuturesTradingAccountRepository;
 import com.shyblack.cryptosignals.repository.LiveTradingAccountRepository;
@@ -701,6 +704,212 @@ class PortfolioApiIntegrationTest {
 
 		authGet("/api/v1/paper-trading/account").andExpect(status().isOk());
 		authGet("/api/v1/paper-trading/positions").andExpect(status().isOk());
+	}
+
+	// -------------------------------------------------- phase 7: holdings
+
+	@Test
+	void spotHoldingsExposeExchangeWalletBalances() throws Exception {
+		signUp();
+		credential();
+		spotAdapter.putBalance("BTC", new BigDecimal("0.5"), new BigDecimal("0.25"));
+		syncService.syncSpot(user);
+
+		authGet("/api/v1/portfolio/SPOT/holdings?mode=LIVE")
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.availability").value("AVAILABLE"))
+				.andExpect(jsonPath("$.source").value("EXCHANGE"))
+				.andExpect(jsonPath("$.holdings.length()").value(1))
+				.andExpect(jsonPath("$.holdings[0].asset").value("BTC"))
+				.andExpect(jsonPath("$.holdings[0].free").value(0.5))
+				.andExpect(jsonPath("$.holdings[0].locked").value(0.25))
+				.andExpect(jsonPath("$.holdings[0].total").value(0.75));
+	}
+
+	@Test
+	void paperHoldingsReportUnsupportedRatherThanAnEmptyWallet() throws Exception {
+		signUp();
+
+		authGet("/api/v1/portfolio/SPOT/holdings")
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.accountMode").value("PAPER"))
+				.andExpect(jsonPath("$.availability").value("UNSUPPORTED"))
+				.andExpect(jsonPath("$.holdings.length()").value(0));
+	}
+
+	@Test
+	void holdingsRequireAuthentication() throws Exception {
+		mockMvc.perform(get("/api/v1/portfolio/SPOT/holdings?mode=LIVE"))
+				.andExpect(status().isUnauthorized());
+	}
+
+	// ----------------------------------------------------- phase 7: history
+
+	@Test
+	void liveSpotOrdersAreReturnedNewestFirstWithAnExplicitWindow() throws Exception {
+		signUp();
+		credential();
+		Instant now = Instant.now();
+		spotAdapter.putOrder(new ExchangeOrderSnapshot("BTCUSDT", 1L, "c1", "BUY", "LIMIT", "FILLED",
+				new BigDecimal("100"), new BigDecimal("1"), new BigDecimal("1"),
+				new BigDecimal("100"), now.minusSeconds(600), now.minusSeconds(600)));
+		spotAdapter.putOrder(new ExchangeOrderSnapshot("BTCUSDT", 2L, "c2", "SELL", "MARKET", "FILLED",
+				new BigDecimal("110"), new BigDecimal("1"), new BigDecimal("1"),
+				new BigDecimal("110"), now.minusSeconds(60), now.minusSeconds(60)));
+
+		authGet("/api/v1/portfolio/SPOT/history?mode=LIVE&type=ORDER&symbol=BTCUSDT")
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.availability").value("AVAILABLE"))
+				.andExpect(jsonPath("$.source").value("EXCHANGE"))
+				.andExpect(jsonPath("$.entryType").value("ORDER"))
+				.andExpect(jsonPath("$.complete").value(true))
+				.andExpect(jsonPath("$.windowFrom").exists())
+				.andExpect(jsonPath("$.windowTo").exists())
+				.andExpect(jsonPath("$.entries.length()").value(2))
+				.andExpect(jsonPath("$.entries[0].orderId").value(2))
+				.andExpect(jsonPath("$.entries[0].side").value("SELL"))
+				.andExpect(jsonPath("$.entries[1].orderId").value(1));
+	}
+
+	@Test
+	void liveFillsAreReturnedAndOmittedValuesStayNull() throws Exception {
+		signUp();
+		credential();
+		spotAdapter.putTrade(new ExchangeTradeSnapshot("BTCUSDT", 55L, 9L, "BUY",
+				new BigDecimal("100"), new BigDecimal("2"), null,
+				new BigDecimal("0.2"), "BNB", true, Instant.now().minusSeconds(60)));
+
+		authGet("/api/v1/portfolio/SPOT/history?mode=LIVE&type=TRADE&symbol=BTCUSDT")
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.entries.length()").value(1))
+				.andExpect(jsonPath("$.entries[0].tradeId").value(55))
+				.andExpect(jsonPath("$.entries[0].orderId").value(9))
+				.andExpect(jsonPath("$.entries[0].feeAsset").value("BNB"))
+				.andExpect(jsonPath("$.entries[0].realizedPnl").doesNotExist());
+	}
+
+	@Test
+	void futuresIncomeCarriesExchangeRealizedPnl() throws Exception {
+		signUp();
+		credential();
+		futuresAdapter.putIncome(new FuturesIncomeSnapshot("BTCUSDT", "REALIZED_PNL",
+				new BigDecimal("42.5"), "USDT", 777L, Instant.now().minusSeconds(60)));
+
+		authGet("/api/v1/portfolio/FUTURES/history?mode=LIVE&type=INCOME")
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.entries.length()").value(1))
+				.andExpect(jsonPath("$.entries[0].entryType").value("INCOME"))
+				.andExpect(jsonPath("$.entries[0].status").value("REALIZED_PNL"))
+				.andExpect(jsonPath("$.entries[0].realizedPnl").value(42.5));
+	}
+
+	@Test
+	void paperHistoryNeverReturnsExchangeRecords() throws Exception {
+		signUp();
+		credential();
+		spotAdapter.putOrder(new ExchangeOrderSnapshot("BTCUSDT", 1L, "c1", "BUY", "LIMIT", "FILLED",
+				BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE,
+				Instant.now(), Instant.now()));
+
+		authGet("/api/v1/portfolio/SPOT/history?type=ORDER&symbol=BTCUSDT")
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.accountMode").value("PAPER"))
+				.andExpect(jsonPath("$.source").value("LOCAL_PAPER"))
+				.andExpect(jsonPath("$.entries.length()").value(0));
+	}
+
+	@Test
+	void liveMainHistoryIsUnavailableBecauseItWouldMixWallets() throws Exception {
+		signUp();
+		credential();
+
+		authGet("/api/v1/portfolio/MAIN/history?mode=LIVE&type=ORDER&symbol=BTCUSDT")
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.availability").value("UNAVAILABLE"))
+				.andExpect(jsonPath("$.entries.length()").value(0));
+	}
+
+	@Test
+	void optionsHistoryIsUnsupported() throws Exception {
+		signUp();
+
+		authGet("/api/v1/portfolio/OPTIONS/history?mode=LIVE&type=ORDER&symbol=BTCUSDT")
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.availability").value("UNSUPPORTED"))
+				.andExpect(jsonPath("$.entries.length()").value(0));
+	}
+
+	@Test
+	void anUnconnectedAccountReportsNotConnectedRatherThanEmpty() throws Exception {
+		signUp();
+
+		authGet("/api/v1/portfolio/SPOT/history?mode=LIVE&type=ORDER&symbol=BTCUSDT")
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.availability").value("NOT_CONNECTED"))
+				.andExpect(jsonPath("$.entries.length()").value(0));
+	}
+
+	@Test
+	void anOverlyWideWindowIsRejected() throws Exception {
+		signUp();
+
+		authGet("/api/v1/portfolio/SPOT/history?mode=LIVE&type=ORDER&symbol=BTCUSDT"
+						+ "&from=2020-01-01T00:00:00Z&to=2021-01-01T00:00:00Z")
+				.andExpect(status().isBadRequest());
+	}
+
+	@Test
+	void anExcessiveLimitIsRejected() throws Exception {
+		signUp();
+
+		authGet("/api/v1/portfolio/SPOT/history?mode=LIVE&type=ORDER&symbol=BTCUSDT&limit=100000")
+				.andExpect(status().isBadRequest());
+	}
+
+	@Test
+	void historyRequiresAuthentication() throws Exception {
+		mockMvc.perform(get("/api/v1/portfolio/SPOT/history?mode=LIVE&symbol=BTCUSDT"))
+				.andExpect(status().isUnauthorized());
+	}
+
+	// -------------------------------------------------- phase 7: sync status
+
+	@Test
+	void syncStatusReportsFreshnessWithoutExposingCredentials() throws Exception {
+		signUp();
+		credential();
+		spotAdapter.putBalance("USDT", new BigDecimal("100"), BigDecimal.ZERO);
+		syncService.syncSpot(user);
+
+		String body = authGet("/api/v1/portfolio/SPOT/sync-status?mode=LIVE")
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.accountMode").value("LIVE"))
+				.andExpect(jsonPath("$.accountCategory").value("SPOT"))
+				.andExpect(jsonPath("$.availability").value("AVAILABLE"))
+				.andExpect(jsonPath("$.stale").value(false))
+				.andExpect(jsonPath("$.lastRestSync").exists())
+				.andReturn().getResponse().getContentAsString();
+
+		org.assertj.core.api.Assertions.assertThat(body)
+				.doesNotContain("apiKey")
+				.doesNotContain("apiSecret")
+				.doesNotContain("listenKey");
+	}
+
+	@Test
+	void syncStatusDefaultsToPaperMode() throws Exception {
+		signUp();
+
+		authGet("/api/v1/portfolio/SPOT/sync-status")
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.accountMode").value("PAPER"))
+				.andExpect(jsonPath("$.connectionStatus").doesNotExist());
+	}
+
+	@Test
+	void syncStatusRequiresAuthentication() throws Exception {
+		mockMvc.perform(get("/api/v1/portfolio/SPOT/sync-status?mode=LIVE"))
+				.andExpect(status().isUnauthorized());
 	}
 
 	// -------------------------------------------------------------- helpers

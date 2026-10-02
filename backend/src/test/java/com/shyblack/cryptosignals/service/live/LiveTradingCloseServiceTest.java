@@ -23,6 +23,8 @@ import com.shyblack.cryptosignals.exchange.ClientOrderIdGenerator;
 import com.shyblack.cryptosignals.exchange.ExchangeAccountSnapshot;
 import com.shyblack.cryptosignals.exchange.ExchangeBalances;
 import com.shyblack.cryptosignals.exchange.ExchangeOrderResult;
+import com.shyblack.cryptosignals.exchange.ExchangeOrderSnapshot;
+import com.shyblack.cryptosignals.exchange.ExchangeTradeSnapshot;
 import com.shyblack.cryptosignals.exchange.ExchangeTradingAdapter;
 import com.shyblack.cryptosignals.exchange.PlaceOrderRequest;
 import com.shyblack.cryptosignals.exchange.SymbolRules;
@@ -236,5 +238,21 @@ class LiveTradingCloseServiceTest {
 
 		@Override public ExchangeOrderResult getOrder(ExchangeCredential c, String s, String id) { return null; }
 		@Override public ExchangeOrderResult cancelOrder(ExchangeCredential c, String s, String id) { return null; }
+
+		// Read-only history is outside this service's remit; it reports no history rather than
+		// inventing any. See PortfolioHistoryServiceTest for the adapters that actually read it.
+		@Override public java.util.List<ExchangeOrderSnapshot> getOpenOrders(ExchangeCredential c, String s) {
+			return java.util.List.of();
+		}
+
+		@Override public java.util.List<ExchangeOrderSnapshot> getAllOrders(
+				ExchangeCredential c, String s, Instant from, Instant to, int limit) {
+			return java.util.List.of();
+		}
+
+		@Override public java.util.List<ExchangeTradeSnapshot> getTrades(
+				ExchangeCredential c, String s, Instant from, Instant to, int limit) {
+			return java.util.List.of();
+		}
 	}
 }
