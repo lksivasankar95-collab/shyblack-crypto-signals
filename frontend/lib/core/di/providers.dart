@@ -8,9 +8,7 @@ import '../../data/datasources/market_remote_data_source.dart';
 import '../../data/datasources/markets_websocket_client.dart';
 import '../../data/datasources/notification_remote_data_source.dart';
 import '../../data/datasources/portfolio_remote_data_source.dart';
-import '../../data/datasources/position_remote_data_source.dart';
 import '../../data/datasources/signal_remote_data_source.dart';
-import '../../data/datasources/transaction_remote_data_source.dart';
 import '../../data/datasources/user_remote_data_source.dart';
 import '../../data/datasources/watchlist_remote_data_source.dart';
 import '../../data/datasources/token_local_data_source.dart';
@@ -19,9 +17,7 @@ import '../../data/repositories/auth_repository_impl.dart';
 import '../../data/repositories/market_repository_impl.dart';
 import '../../data/repositories/notification_repository_impl.dart';
 import '../../data/repositories/portfolio_repository_impl.dart';
-import '../../data/repositories/position_repository_impl.dart';
 import '../../data/repositories/signal_repository_impl.dart';
-import '../../data/repositories/transaction_repository_impl.dart';
 import '../../data/repositories/user_repository_impl.dart';
 import '../../data/repositories/watchlist_repository_impl.dart';
 import '../../data/repositories/news_repository_impl.dart';
@@ -29,9 +25,7 @@ import '../../domain/repositories/auth_repository.dart';
 import '../../domain/repositories/market_repository.dart';
 import '../../domain/repositories/notification_repository.dart';
 import '../../domain/repositories/portfolio_repository.dart';
-import '../../domain/repositories/position_repository.dart';
 import '../../domain/repositories/signal_repository.dart';
-import '../../domain/repositories/transaction_repository.dart';
 import '../../domain/repositories/user_repository.dart';
 import '../../domain/repositories/watchlist_repository.dart';
 import '../../domain/repositories/news_repository.dart';
@@ -41,10 +35,7 @@ import '../../domain/usecases/login_with_google.dart';
 import '../../domain/usecases/signup_user.dart';
 import '../../domain/usecases/get_markets.dart';
 import '../../domain/usecases/get_notifications.dart';
-import '../../domain/usecases/get_portfolios.dart';
-import '../../domain/usecases/get_positions.dart';
 import '../../domain/usecases/get_signals.dart';
-import '../../domain/usecases/get_transactions.dart';
 import '../../domain/usecases/get_watchlist.dart';
 import '../../domain/usecases/get_settings.dart';
 import '../../domain/usecases/logout_user.dart';
@@ -150,14 +141,6 @@ final portfolioRemoteDataSourceProvider = Provider<PortfolioRemoteDataSource>(
   (ref) => PortfolioRemoteDataSource(ref.watch(apiClientProvider)),
 );
 
-final positionRemoteDataSourceProvider = Provider<PositionRemoteDataSource>(
-  (ref) => PositionRemoteDataSource(ref.watch(apiClientProvider)),
-);
-
-final transactionRemoteDataSourceProvider = Provider<TransactionRemoteDataSource>(
-  (ref) => TransactionRemoteDataSource(ref.watch(apiClientProvider)),
-);
-
 final signalRemoteDataSourceProvider = Provider<SignalRemoteDataSource>(
   (ref) => SignalRemoteDataSource(ref.watch(apiClientProvider)),
 );
@@ -186,14 +169,6 @@ final portfolioRepositoryProvider = Provider<PortfolioRepository>(
   (ref) => PortfolioRepositoryImpl(ref.watch(portfolioRemoteDataSourceProvider)),
 );
 
-final positionRepositoryProvider = Provider<PositionRepository>(
-  (ref) => PositionRepositoryImpl(ref.watch(positionRemoteDataSourceProvider)),
-);
-
-final transactionRepositoryProvider = Provider<TransactionRepository>(
-  (ref) => TransactionRepositoryImpl(ref.watch(transactionRemoteDataSourceProvider)),
-);
-
 final signalRepositoryProvider = Provider<SignalRepository>(
   (ref) => SignalRepositoryImpl(ref.watch(signalRemoteDataSourceProvider)),
 );
@@ -212,18 +187,6 @@ final notificationRepositoryProvider = Provider<NotificationRepository>(
 
 final getCurrentUserProvider = Provider<GetCurrentUser>(
   (ref) => GetCurrentUser(ref.watch(userRepositoryProvider)),
-);
-
-final getPortfoliosProvider = Provider<GetPortfolios>(
-  (ref) => GetPortfolios(ref.watch(portfolioRepositoryProvider)),
-);
-
-final getPositionsProvider = Provider<GetPositions>(
-  (ref) => GetPositions(ref.watch(positionRepositoryProvider)),
-);
-
-final getTransactionsProvider = Provider<GetTransactions>(
-  (ref) => GetTransactions(ref.watch(transactionRepositoryProvider)),
 );
 
 final getSignalsProvider = Provider<GetSignals>(

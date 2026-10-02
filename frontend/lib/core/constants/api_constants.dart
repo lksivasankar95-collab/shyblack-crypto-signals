@@ -39,9 +39,13 @@ abstract final class ApiConstants {
   static String get privateWsUrl => '$wsBaseUrl/ws/private';
 
   static const String users = '/users';
-  static const String portfolios = '/v1/portfolios';
-  static const String positions = '/v1/positions';
-  static const String transactions = '/v1/transactions';
+  // Unified Portfolio (read-only, Phase 5 contract). One flow covers PAPER and
+  // LIVE; the mode and category are always sent explicitly so the client never
+  // relies on a server-side default.
+  static const String portfolioOverview = '/v1/portfolio';
+  static String portfolioAccount(String category) => '/v1/portfolio/$category';
+  static String portfolioPositions(String category) =>
+      '/v1/portfolio/$category/positions';
   static const String signals = '/v1/signals';
   static const String watchlist = '/v1/watchlist';
   static const String notifications = '/v1/notifications';

@@ -1,15 +1,37 @@
-import '../../../core/constants/api_constants.dart';
-import '../../../core/network/api_client.dart';
-import '../models/portfolio_model.dart';
+import '../../core/constants/api_constants.dart';
+import '../../core/network/api_client.dart';
 
+/// Read-only data source for the unified Portfolio API.
+///
+/// Consumes the Phase 5 contract exactly. It never connects to Binance and
+/// never receives, stores or forwards any credential: the backend is the only
+/// component that talks to an exchange.
 class PortfolioRemoteDataSource {
-  PortfolioRemoteDataSource(this._apiClient);
-  final ApiClient _apiClient;
+  PortfolioRemoteDataSource(this._api);
 
-  Future<List<PortfolioModel>> getPortfolios() async {
-    final response = await _apiClient.dio.get<List<dynamic>>(ApiConstants.portfolios);
-    return (response.data ?? [])
-        .map((item) => PortfolioModel.fromJson(item as Map<String, dynamic>))
-        .toList();
+  final ApiClient _api;
+
+  Future<Map<String, dynamic>> getOverview(String mode) async {
+    final res = await _api.dio.get<Map<String, dynamic>>(
+      ApiConstants.portfolioOverview,
+      queryParameters: {'mode': mode},
+    );
+    return res.data ?? const {};
+  }
+
+  Future<Map<String, dynamic>> getAccount(String mode, String category) async {
+    final res = await _api.dio.get<Map<String, dynamic>>(
+      ApiConstants.portfolioAccount(category),
+      queryParameters: {'mode': mode},
+    );
+    return res.data ?? const {};
+  }
+
+  Future<Map<String, dynamic>> getPositions(String mode, String category) async {
+    final res = await _api.dio.get<Map<String, dynamic>>(
+      ApiConstants.portfolioPositions(category),
+      queryParameters: {'mode': mode},
+    );
+    return res.data ?? const {};
   }
 }
