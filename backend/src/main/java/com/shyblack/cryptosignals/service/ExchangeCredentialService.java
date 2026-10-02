@@ -1,6 +1,7 @@
 package com.shyblack.cryptosignals.service;
 
 import com.shyblack.cryptosignals.config.SettingsProperties;
+import com.shyblack.cryptosignals.dto.settings.ConnectionValidationStatus;
 import com.shyblack.cryptosignals.dto.settings.ExchangeCredentialConnectionResponse;
 import com.shyblack.cryptosignals.dto.settings.ExchangeCredentialRequest;
 import com.shyblack.cryptosignals.dto.settings.ExchangeCredentialView;
@@ -12,6 +13,7 @@ import com.shyblack.cryptosignals.exception.ResourceNotFoundException;
 import com.shyblack.cryptosignals.exchange.ExchangeAccountSnapshot;
 import com.shyblack.cryptosignals.exchange.ExchangeAdapterException;
 import com.shyblack.cryptosignals.exchange.ExchangeTradingAdapter;
+import com.shyblack.cryptosignals.exchange.futures.FuturesExchangeAdapter;
 import com.shyblack.cryptosignals.repository.ExchangeCredentialRepository;
 import com.shyblack.cryptosignals.repository.UserRepository;
 import com.shyblack.cryptosignals.security.ExchangeCredentialEncryptor;
@@ -37,7 +39,9 @@ public class ExchangeCredentialService {
 	private final UserRepository userRepository;
 	private final ExchangeCredentialEncryptor encryptor;
 	private final SettingsProperties properties;
-	private final ExchangeTradingAdapter adapter;
+	private final ExchangeTradingAdapter spotAdapter;
+	private final FuturesExchangeAdapter futuresAdapter;
+	private final ExchangeConnectionClassifier classifier;
 
 	@Transactional(readOnly = true)
 	public List<ExchangeCredentialView> list(UserPrincipal principal) {
@@ -72,59 +76,119 @@ public class ExchangeCredentialService {
 	}
 
 	/**
+	 * Which market scope a connection test validates.
+	 *
+	 * <p>Both scopes read the same stored {@link ExchangeCredential}; only the signed read differs
+	 * ({@code GET /api/v3/account} versus {@code GET /fapi/v2/account}). No duplicate credential
+	 * record is created per scope.
+	 */
+	public enum ValidationScope {
+		SPOT,
+		FUTURES;
+
+		public static ValidationScope parse(String raw) {
+			if (raw == null || raw.isBlank()) {
+				return SPOT;
+			}
+			try {
+				return valueOf(raw.trim().toUpperCase());
+			} catch (IllegalArgumentException notAScope) {
+				throw new BadRequestException(
+						"Unknown validation scope '" + raw + "'. Use SPOT or FUTURES.");
+			}
+		}
+	}
+
+	/**
 	 * Validates a credential against the exchange with a real signed, read-only request.
 	 *
-	 * <p>Previously this returned a hardcoded success after a simulated 42 ms delay without making
-	 * any call, so a credential was reported CONNECTED purely because it existed in the database. The
-	 * status is now set only when the exchange actually accepts the signed request; any failure is
-	 * recorded as FAILED with a diagnostic.
+	 * <p>The status is set only when the exchange actually accepts the signed request. Scope-aware
+	 * because a Binance credential may be usable on one market and not the other, and validating
+	 * only spot would report a futures-only key as broken and a spot-only key as fully working.
 	 *
-	 * <p>This performs no order placement, cancellation or modification of any kind — only an
-	 * authenticated account read.
+	 * <p>Performs no order placement, cancellation or modification of any kind: only an
+	 * authenticated account read through {@code validateCredentials}.
+	 *
+	 * <p>Failures are classified by {@link ExchangeConnectionClassifier}, which covers every
+	 * {@link Throwable} — not only adapter exceptions — and returns an authored message that
+	 * contains no credential material and no raw exchange payload.
 	 *
 	 * <p>When {@code app.live-trading.mode=MOCK} (the default for dev and tests) the configured
 	 * adapter is the in-process simulator, so this validates the local path rather than the exchange.
 	 */
 	@Transactional
-	public ExchangeCredentialConnectionResponse testConnection(UserPrincipal principal, UUID id) {
+	public ExchangeCredentialConnectionResponse testConnection(
+			UserPrincipal principal, UUID id, ValidationScope scope) {
+
 		ExchangeCredential credential = requireOwned(principal, id);
 		long startedAt = System.nanoTime();
+
 		try {
-			ExchangeAccountSnapshot snapshot = adapter.validateCredentials(credential);
-			long latencyMs = elapsedMs(startedAt);
+// Spot and futures expose different snapshot types behind different interfaces, so the
+			// two reads are issued explicitly rather than through a shared supertype.
+			boolean canTrade = scope == ValidationScope.FUTURES
+					? futuresAdapter.validateCredentials(credential).canTrade()
+					: spotAdapter.validateCredentials(credential).canTrade();
+
 			credential.setStatus(ExchangeConnectionStatus.CONNECTED);
 			credentialRepository.save(credential);
+
 			return new ExchangeCredentialConnectionResponse(
 					credential.getId(),
 					credential.getExchange(),
+					scope.name(),
 					true,
-					"Connection verified against " + adapter.exchange()
-							+ (snapshot.canTrade() ? "" : " (read-only: trading permission absent)"),
-					latencyMs,
+					// A read-only key is connected. Saying "failed" would be a lie, and hiding it
+					// would let a user believe they can trade.
+					canTrade
+							? "Connection verified against " + credential.getExchange()
+									+ " " + scope.name() + "."
+							: "Connection verified against " + credential.getExchange()
+									+ " " + scope.name() + ", but the key has no trading "
+									+ "permission (read-only).",
+					elapsedMs(startedAt),
 					Instant.now(),
-					ExchangeConnectionStatus.CONNECTED);
-		} catch (ExchangeAdapterException ex) {
+					ExchangeConnectionStatus.CONNECTED,
+					ConnectionValidationStatus.CONNECTED,
+					canTrade);
+
+		} catch (Exception failure) {
 			long latencyMs = elapsedMs(startedAt);
-			credential.setStatus(ExchangeConnectionStatus.FAILED);
-			credentialRepository.save(credential);
+			ExchangeConnectionClassifier.Classification classified = classifier.classify(failure);
+
+			// Only a credential-attributable failure may mark the stored key FAILED. A timeout
+			// or a rate limit says nothing about the key, and overwriting a valid status with
+			// FAILED because a laptop lost Wi-Fi would be a false record.
+			boolean markFailed = classified.status().isCredentialAttributable();
+			if (markFailed) {
+				credential.setStatus(ExchangeConnectionStatus.FAILED);
+				credentialRepository.save(credential);
+			}
+			// Reported after any update, so the response agrees with what was persisted.
+			ExchangeConnectionStatus persistedStatus = credential.getStatus();
+
 			return new ExchangeCredentialConnectionResponse(
 					credential.getId(),
 					credential.getExchange(),
+					scope.name(),
 					false,
-					// Diagnostic only; never the API key, secret, header or signed query string.
-					truncate("Exchange rejected the credentials: " + ex.getMessage()),
+					classified.message(),
 					latencyMs,
 					Instant.now(),
-					ExchangeConnectionStatus.FAILED);
+					persistedStatus,
+					classified.status(),
+					false);
 		}
+	}
+
+	/** Backwards-compatible overload validating the spot scope, which is the default. */
+	@Transactional
+	public ExchangeCredentialConnectionResponse testConnection(UserPrincipal principal, UUID id) {
+		return testConnection(principal, id, ValidationScope.SPOT);
 	}
 
 	private static long elapsedMs(long startedAtNanos) {
 		return Math.max(0L, (System.nanoTime() - startedAtNanos) / 1_000_000L);
-	}
-
-	private static String truncate(String message) {
-		return message == null || message.length() <= 200 ? message : message.substring(0, 197) + "...";
 	}
 
 	@Transactional

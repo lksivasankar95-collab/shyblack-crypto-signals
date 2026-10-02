@@ -54,6 +54,7 @@ class ExchangeCredentialServiceConnectionTest {
 	private UserRepository userRepository;
 	private ExchangeCredentialEncryptor encryptor;
 	private ExchangeTradingAdapter adapter;
+	private com.shyblack.cryptosignals.exchange.futures.FuturesExchangeAdapter futuresAdapter;
 	private ExchangeCredentialService service;
 	private User owner;
 
@@ -64,12 +65,15 @@ class ExchangeCredentialServiceConnectionTest {
 		encryptor = new ExchangeCredentialEncryptor(new SettingsProperties(
 				0, 0, 0, "phase3-test-only-encryption-seed", null, null, null));
 		adapter = mock(ExchangeTradingAdapter.class);
+		futuresAdapter = mock(com.shyblack.cryptosignals.exchange.futures.FuturesExchangeAdapter.class);
 		service = new ExchangeCredentialService(
 				credentialRepository,
 				userRepository,
 				encryptor,
 				new SettingsProperties(0, 0, 0, "phase3-test-only-encryption-seed", null, null, null),
-				adapter);
+				adapter,
+				futuresAdapter,
+				new ExchangeConnectionClassifier());
 
 		owner = new User();
 		owner.setEmail("conn-" + SEQ.incrementAndGet() + "@example.com");

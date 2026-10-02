@@ -91,23 +91,65 @@ class ExchangeAccountsScreen extends ConsumerWidget {
 
   Future<void> _testConnection(BuildContext context, WidgetRef ref, String id) async {
     try {
-      final result = await ref.read(settingsRepositoryProvider).testExchangeConnection(id);
+      final result =
+          await ref.read(settingsRepositoryProvider).testExchangeConnection(id);
       ref.invalidate(_exchangesProvider);
-      final success = result['success'] as bool? ?? false;
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(success ? 'Connection verified' : (result['message'] as String? ?? 'Test failed')),
-            backgroundColor: success ? AppColors.profit : AppColors.loss,
-          ),
-        );
+      // The backend field is `ok`, not `success`. Reading `success` returned null on
+      // every response, so a successful validation was always shown as a failure.
+      final success = result['ok'] as bool? ?? false;
+      // Machine-readable failure class, so the user can act on it rather than
+      // guess. Falls back to the human-readable message when absent.
+      final status = result['validationStatus'] as String?;
+      final canTrade = result['canTrade'] as bool? ?? true;
+      if (!context.mounted) return;
+
+      final String message;
+      if (success && !canTrade) {
+        message =
+            'Connected, but this key has no trading permission (read-only).';
+      } else if (success) {
+        message = result['message'] as String? ?? 'Connection verified';
+      } else {
+        message = '${_friendlyStatus(status)} ${result['message'] as String? ?? ''}'
+            .trim();
       }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: success ? AppColors.profit : AppColors.loss,
+        ),
+      );
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Test failed: $e'), backgroundColor: AppColors.loss),
         );
       }
+    }
+  }
+
+  /// Turns the backend's machine-readable status into short guidance. The API
+  /// message already says the same thing, so this only adds the action to take.
+  String _friendlyStatus(String? status) {
+    switch (status) {
+      case 'INVALID_CREDENTIALS':
+      case 'INVALID_SIGNATURE':
+        return 'Check your API key and secret.';
+      case 'PERMISSION_DENIED':
+        return 'The key is missing a required permission.';
+      case 'TIMESTAMP_ERROR':
+        return 'Check your system clock.';
+      case 'RATE_LIMITED':
+        return 'Rate limited - wait before retrying.';
+      case 'NETWORK_ERROR':
+        return 'Could not reach the exchange.';
+      case 'TIMEOUT':
+        return 'The exchange did not respond in time.';
+      case 'BINANCE_API_ERROR':
+        return 'Binance is having problems; try again shortly.';
+      default:
+        return 'Connection test failed.';
     }
   }
 

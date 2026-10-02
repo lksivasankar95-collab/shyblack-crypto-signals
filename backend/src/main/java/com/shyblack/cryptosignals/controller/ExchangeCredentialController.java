@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -46,10 +47,18 @@ public class ExchangeCredentialController {
 		return exchangeCredentialService.create(currentPrincipal(), request);
 	}
 
-	@Operation(summary = "Test an exchange connection (simulated, no real network call)")
+	@Operation(summary = "Test an exchange connection with a real signed, read-only account call",
+			description = "Performs an authenticated account read against the exchange. No order is "
+					+ "placed, cancelled or modified. The response carries a machine-readable "
+					+ "validationStatus so an invalid credential can be distinguished from a network "
+					+ "or rate-limit fault, and no credential material or raw exchange payload is "
+					+ "ever returned.")
 	@PostMapping("/{id}/test-connection")
-	public ExchangeCredentialConnectionResponse testConnection(@PathVariable UUID id) {
-		return exchangeCredentialService.testConnection(currentPrincipal(), id);
+	public ExchangeCredentialConnectionResponse testConnection(
+			@PathVariable UUID id,
+			@RequestParam(name = "scope", required = false) String scope) {
+		return exchangeCredentialService.testConnection(
+				currentPrincipal(), id, ExchangeCredentialService.ValidationScope.parse(scope));
 	}
 
 	@Operation(summary = "Delete an exchange credential")
