@@ -19,9 +19,14 @@ import com.shyblack.cryptosignals.exception.ResourceNotFoundException;
 import com.shyblack.cryptosignals.repository.UserRepository;
 import com.shyblack.cryptosignals.repository.UserSettingsRepository;
 import com.shyblack.cryptosignals.security.UserPrincipal;
+import com.shyblack.cryptosignals.service.portfolio.PortfolioSyncLifecycleCoordinator;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,8 +37,9 @@ import org.springframework.transaction.annotation.Transactional;
  * request that tries to turn it on is rejected.
  */
 @Service
-@RequiredArgsConstructor
 public class SettingsService {
+
+	private static final Logger log = LoggerFactory.getLogger(SettingsService.class);
 
 	/**
 	 * Implied per-trade risk percentage for each risk profile, used to enforce
@@ -48,6 +54,44 @@ public class SettingsService {
 	private final UserRepository userRepository;
 	private final SettingsProperties properties;
 	private final ExchangeCredentialService exchangeCredentialService;
+
+	/**
+	 * Informed when an account-mode change must start or stop Portfolio synchronization.
+	 *
+	 * <p>Resolved leniently so this service still wires without it, in which case synchronization
+	 * simply does not react to a mode change.
+	 */
+	private final PortfolioSyncLifecycleCoordinator syncCoordinator;
+
+	@Autowired
+	public SettingsService(
+			UserSettingsRepository userSettingsRepository,
+			UserRepository userRepository,
+			SettingsProperties properties,
+			ExchangeCredentialService exchangeCredentialService,
+			ObjectProvider<PortfolioSyncLifecycleCoordinator> syncCoordinatorProvider) {
+		this.userSettingsRepository = userSettingsRepository;
+		this.userRepository = userRepository;
+		this.properties = properties;
+		this.exchangeCredentialService = exchangeCredentialService;
+		this.syncCoordinator = syncCoordinatorProvider == null
+				? null
+				: syncCoordinatorProvider.getIfAvailable();
+	}
+
+	/**
+	 * Constructor without the synchronization coordinator.
+	 *
+	 * <p>Retained so settings can be exercised on their own. An account-mode change then simply
+	 * does not drive Portfolio synchronization, which is the correct degradation.
+	 */
+	public SettingsService(
+			UserSettingsRepository userSettingsRepository,
+			UserRepository userRepository,
+			SettingsProperties properties,
+			ExchangeCredentialService exchangeCredentialService) {
+		this(userSettingsRepository, userRepository, properties, exchangeCredentialService, null);
+	}
 
 	@Transactional
 	public SettingsResponse get(UserPrincipal principal) {
@@ -97,12 +141,21 @@ public class SettingsService {
 		}
 
 		boolean userChanged = false;
-		if (request.accountType() != null) {
+		if (request.accountType() != null && request.accountType() != user.getAccountType()) {
+			AccountType previous = user.getAccountType();
 			user.setAccountType(request.accountType());
-			userChanged = true;
-		}
-		if (userChanged) {
 			userRepository.save(user);
+
+			/*
+			 * Switching to live begins Portfolio synchronization; switching back to paper ends it,
+			 * so no Binance user-data stream is kept open for an account the user has left in
+			 * simulation. This is the only place an account's mode changes after signup.
+			 *
+			 * Runs after the save so the coordinator reads a persisted state, and is wrapped so a
+			 * lifecycle problem can never turn a successful settings update into a failed one — the
+			 * preference itself is already correct either way.
+			 */
+			notifyAccountModeChanged(user, previous, request.accountType());
 		}
 		if (changed) {
 			userSettingsRepository.save(settings);
@@ -110,6 +163,24 @@ public class SettingsService {
 
 		return SettingsMappers.toSettingsResponse(
 				user, settings, exchangeCredentialService.list(principal));
+	}
+
+	/**
+	 * Informs the Portfolio synchronization lifecycle of an account-mode change.
+	 *
+	 * <p>Best-effort by design. The setting is already saved, so a failure here degrades the read
+	 * lifecycle rather than the request.
+	 */
+	private void notifyAccountModeChanged(User user, AccountType previous, AccountType current) {
+		if (syncCoordinator == null) {
+			return;
+		}
+		try {
+			syncCoordinator.onAccountModeChanged(user, previous, current);
+		} catch (RuntimeException ex) {
+			log.warn("Could not apply Portfolio synchronization for account-mode change user={} from={} to={}: {}",
+					user.getId(), previous, current, ex.getMessage());
+		}
 	}
 
 	@Transactional(readOnly = true)

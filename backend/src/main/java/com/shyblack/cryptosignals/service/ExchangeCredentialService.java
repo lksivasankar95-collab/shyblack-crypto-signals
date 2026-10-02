@@ -18,10 +18,15 @@ import com.shyblack.cryptosignals.repository.ExchangeCredentialRepository;
 import com.shyblack.cryptosignals.repository.UserRepository;
 import com.shyblack.cryptosignals.security.ExchangeCredentialEncryptor;
 import com.shyblack.cryptosignals.security.UserPrincipal;
+import com.shyblack.cryptosignals.service.portfolio.PortfolioSyncLifecycleCoordinator;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,7 +37,6 @@ import org.springframework.transaction.annotation.Transactional;
  * ever trusted (IDOR-safe).
  */
 @Service
-@RequiredArgsConstructor
 public class ExchangeCredentialService {
 
 	private final ExchangeCredentialRepository credentialRepository;
@@ -42,6 +46,61 @@ public class ExchangeCredentialService {
 	private final ExchangeTradingAdapter spotAdapter;
 	private final FuturesExchangeAdapter futuresAdapter;
 	private final ExchangeConnectionClassifier classifier;
+
+	/**
+	 * Starts and stops LIVE Portfolio synchronization when a credential changes state.
+	 *
+	 * <p>Injectable as {@code null} so the credential lifecycle can be unit-tested in isolation
+	 * and so a missing coordinator degrades to "no synchronization" rather than to a wiring
+	 * failure. Every call site is already wrapped, so it can never break a request.
+	 */
+	private final PortfolioSyncLifecycleCoordinator syncCoordinator;
+
+	private static final Logger log = LoggerFactory.getLogger(ExchangeCredentialService.class);
+
+	/**
+	 * Full constructor. The coordinator is optional and is resolved leniently so that a context
+	 * without it — a sliced test, a partial context — still wires this service.
+	 */
+	@Autowired
+	public ExchangeCredentialService(
+			ExchangeCredentialRepository credentialRepository,
+			UserRepository userRepository,
+			ExchangeCredentialEncryptor encryptor,
+			SettingsProperties properties,
+			ExchangeTradingAdapter spotAdapter,
+			FuturesExchangeAdapter futuresAdapter,
+			ExchangeConnectionClassifier classifier,
+			ObjectProvider<PortfolioSyncLifecycleCoordinator> syncCoordinatorProvider) {
+		this.credentialRepository = credentialRepository;
+		this.userRepository = userRepository;
+		this.encryptor = encryptor;
+		this.properties = properties;
+		this.spotAdapter = spotAdapter;
+		this.futuresAdapter = futuresAdapter;
+		this.classifier = classifier;
+		this.syncCoordinator = syncCoordinatorProvider == null
+				? null
+				: syncCoordinatorProvider.getIfAvailable();
+	}
+
+	/**
+	 * Constructor without the synchronization coordinator.
+	 *
+	 * <p>Retained so the credential lifecycle can be constructed and exercised on its own. Portfolio
+	 * synchronization is then simply inert, which is the correct degradation and never a failure.
+	 */
+	public ExchangeCredentialService(
+			ExchangeCredentialRepository credentialRepository,
+			UserRepository userRepository,
+			ExchangeCredentialEncryptor encryptor,
+			SettingsProperties properties,
+			ExchangeTradingAdapter spotAdapter,
+			FuturesExchangeAdapter futuresAdapter,
+			ExchangeConnectionClassifier classifier) {
+		this(credentialRepository, userRepository, encryptor, properties, spotAdapter, futuresAdapter,
+				classifier, null);
+	}
 
 	@Transactional(readOnly = true)
 	public List<ExchangeCredentialView> list(UserPrincipal principal) {
@@ -133,7 +192,22 @@ public class ExchangeCredentialService {
 			credential.setStatus(ExchangeConnectionStatus.CONNECTED);
 			credentialRepository.save(credential);
 
-			return new ExchangeCredentialConnectionResponse(
+			/*
+			 * The exchange has just accepted this credential on a real signed read, which is the
+			 * only sound precondition for synchronising a LIVE Portfolio scope. Starting the read
+			 * lifecycle here — and only here — is what closes the gap where a valid credential
+			 * left the Portfolio permanently unsynchronised.
+			 *
+* Delegated rather than inlined: the coordinator performs no exchange work itself and
+			 * refuses PAPER, OPTIONS and MAIN before any credential is looked up.
+			 *
+			 * The owner is taken from the already-verified credential rather than re-resolved from
+			 * the principal. Re-resolving would add a database read whose failure could escape the
+			 * guard below and turn a genuinely successful validation into a failed request.
+			 */
+			 startPortfolioSync(credential.getUser());
+
+				return new ExchangeCredentialConnectionResponse(
 					credential.getId(),
 					credential.getExchange(),
 					scope.name(),
@@ -195,20 +269,67 @@ public class ExchangeCredentialService {
 	public void delete(UserPrincipal principal, UUID id) {
 		ExchangeCredential credential = requireOwned(principal, id);
 		credentialRepository.delete(credential);
+
+		// Stops the user-data streams that were opened with this credential, so no Binance socket
+		// outlives it. Snapshot rows are deliberately left in place as the last known-good state.
+		stopPortfolioSync(credential.getUser());
+	}
+
+	/**
+	 * Begins LIVE Portfolio synchronization for a newly validated credential.
+	 *
+	 * <p>Isolated so a coordinator failure can never turn a successful credential validation into a
+	 * failed request: the credential is already valid and persisted, so losing the read lifecycle
+	 * is a degradation, not an error, and must not be reported to the user as one.
+	 */
+	private void startPortfolioSync(User user) {
+		if (syncCoordinator == null) {
+			return;
+		}
+		try {
+			syncCoordinator.onCredentialConnected(user);
+		} catch (RuntimeException ex) {
+			log.warn("Could not start LIVE Portfolio synchronization for user={}: {}",
+					user == null ? null : user.getId(), ex.getMessage());
+		}
+	}
+
+	/**
+	 * Ends LIVE Portfolio synchronization for a credential that is no longer usable.
+	 *
+	 * <p>Never fails the surrounding request for the same reason as {@link #startPortfolioSync}: a
+	 * teardown problem must not turn a successful deletion into an error, and must certainly not
+	 * resurrect the credential.
+	 */
+	private void stopPortfolioSync(User user) {
+		if (syncCoordinator == null) {
+			return;
+		}
+		try {
+			syncCoordinator.onCredentialRemoved(user);
+		} catch (RuntimeException ex) {
+			log.warn("Could not stop LIVE Portfolio synchronization for user={}: {}",
+					user == null ? null : user.getId(), ex.getMessage());
+		}
 	}
 
 	@Transactional
 	public ExchangeCredentialView disconnect(UserPrincipal principal, UUID id) {
 		ExchangeCredential credential = requireOwned(principal, id);
 		credential.setStatus(ExchangeConnectionStatus.NOT_CONNECTED);
-		return toView(credentialRepository.save(credential));
+		ExchangeCredentialView view = toView(credentialRepository.save(credential));
+		// A disconnected credential must not keep a Binance socket alive.
+		stopPortfolioSync(credential.getUser());
+		return view;
 	}
 
 	@Transactional
 	public ExchangeCredentialView revoke(UserPrincipal principal, UUID id) {
 		ExchangeCredential credential = requireOwned(principal, id);
 		credential.setStatus(ExchangeConnectionStatus.REVOKED);
-		return toView(credentialRepository.save(credential));
+		ExchangeCredentialView view = toView(credentialRepository.save(credential));
+		stopPortfolioSync(credential.getUser());
+		return view;
 	}
 
 	private ExchangeCredential requireOwned(UserPrincipal principal, UUID id) {
