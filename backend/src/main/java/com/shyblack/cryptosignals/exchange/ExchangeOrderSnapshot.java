@@ -22,6 +22,8 @@ public record ExchangeOrderSnapshot(
 		/** Raw exchange status: NEW, PARTIALLY_FILLED, FILLED, CANCELED, REJECTED, EXPIRED. */
 		String status,
 		BigDecimal price,
+		/** Trigger price for a stop order. Null for every order type that has no trigger. */
+		BigDecimal stopPrice,
 		BigDecimal originalQuantity,
 		BigDecimal executedQuantity,
 		BigDecimal cumulativeQuoteQuantity,

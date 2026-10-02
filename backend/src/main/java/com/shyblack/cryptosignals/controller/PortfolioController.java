@@ -1,8 +1,11 @@
 package com.shyblack.cryptosignals.controller;
 
 import com.shyblack.cryptosignals.dto.portfolio.PortfolioAccountView;
+import com.shyblack.cryptosignals.dto.portfolio.PortfolioClosedPositionsResponse;
+import com.shyblack.cryptosignals.dto.portfolio.PortfolioHistoryFilter;
 import com.shyblack.cryptosignals.dto.portfolio.PortfolioHistoryResponse;
 import com.shyblack.cryptosignals.dto.portfolio.PortfolioHoldingsResponse;
+import com.shyblack.cryptosignals.dto.portfolio.PortfolioOpenOrdersResponse;
 import com.shyblack.cryptosignals.dto.portfolio.PortfolioOverviewResponse;
 import com.shyblack.cryptosignals.dto.portfolio.PortfolioSyncStatusResponse;
 import com.shyblack.cryptosignals.dto.portfolio.PortfolioPositionsResponse;
@@ -11,6 +14,7 @@ import com.shyblack.cryptosignals.entity.User;
 import com.shyblack.cryptosignals.entity.enums.AccountAvailability;
 import com.shyblack.cryptosignals.entity.enums.AccountCategory;
 import com.shyblack.cryptosignals.entity.enums.AccountMode;
+import com.shyblack.cryptosignals.entity.enums.AccountType;
 import com.shyblack.cryptosignals.exception.BadRequestException;
 import com.shyblack.cryptosignals.exception.ResourceNotFoundException;
 import com.shyblack.cryptosignals.repository.PortfolioAccountConnectionRepository;
@@ -18,6 +22,7 @@ import com.shyblack.cryptosignals.repository.UserRepository;
 import com.shyblack.cryptosignals.security.UserPrincipal;
 import com.shyblack.cryptosignals.service.portfolio.HistoryWindow;
 import com.shyblack.cryptosignals.service.portfolio.PortfolioAccountReadService;
+import com.shyblack.cryptosignals.service.portfolio.PortfolioClosedPositionService;
 import com.shyblack.cryptosignals.service.portfolio.PortfolioHistoryService;
 import java.time.Instant;
 import java.util.List;
@@ -47,6 +52,13 @@ import io.swagger.v3.oas.annotations.tags.Tag;
  * All aggregation stays in {@link PortfolioAccountReadService}; this controller only resolves the
  * authenticated user and delegates.
  *
+ * <p><b>Account mode is not a Portfolio choice.</b> It comes from the account mode the user selected
+ * in Settings, which the settings service already stores on {@code User.accountType}. A caller that
+ * supplies no mode therefore gets the account it actually configured, and there is no server-side
+ * default that could serve a simulated account to a user who chose the live one. An explicit
+ * {@code mode} parameter is still accepted so a diagnostic or admin read can address a scope
+ * deliberately, but omitting it is the normal path.
+ *
  * <p>No write endpoint exists here. Order placement, cancellation and capital mutation remain on
  * the dedicated paper-trading, live-trading and futures-trading APIs.
  */
@@ -57,27 +69,39 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 @RequiredArgsConstructor
 public class PortfolioController {
 
-	/**
-	 * Account mode used when the caller supplies none. Deterministic and echoed back in
-	 * {@link PortfolioOverviewResponse#accountMode()}, so a client never has to guess. PAPER is the
-	 * simulated account the application starts with.
-	 */
-	private static final AccountMode DEFAULT_MODE = AccountMode.PAPER;
-
 	private final PortfolioAccountReadService readService;
 	private final PortfolioHistoryService historyService;
+	private final PortfolioClosedPositionService closedPositionService;
 	private final PortfolioAccountConnectionRepository connectionRepository;
 	private final UserRepository userRepository;
 
+	/**
+	 * Resolves the account mode for a request.
+	 *
+	 * <p>An explicit request wins, which keeps a deliberate diagnostic read possible. Otherwise the
+	 * mode is the one the user selected in Settings, read from the account record the settings
+	 * service writes. The mode is never defaulted to PAPER here: doing so would let an unavailable
+	 * live account silently render as a simulated one.
+	 */
+	private AccountMode resolveMode(User user, AccountMode requested) {
+		if (requested != null) {
+			return requested;
+		}
+		AccountType configured = user.getAccountType();
+		return configured == null ? AccountMode.PAPER : AccountMode.fromAccountType(configured);
+	}
+
 	@Operation(summary = "Portfolio overview for one account mode",
 			description = "Returns all four account categories (MAIN, SPOT, FUTURES, OPTIONS). "
-					+ "Unsupported or unavailable categories are returned explicitly rather than omitted.")
+					+ "Unsupported or unavailable categories are returned explicitly rather than omitted. "
+					+ "With no mode parameter the account mode selected in Settings is used.")
 	@GetMapping
 	public PortfolioOverviewResponse overview(
-			@Parameter(description = "PAPER or LIVE. Defaults to PAPER.")
+			@Parameter(description = "PAPER or LIVE. Defaults to the account mode set in Settings.")
 			@RequestParam(name = "mode", required = false) AccountMode mode) {
-		AccountMode effective = mode == null ? DEFAULT_MODE : mode;
-		List<PortfolioAccountView> accounts = readService.getOverview(currentUser(), effective);
+		User user = currentUser();
+		AccountMode effective = resolveMode(user, mode);
+		List<PortfolioAccountView> accounts = readService.getOverview(user, effective);
 		return new PortfolioOverviewResponse(effective, List.of(AccountCategory.values()), accounts);
 	}
 
@@ -88,9 +112,10 @@ public class PortfolioController {
 	public PortfolioAccountView account(
 			@Parameter(description = "MAIN, SPOT, FUTURES or OPTIONS")
 			@PathVariable AccountCategory category,
-			@Parameter(description = "PAPER or LIVE. Defaults to PAPER.")
+			@Parameter(description = "PAPER or LIVE. Defaults to the account mode set in Settings.")
 			@RequestParam(name = "mode", required = false) AccountMode mode) {
-		return readService.getAccount(currentUser(), mode == null ? DEFAULT_MODE : mode, category);
+		User user = currentUser();
+		return readService.getAccount(user, resolveMode(user, mode), category);
 	}
 
 	@Operation(summary = "Positions for one account scope",
@@ -101,9 +126,10 @@ public class PortfolioController {
 	public PortfolioPositionsResponse positions(
 			@Parameter(description = "MAIN, SPOT, FUTURES or OPTIONS")
 			@PathVariable AccountCategory category,
-			@Parameter(description = "PAPER or LIVE. Defaults to PAPER.")
+			@Parameter(description = "PAPER or LIVE. Defaults to the account mode set in Settings.")
 			@RequestParam(name = "mode", required = false) AccountMode mode) {
-		return readService.listPositions(currentUser(), mode == null ? DEFAULT_MODE : mode, category);
+		User user = currentUser();
+		return readService.listPositions(user, resolveMode(user, mode), category);
 	}
 
 	@Operation(summary = "Per-asset wallet holdings for one account scope",
@@ -114,8 +140,78 @@ public class PortfolioController {
 	public PortfolioHoldingsResponse holdings(
 			@PathVariable AccountCategory category,
 			@RequestParam(name = "mode", required = false) AccountMode mode) {
-		AccountMode effective = mode == null ? DEFAULT_MODE : mode;
-		return historyService.holdings(currentUser(), effective, category);
+		User user = currentUser();
+		return historyService.holdings(user, resolveMode(user, mode), category);
+	}
+
+	@Operation(summary = "Orders resting on the exchange right now",
+			description = "The exchange's own open-orders state. An order whose state cannot be "
+					+ "determined is reported as UNKNOWN and is still listed. Nothing here places, "
+					+ "modifies or cancels an order.")
+	@GetMapping("/{category}/open-orders")
+	public PortfolioOpenOrdersResponse openOrders(
+			@PathVariable AccountCategory category,
+			@RequestParam(name = "mode", required = false) AccountMode mode,
+			@RequestParam(name = "symbol", required = false) String symbol,
+			@RequestParam(name = "side", required = false) String side,
+			@RequestParam(name = "status", required = false) String status) {
+		User user = currentUser();
+		AccountMode effective = resolveMode(user, mode);
+		return historyService.openOrders(user, effective, category, symbol);
+	}
+
+	@Operation(summary = "Positions that have been closed in the window",
+			description = "Live futures round trips are reconstructed from the exchange's own fills, and "
+					+ "simulated round trips come from the paper engine's closed records. A field that "
+					+ "cannot be determined is null and partial is reported as true; nothing is estimated.")
+	@GetMapping("/{category}/closed-positions")
+	public PortfolioClosedPositionsResponse closedPositions(
+			@PathVariable AccountCategory category,
+			@RequestParam(name = "mode", required = false) AccountMode mode,
+			@RequestParam(name = "symbol", required = false) String symbol,
+			@RequestParam(name = "from", required = false) Instant from,
+			@RequestParam(name = "to", required = false) Instant to,
+			@RequestParam(name = "limit", required = false) Integer limit) {
+		User user = currentUser();
+		AccountMode effective = resolveMode(user, mode);
+		HistoryWindow window = HistoryWindow.resolve(from, to, limit);
+		return closedPositionService.closedPositions(user, effective, category, window, symbol);
+	}
+
+	@Operation(summary = "Account income records for one account scope",
+			description = "Every income record the exchange published in the window, with the exchange's "
+					+ "own income type preserved. Binance Spot publishes no income endpoint, so the spot "
+					+ "scope reports that explicitly instead of an empty list.")
+	@GetMapping("/{category}/transaction-history")
+	public PortfolioHistoryResponse transactionHistory(
+			@PathVariable AccountCategory category,
+			@RequestParam(name = "mode", required = false) AccountMode mode,
+			@RequestParam(name = "symbol", required = false) String symbol,
+			@RequestParam(name = "from", required = false) Instant from,
+			@RequestParam(name = "to", required = false) Instant to,
+			@RequestParam(name = "limit", required = false) Integer limit) {
+		User user = currentUser();
+		AccountMode effective = resolveMode(user, mode);
+		HistoryWindow window = HistoryWindow.resolve(from, to, limit);
+		return historyService.transactions(user, effective, category, window, symbol);
+	}
+
+	@Operation(summary = "Funding fees paid or received in the window",
+			description = "Read as its own exchange income type. Never summed into realized P&L and "
+					+ "never attributed to an individual position, because the exchange provides no "
+					+ "such attribution.")
+	@GetMapping("/{category}/funding-fees")
+	public PortfolioHistoryResponse fundingFees(
+			@PathVariable AccountCategory category,
+			@RequestParam(name = "mode", required = false) AccountMode mode,
+			@RequestParam(name = "symbol", required = false) String symbol,
+			@RequestParam(name = "from", required = false) Instant from,
+			@RequestParam(name = "to", required = false) Instant to,
+			@RequestParam(name = "limit", required = false) Integer limit) {
+		User user = currentUser();
+		AccountMode effective = resolveMode(user, mode);
+		HistoryWindow window = HistoryWindow.resolve(from, to, limit);
+		return historyService.fundingFees(user, effective, category, window, symbol);
 	}
 
 	@Operation(summary = "Orders, fills or income for one account scope",
@@ -125,17 +221,25 @@ public class PortfolioController {
 	@GetMapping("/{category}/history")
 	public PortfolioHistoryResponse history(
 			@PathVariable AccountCategory category,
-			@Parameter(description = "PAPER or LIVE. Defaults to PAPER.")
+			@Parameter(description = "PAPER or LIVE. Defaults to the account mode set in Settings.")
 			@RequestParam(name = "mode", required = false) AccountMode mode,
 			@Parameter(description = "ORDER, TRADE or INCOME. Defaults to ORDER.")
 			@RequestParam(name = "type", required = false) String type,
 			@RequestParam(name = "symbol", required = false) String symbol,
+			@RequestParam(name = "side", required = false) String side,
+			@RequestParam(name = "orderType", required = false) String orderType,
+			@RequestParam(name = "status", required = false) String status,
+			@RequestParam(name = "positionSide", required = false) String positionSide,
 			@RequestParam(name = "from", required = false) Instant from,
 			@RequestParam(name = "to", required = false) Instant to,
 			@RequestParam(name = "limit", required = false) Integer limit) {
-		AccountMode effective = mode == null ? DEFAULT_MODE : mode;
+		User user = currentUser();
+		AccountMode effective = resolveMode(user, mode);
 		HistoryWindow window = HistoryWindow.resolve(from, to, limit);
-		return historyService.history(currentUser(), effective, category, type, window, symbol);
+		PortfolioHistoryFilter filter =
+				PortfolioHistoryFilter.of(symbol, side, orderType, status, positionSide);
+		return historyService.history(user, effective, category, type, window, filter.symbol(),
+				null, filter);
 	}
 
 	@Operation(summary = "Synchronization and reconciliation status for one account scope",
@@ -145,8 +249,8 @@ public class PortfolioController {
 	public PortfolioSyncStatusResponse syncStatus(
 			@PathVariable AccountCategory category,
 			@RequestParam(name = "mode", required = false) AccountMode mode) {
-AccountMode effective = mode == null ? DEFAULT_MODE : mode;
 		User user = currentUser();
+		AccountMode effective = resolveMode(user, mode);
 		PortfolioAccountView view = readService.getAccount(user, effective, category);
 		Optional<PortfolioAccountConnection> connection = connectionRepository
 				.findByUserAndAccountModeAndAccountCategory(user, effective, category);

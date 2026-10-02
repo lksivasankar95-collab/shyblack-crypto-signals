@@ -365,6 +365,14 @@ public class BinanceFuturesLiveAdapter implements FuturesExchangeAdapter {
 					o.has("reduceOnly") && !o.get("reduceOnly").isJsonNull()
 							? o.get("reduceOnly").getAsBoolean() : null,
 					histDec(o, "price"),
+					// Binance futures reports a non-applicable stop price as "0", which would be
+					// indistinguishable from a genuine zero trigger. That single sentinel becomes
+					// null so "no stop" is never shown as a stop at price 0.
+					histZeroToNull(histDec(o, "stopPrice")),
+					// avgPrice is the exchange's own average fill price. Binance reports "0" for an
+					// order that has not filled at all, so the same sentinel applies: null means
+					// "no fill yet", never a zero fill price.
+					histZeroToNull(histDec(o, "avgPrice")),
 					histDec(o, "origQty"),
 					histDec(o, "executedQty"),
 					histDec(o, "cumQuote"),
@@ -372,6 +380,11 @@ public class BinanceFuturesLiveAdapter implements FuturesExchangeAdapter {
 					histMillis(o, "updateTime")));
 		}
 		return List.copyOf(orders);
+	}
+
+	/** Normalises the exchange's "not applicable" zero sentinel to null, preserving every other value. */
+	private static BigDecimal histZeroToNull(BigDecimal value) {
+		return value == null || value.signum() == 0 ? null : value;
 	}
 
 	private static List<FuturesTradeSnapshot> parseTradeHistory(String body) {

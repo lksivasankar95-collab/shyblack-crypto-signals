@@ -1,29 +1,65 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/di/providers.dart';
+import '../../domain/entities/app_settings.dart';
 import '../../domain/entities/portfolio_account.dart';
+import 'settings_controller.dart';
 
-/// Selected Portfolio mode and category. This is Portfolio UI state only and is
-/// deliberately independent of `User.accountType` and `User.tradingMode`, which
-/// are not portfolio selector state.
+/// Thrown when Settings has not yet resolved which account mode is selected.
+///
+/// The Portfolio issues **no** request in that state. That is deliberate: defaulting to
+/// PAPER while the user has actually chosen LIVE would render a simulated account as if
+/// it were their exchange account, which is precisely the confusion this redesign removes.
+/// The screen shows an explicit "account mode unavailable" state instead.
+class PortfolioAccountModeUnresolved implements Exception {
+  const PortfolioAccountModeUnresolved();
+
+  @override
+  String toString() => 'PortfolioAccountModeUnresolved';
+}
+
+/// The account mode, read from Settings.
+///
+/// This is a pure projection of `AppSettings.tradingAccount`. There is no Portfolio
+/// control that writes it, so the Portfolio cannot offer a second, divergent mode of its
+/// own: changing the account mode in Settings changes the Portfolio, and nothing else can.
+///
+/// Null while Settings is still loading or has failed. It is never defaulted.
+final portfolioAccountModeProvider = Provider<PortfolioMode?>((ref) {
+  final settings = ref.watch(settingsControllerProvider).asData?.value;
+  if (settings == null) return null;
+  return settings.tradingAccount == TradingAccount.live
+      ? PortfolioMode.live
+      : PortfolioMode.paper;
+});
+
+/// Which market account the user is looking at: SPOT, FUTURES or OPTIONS.
+///
+/// This is the only Portfolio selection state that exists. MAIN is intentionally not
+/// offered: it is the backend's aggregate scope, not an account a user owns.
+class PortfolioCategorySelection extends Notifier<PortfolioCategory> {
+  @override
+  PortfolioCategory build() => PortfolioCategory.spot;
+
+  void select(PortfolioCategory category) {
+    state = category;
+  }
+}
+
+final portfolioCategoryProvider =
+    NotifierProvider<PortfolioCategorySelection, PortfolioCategory>(
+      PortfolioCategorySelection.new,
+    );
+
+/// The account mode and market account currently on screen.
+///
+/// Null exactly when the account mode is unresolved, which is what stops the screen from
+/// rendering any figure against an unknown mode.
 class PortfolioScope {
   const PortfolioScope({required this.mode, required this.category});
 
-  /// Matches the backend default, so the UI and the API agree before the first
-  /// response arrives.
-  const PortfolioScope.initial()
-      : mode = PortfolioMode.paper,
-        category = PortfolioCategory.main;
-
   final PortfolioMode mode;
   final PortfolioCategory category;
-
-  PortfolioScope copyWith({PortfolioMode? mode, PortfolioCategory? category}) {
-    return PortfolioScope(
-      mode: mode ?? this.mode,
-      category: category ?? this.category,
-    );
-  }
 
   @override
   bool operator ==(Object other) =>
@@ -35,21 +71,24 @@ class PortfolioScope {
   int get hashCode => Object.hash(mode, category);
 }
 
-class PortfolioSelection extends Notifier<PortfolioScope> {
-  @override
-  PortfolioScope build() => const PortfolioScope.initial();
+final portfolioScopeProvider = Provider<PortfolioScope?>((ref) {
+  final mode = ref.watch(portfolioAccountModeProvider);
+  final category = ref.watch(portfolioCategoryProvider);
+  if (mode == null) return null;
+  return PortfolioScope(mode: mode, category: category);
+});
 
-  void selectMode(PortfolioMode mode) {
-    state = state.copyWith(mode: mode);
+/// Resolves the scope for a data request, or refuses to make one.
+///
+/// Every portfolio read goes through here, so no provider can accidentally issue a
+/// request against a guessed mode.
+PortfolioScope requireScope(Ref ref) {
+  final scope = ref.watch(portfolioScopeProvider);
+  if (scope == null) {
+    throw const PortfolioAccountModeUnresolved();
   }
-
-  void selectCategory(PortfolioCategory category) {
-    state = state.copyWith(category: category);
-  }
+  return scope;
 }
-
-final portfolioSelectionProvider =
-    NotifierProvider<PortfolioSelection, PortfolioScope>(PortfolioSelection.new);
 
 /// Everything the Portfolio screen renders for one scope.
 class PortfolioViewData {
@@ -74,16 +113,17 @@ class PortfolioViewData {
 /// Single unified data flow for the Portfolio.
 ///
 /// One provider serves every mode and category, so PAPER and LIVE cannot drift
-/// into separate caches. It watches [portfolioSelectionProvider], so changing the
-/// mode or category rebuilds the request for that exact scope and the previous
-/// scope's response is never shown underneath the new label.
+/// into separate caches. It watches [portfolioScopeProvider], so changing the account
+/// mode in Settings or the category tab rebuilds the request for that exact scope and
+/// the previous scope's response is never shown underneath the new label.
 ///
 /// There is no polling loop here. Refresh is explicit or pull-to-refresh, and
 /// the provider is disposed when nothing watches it.
 class PortfolioController extends AsyncNotifier<PortfolioViewData> {
   @override
   Future<PortfolioViewData> build() async {
-    final scope = ref.watch(portfolioSelectionProvider);
+    // Refuses to request anything while the account mode is unknown.
+    final scope = requireScope(ref);
     final repository = ref.watch(portfolioRepositoryProvider);
 
     // Both calls carry the same scope, so a SPOT request can never be served
@@ -106,27 +146,66 @@ final portfolioControllerProvider =
   PortfolioController.new,
 );
 
-/// Wallet holdings for the selected scope.
+/// Wallet holdings for the selected mode's spot wallet.
 ///
-/// Family-level rather than per-category, so it loads exactly once per mode
-/// instead of once per category. The payload carries its own mode and category and
-/// the screen discards a response that does not match the selection, so the cache
-/// can never leak one scope's balances under another scope's label.
+/// Holdings are a property of the spot wallet, not of the selected category, so a
+/// FUTURES selection still shows the spot wallet's assets rather than a response that
+/// silently disappears. The mode is still matched strictly, so one account mode's
+/// balances can never appear under the other's label.
 class PortfolioHoldingsController extends AsyncNotifier<PortfolioHoldings> {
   @override
   Future<PortfolioHoldings> build() async {
-    final mode = ref.watch(
-      portfolioSelectionProvider.select((scope) => scope.mode),
-    );
+    final scope = requireScope(ref);
     final repository = ref.watch(portfolioRepositoryProvider);
-    return repository.getHoldings(mode, PortfolioCategory.spot);
+    return repository.getHoldings(scope.mode, PortfolioCategory.spot);
   }
 }
 
 final portfolioHoldingsProvider =
     AsyncNotifierProvider<PortfolioHoldingsController, PortfolioHoldings>(
   PortfolioHoldingsController.new,
-);
+    );
+
+/// Orders the exchange currently reports as resting for the selected scope.
+///
+/// Read-only by construction: this provider has no place to place, modify or cancel an
+/// order.
+class PortfolioOpenOrdersController extends AsyncNotifier<PortfolioOrders> {
+  @override
+  Future<PortfolioOrders> build() async {
+    final scope = requireScope(ref);
+    final repository = ref.watch(portfolioRepositoryProvider);
+    return repository.getOpenOrders(mode: scope.mode, category: scope.category);
+  }
+}
+
+final portfolioOpenOrdersProvider =
+    AsyncNotifierProvider<PortfolioOpenOrdersController, PortfolioOrders>(
+      PortfolioOpenOrdersController.new,
+    );
+
+/// Positions closed inside the selected window, for the selected scope.
+class PortfolioClosedPositionsController
+    extends AsyncNotifier<PortfolioClosedPositions> {
+  @override
+  Future<PortfolioClosedPositions> build() async {
+    final scope = requireScope(ref);
+    final window = ref.watch(portfolioHistorySelectionProvider);
+    final repository = ref.watch(portfolioRepositoryProvider);
+    return repository.getClosedPositions(
+      mode: scope.mode,
+      category: scope.category,
+      symbol: window.symbol,
+      from: window.from,
+      to: window.to,
+      limit: window.limit,
+    );
+  }
+}
+
+final portfolioClosedPositionsProvider =
+    AsyncNotifierProvider<PortfolioClosedPositionsController,
+        PortfolioClosedPositions>(PortfolioClosedPositionsController.new);
 
 /// One history query as issued by the UI.
 class PortfolioHistoryQuery {
@@ -134,6 +213,12 @@ class PortfolioHistoryQuery {
     required this.type,
     this.symbol,
     this.limit,
+    this.from,
+    this.to,
+    this.side,
+    this.orderType,
+    this.status,
+    this.positionSide,
   });
 
   final PortfolioHistoryType type;
@@ -141,17 +226,44 @@ class PortfolioHistoryQuery {
   /// Required by the exchange for spot orders and fills, so the UI asks for it
   /// rather than silently receiving an error.
   final String? symbol;
+
   final int? limit;
+
+  /// Inclusive window start. Null lets the backend apply its own bounded default,
+  /// which is always explicit in the response.
+  final DateTime? from;
+  final DateTime? to;
+
+  /// Optional narrowing. Null means no narrowing at all.
+  final String? side;
+  final String? orderType;
+  final String? status;
+  final String? positionSide;
 
   PortfolioHistoryQuery copyWith({
     PortfolioHistoryType? type,
     String? symbol,
     int? limit,
+    DateTime? from,
+    DateTime? to,
+    String? side,
+    String? orderType,
+    String? status,
+    String? positionSide,
+    bool clearSymbol = false,
+    bool clearFrom = false,
+    bool clearTo = false,
   }) {
     return PortfolioHistoryQuery(
       type: type ?? this.type,
-      symbol: symbol ?? this.symbol,
+      symbol: clearSymbol ? null : (symbol ?? this.symbol),
       limit: limit ?? this.limit,
+      from: clearFrom ? null : (from ?? this.from),
+      to: clearTo ? null : (to ?? this.to),
+      side: side ?? this.side,
+      orderType: orderType ?? this.orderType,
+      status: status ?? this.status,
+      positionSide: positionSide ?? this.positionSide,
     );
   }
 
@@ -160,13 +272,29 @@ class PortfolioHistoryQuery {
       other is PortfolioHistoryQuery &&
       other.type == type &&
       other.symbol == symbol &&
-      other.limit == limit;
+      other.limit == limit &&
+      other.from == from &&
+      other.to == to &&
+      other.side == side &&
+      other.orderType == orderType &&
+      other.status == status &&
+      other.positionSide == positionSide;
 
   @override
-  int get hashCode => Object.hash(type, symbol, limit);
+  int get hashCode => Object.hash(
+        type,
+        symbol,
+        limit,
+        from,
+        to,
+        side,
+        orderType,
+        status,
+        positionSide,
+      );
 }
 
-/// The history window currently requested in the UI.
+/// The history window and narrowing currently requested in the UI.
 class PortfolioHistorySelection extends Notifier<PortfolioHistoryQuery> {
   @override
   PortfolioHistoryQuery build() =>
@@ -177,8 +305,55 @@ class PortfolioHistorySelection extends Notifier<PortfolioHistoryQuery> {
   }
 
   void setSymbol(String? symbol) {
-    state = state.copyWith(symbol: symbol);
+    state = symbol == null
+        ? state.copyWith(clearSymbol: true)
+        : state.copyWith(symbol: symbol);
   }
+
+  void setSide(String? side) => state = state.copyWith(side: side);
+
+  void setOrderType(String? orderType) =>
+      state = state.copyWith(orderType: orderType);
+
+  void setStatus(String? status) => state = state.copyWith(status: status);
+
+  void setPositionSide(String? positionSide) =>
+      state = state.copyWith(positionSide: positionSide);
+
+  /// Applies a relative window. Only bounded windows are ever requested; an
+  /// unbounded "everything" request is not issued.
+  void setRange(PortfolioHistoryRange range) {
+    final now = DateTime.now().toUtc();
+    switch (range) {
+      case PortfolioHistoryRange.today:
+        state = state.copyWith(
+          from: DateTime.utc(now.year, now.month, now.day),
+          to: now,
+          clearTo: false,
+        );
+      case PortfolioHistoryRange.sevenDays:
+        state = state.copyWith(
+          from: now.subtract(const Duration(days: 7)),
+          to: now,
+        );
+      case PortfolioHistoryRange.thirtyDays:
+        state = state.copyWith(
+          from: now.subtract(const Duration(days: 30)),
+          to: now,
+        );
+    }
+  }
+}
+
+/// The bounded windows offered for history, matching the backend's own bounds.
+enum PortfolioHistoryRange {
+  today('Today'),
+  sevenDays('7 Days'),
+  thirtyDays('30 Days');
+
+  const PortfolioHistoryRange(this.label);
+
+  final String label;
 }
 
 final portfolioHistorySelectionProvider =
@@ -187,15 +362,11 @@ final portfolioHistorySelectionProvider =
 );
 
 /// History for the selected scope and window.
-///
-/// Separate from [portfolioControllerProvider] on purpose: changing the window
-/// or the record type must not re-request the account balance, and a history
-/// failure must not blank out the balances the user can already see.
 class PortfolioHistoryController
     extends AsyncNotifier<PortfolioHistory> {
   @override
   Future<PortfolioHistory> build() async {
-    final scope = ref.watch(portfolioSelectionProvider);
+    final scope = requireScope(ref);
     final query = ref.watch(portfolioHistorySelectionProvider);
     final repository = ref.watch(portfolioRepositoryProvider);
 
@@ -204,7 +375,13 @@ class PortfolioHistoryController
       category: scope.category,
       type: query.type,
       symbol: query.symbol,
+      from: query.from,
+      to: query.to,
       limit: query.limit,
+      side: query.side,
+      orderType: query.orderType,
+      status: query.status,
+      positionSide: query.positionSide,
     );
   }
 }
@@ -214,12 +391,61 @@ final portfolioHistoryControllerProvider =
   PortfolioHistoryController.new,
 );
 
+/// Account income records for the selected scope and window.
+class PortfolioTransactionController
+    extends AsyncNotifier<PortfolioHistory> {
+  @override
+  Future<PortfolioHistory> build() async {
+    final scope = requireScope(ref);
+    final query = ref.watch(portfolioHistorySelectionProvider);
+    final repository = ref.watch(portfolioRepositoryProvider);
+
+    return repository.getTransactionHistory(
+      mode: scope.mode,
+      category: scope.category,
+      symbol: query.symbol,
+      from: query.from,
+      to: query.to,
+      limit: query.limit,
+    );
+  }
+}
+
+final portfolioTransactionControllerProvider =
+    AsyncNotifierProvider<PortfolioTransactionController, PortfolioHistory>(
+  PortfolioTransactionController.new,
+);
+
+/// Funding fees for the selected scope and window.
+class PortfolioFundingController extends AsyncNotifier<PortfolioHistory> {
+  @override
+  Future<PortfolioHistory> build() async {
+    final scope = requireScope(ref);
+    final query = ref.watch(portfolioHistorySelectionProvider);
+    final repository = ref.watch(portfolioRepositoryProvider);
+
+    return repository.getFundingFees(
+      mode: scope.mode,
+      category: scope.category,
+      symbol: query.symbol,
+      from: query.from,
+      to: query.to,
+      limit: query.limit,
+    );
+  }
+}
+
+final portfolioFundingControllerProvider =
+    AsyncNotifierProvider<PortfolioFundingController, PortfolioHistory>(
+  PortfolioFundingController.new,
+);
+
 /// Connection state and freshness for the selected scope.
 class PortfolioSyncStatusController
     extends AsyncNotifier<PortfolioSyncStatus> {
   @override
   Future<PortfolioSyncStatus> build() async {
-    final scope = ref.watch(portfolioSelectionProvider);
+    final scope = requireScope(ref);
     final repository = ref.watch(portfolioRepositoryProvider);
     return repository.getSyncStatus(scope.mode, scope.category);
   }

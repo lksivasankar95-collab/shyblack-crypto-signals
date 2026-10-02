@@ -21,6 +21,10 @@ public record FuturesOrderSnapshot(
 		String status,
 		Boolean reduceOnly,
 		BigDecimal price,
+		/** Trigger price for a stop order. Null when the exchange reports none or reports zero. */
+		BigDecimal stopPrice,
+		/** Exchange-reported average fill price. Null when nothing has filled yet. */
+		BigDecimal averageFillPrice,
 		BigDecimal originalQuantity,
 		BigDecimal executedQuantity,
 		BigDecimal cumulativeQuoteQuantity,

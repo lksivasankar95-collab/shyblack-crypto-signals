@@ -241,6 +241,20 @@ public class MockExchangeTradingAdapter implements ExchangeTradingAdapter {
 		seededTrades.add(trade);
 	}
 
+	/**
+	 * Drops every seeded record.
+	 *
+	 * <p>This adapter is a singleton for the whole application context, so its seeded history
+	 * otherwise accumulates across test methods and a later test reads rows an earlier one
+	 * declared. Clearing in {@code @BeforeEach} is what keeps each assertion about only the
+	 * records its own test seeded. Test-only; never an exchange call.
+	 */
+	public void clearSeeded() {
+		seededOrders.clear();
+		seededTrades.clear();
+		assets.clear();
+	}
+
 	private static boolean inWindow(Instant value, Instant from, Instant to) {
 		if (value == null) {
 			return true;

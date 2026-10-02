@@ -33,6 +33,50 @@ abstract class PortfolioRepository {
     DateTime? from,
     DateTime? to,
     int? limit,
+    String? side,
+    String? orderType,
+    String? status,
+    String? positionSide,
+  });
+
+  /// Orders the exchange currently reports as resting for one scope.
+  ///
+  /// Read-only: nothing here places, modifies or cancels an order.
+  Future<PortfolioOrders> getOpenOrders({
+    required PortfolioMode mode,
+    required PortfolioCategory category,
+    String? symbol,
+  });
+
+  /// Positions closed within an explicit window.
+  Future<PortfolioClosedPositions> getClosedPositions({
+    required PortfolioMode mode,
+    required PortfolioCategory category,
+    String? symbol,
+    DateTime? from,
+    DateTime? to,
+    int? limit,
+  });
+
+  /// Every account income record the exchange published in the window, with the
+  /// exchange's own income type preserved.
+  Future<PortfolioHistory> getTransactionHistory({
+    required PortfolioMode mode,
+    required PortfolioCategory category,
+    String? symbol,
+    DateTime? from,
+    DateTime? to,
+    int? limit,
+  });
+
+  /// Funding fees paid or received in the window.
+  Future<PortfolioHistory> getFundingFees({
+    required PortfolioMode mode,
+    required PortfolioCategory category,
+    String? symbol,
+    DateTime? from,
+    DateTime? to,
+    int? limit,
   });
 
   /// Connection state, freshness and the reason a scope is not current.

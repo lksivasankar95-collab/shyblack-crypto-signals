@@ -108,8 +108,8 @@ class PortfolioHistoryServiceTest {
 	}
 
 	private static ExchangeOrderSnapshot spotOrder(String symbol, long id, Instant time) {
-		return new ExchangeOrderSnapshot(symbol, id, "c" + id, "BUY", "LIMIT", "FILLED",
-				new BigDecimal("100"), new BigDecimal("2"), new BigDecimal("2"),
+return new ExchangeOrderSnapshot(symbol, id, "c" + id, "BUY", "LIMIT", "FILLED",
+				new BigDecimal("100"), null, new BigDecimal("2"), new BigDecimal("2"),
 				new BigDecimal("200"), time, time);
 	}
 
@@ -342,8 +342,8 @@ class PortfolioHistoryServiceTest {
 		User u = liveUser();
 		credential(u);
 		Instant t = Instant.now().minusSeconds(300);
-		futuresAdapter.putOrder(new FuturesOrderSnapshot("BTCUSDT", 21L, "cf21", "BUY", "BOTH",
-				"MARKET", "FILLED", false, null, new BigDecimal("1"), new BigDecimal("1"),
+futuresAdapter.putOrder(new FuturesOrderSnapshot("BTCUSDT", 21L, "cf21", "BUY", "BOTH",
+				"MARKET", "FILLED", false, null, null, null, new BigDecimal("1"), new BigDecimal("1"),
 				new BigDecimal("60000"), t, t));
 
 		PortfolioHistoryResponse response = historyService.history(
@@ -493,8 +493,8 @@ class PortfolioHistoryServiceTest {
 	void spotHistoryNeverReturnsFuturesRecords() {
 		User u = liveUser();
 		credential(u);
-		futuresAdapter.putOrder(new FuturesOrderSnapshot("BTCUSDT", 77L, "x", "BUY", "BOTH",
-				"MARKET", "FILLED", false, null, BigDecimal.ONE, BigDecimal.ONE,
+futuresAdapter.putOrder(new FuturesOrderSnapshot("BTCUSDT", 77L, "x", "BUY", "BOTH",
+				"MARKET", "FILLED", false, null, null, null, BigDecimal.ONE, BigDecimal.ONE,
 				BigDecimal.TEN, Instant.now(), Instant.now()));
 
 		PortfolioHistoryResponse response = historyService.history(

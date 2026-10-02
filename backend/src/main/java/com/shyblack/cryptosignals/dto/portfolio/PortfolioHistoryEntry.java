@@ -30,6 +30,14 @@ public record PortfolioHistoryEntry(
 		Long tradeId,
 		/** BUY, SELL, LONG or SHORT as reported. */
 		String side,
+		/**
+		 * BOTH, LONG or SHORT as reported for a futures record. Null for spot, which has no position
+		 * side, and for income records. Kept separate from {@link #side()} so a hedge-mode row is
+		 * unambiguous rather than two values packed into one string.
+		 */
+		String positionSide,
+		/** LIMIT, MARKET, STOP_LOSS_LIMIT, ... as reported. Null for fills and income records. */
+		String orderType,
 		String status,
 		BigDecimal price,
 		BigDecimal quantity,

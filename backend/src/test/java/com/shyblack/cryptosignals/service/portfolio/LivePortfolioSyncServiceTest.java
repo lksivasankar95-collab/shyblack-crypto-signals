@@ -394,14 +394,22 @@ class LivePortfolioSyncServiceTest {
 	}
 
 	@Test
-	void liveFuturesWithoutASyncExplainsWhyRealizedPnlIsAbsent() {
+	void liveFuturesSummaryExplainsWhereRealizedPnlActuallyLives() {
 		User u = user();
 		futuresAccount(u);
 
 		PortfolioAccountView futures = readService.getAccount(u, AccountMode.LIVE, AccountCategory.FUTURES);
 
-		assertThat(futures.realizedPnl()).isNull();
-		assertThat(futures.statusMessage()).contains("income history");
+		// The summary stays null rather than reading a windowed, paginated income feed on
+		// every request, and the locally recorded position P&L is never substituted for
+		// the exchange's own realized P&L.
+		assertThat(futures.realizedPnl())
+				.as("C: exchange realized P&L is not summarised from local state")
+				.isNull();
+		assertThat(futures.statusMessage())
+				.as("the message must point at the endpoint that does report it")
+				.contains("income records")
+				.contains("transaction history");
 	}
 
 	// ------------------------------------- C/D. LIVE MAIN, LIVE OPTIONS

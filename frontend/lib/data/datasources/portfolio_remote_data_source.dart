@@ -50,6 +50,9 @@ class PortfolioRemoteDataSource {
   /// [symbol] is required by the exchange for spot orders and fills, so it is
   /// passed through when known. The window bounds and the limit are sent
   /// explicitly rather than left to a server-side default.
+  ///
+  /// The narrowing parameters are optional; a null is omitted so the backend keeps
+  /// its "no narrowing" meaning rather than receiving an empty value.
   Future<Map<String, dynamic>> getHistory({
     required String mode,
     required String category,
@@ -58,15 +61,102 @@ class PortfolioRemoteDataSource {
     DateTime? from,
     DateTime? to,
     int? limit,
+    String? side,
+    String? orderType,
+    String? status,
+    String? positionSide,
   }) async {
     final params = <String, dynamic>{'mode': mode, 'type': type};
-    if (symbol != null && symbol.isNotEmpty) params['symbol'] = symbol;
-    if (from != null) params['from'] = from.toUtc().toIso8601String();
-    if (to != null) params['to'] = to.toUtc().toIso8601String();
-    if (limit != null) params['limit'] = limit;
+    _put(params, 'symbol', symbol);
+    _put(params, 'side', side);
+    _put(params, 'orderType', orderType);
+    _put(params, 'status', status);
+    _put(params, 'positionSide', positionSide);
+    _putWindow(params, from, to, limit);
 
     final res = await _api.dio.get<Map<String, dynamic>>(
       ApiConstants.portfolioHistory(category),
+      queryParameters: params,
+    );
+    return res.data ?? const {};
+  }
+
+  /// Orders the exchange currently reports as resting. Read-only.
+  Future<Map<String, dynamic>> getOpenOrders({
+    required String mode,
+    required String category,
+    String? symbol,
+    String? side,
+    String? status,
+  }) async {
+    final params = <String, dynamic>{'mode': mode};
+    _put(params, 'symbol', symbol);
+    _put(params, 'side', side);
+    _put(params, 'status', status);
+
+    final res = await _api.dio.get<Map<String, dynamic>>(
+      ApiConstants.portfolioOpenOrders(category),
+      queryParameters: params,
+    );
+    return res.data ?? const {};
+  }
+
+  /// Positions closed inside an explicit window. Fields the source cannot prove
+  /// arrive as null and are rendered as unavailable, never as zero.
+  Future<Map<String, dynamic>> getClosedPositions({
+    required String mode,
+    required String category,
+    String? symbol,
+    DateTime? from,
+    DateTime? to,
+    int? limit,
+  }) async {
+    final params = <String, dynamic>{'mode': mode};
+    _put(params, 'symbol', symbol);
+    _putWindow(params, from, to, limit);
+
+    final res = await _api.dio.get<Map<String, dynamic>>(
+      ApiConstants.portfolioClosedPositions(category),
+      queryParameters: params,
+    );
+    return res.data ?? const {};
+  }
+
+  /// Every account income record the exchange published in the window.
+  Future<Map<String, dynamic>> getTransactionHistory({
+    required String mode,
+    required String category,
+    String? symbol,
+    DateTime? from,
+    DateTime? to,
+    int? limit,
+  }) async {
+    final params = <String, dynamic>{'mode': mode};
+    _put(params, 'symbol', symbol);
+    _putWindow(params, from, to, limit);
+
+    final res = await _api.dio.get<Map<String, dynamic>>(
+      ApiConstants.portfolioTransactionHistory(category),
+      queryParameters: params,
+    );
+    return res.data ?? const {};
+  }
+
+  /// Funding fees paid or received in the window.
+  Future<Map<String, dynamic>> getFundingFees({
+    required String mode,
+    required String category,
+    String? symbol,
+    DateTime? from,
+    DateTime? to,
+    int? limit,
+  }) async {
+    final params = <String, dynamic>{'mode': mode};
+    _put(params, 'symbol', symbol);
+    _putWindow(params, from, to, limit);
+
+    final res = await _api.dio.get<Map<String, dynamic>>(
+      ApiConstants.portfolioFundingFees(category),
       queryParameters: params,
     );
     return res.data ?? const {};
@@ -79,5 +169,22 @@ class PortfolioRemoteDataSource {
       queryParameters: {'mode': mode},
     );
     return res.data ?? const {};
+  }
+
+  /// An empty or absent filter value means "no narrowing", so it is omitted rather
+  /// than sent and interpreted as a filter that matches nothing.
+  static void _put(Map<String, dynamic> params, String key, String? value) {
+    if (value != null && value.isNotEmpty) params[key] = value;
+  }
+
+  static void _putWindow(
+    Map<String, dynamic> params,
+    DateTime? from,
+    DateTime? to,
+    int? limit,
+  ) {
+    if (from != null) params['from'] = from.toUtc().toIso8601String();
+    if (to != null) params['to'] = to.toUtc().toIso8601String();
+    if (limit != null) params['limit'] = limit;
   }
 }

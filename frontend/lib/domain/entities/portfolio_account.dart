@@ -1,8 +1,9 @@
 /// Account mode of the unified Portfolio.
 ///
-/// This is a Portfolio UI concern only. It is deliberately independent of the
-/// legacy `User.accountType` and `User.tradingMode`, which are not portfolio
-/// selector state.
+/// This mirrors the account mode the user selects in **Settings**, and is read from
+/// `AppSettings.tradingAccount`. Portfolio has no mode selector of its own: the
+/// mode here is a projection of Settings state, never independent UI state, so the
+/// two cannot drift apart.
 enum PortfolioMode {
   paper('PAPER'),
   live('LIVE');
@@ -19,6 +20,11 @@ enum PortfolioMode {
 }
 
 /// Account category within an [PortfolioMode].
+///
+/// [main] is an internal read-model concept: the aggregate across every category of
+/// one account mode. It is deliberately excluded from [portfolioTabs] so it never
+/// appears as user-facing Portfolio navigation, where it would be confused with a
+/// wallet or with a real market account.
 enum PortfolioCategory {
   main('MAIN'),
   spot('SPOT'),
@@ -29,6 +35,12 @@ enum PortfolioCategory {
 
   /// Exact value expected by the backend `{category}` path segment.
   final String apiValue;
+
+  /// The categories a user can actually browse.
+  ///
+  /// SPOT, FUTURES and OPTIONS, in that order. MAIN is absent on purpose: it is the
+  /// backend's aggregate scope, not an account a user owns.
+  static const List<PortfolioCategory> portfolioTabs = [spot, futures, options];
 
   /// Parses a backend value, falling back to [main] for an unrecognised value.
   static PortfolioCategory parse(Object? raw) {
@@ -45,6 +57,49 @@ enum PortfolioCategory {
       if (category.apiValue == raw) return category;
     }
     return null;
+  }
+}
+
+/// Exchange-confirmed order state, mirroring the backend contract.
+///
+/// Deliberately carries only states an exchange order-read can report. The local
+/// submission states (SUBMITTED, SUBMITTING) live in the execution module and are
+/// never surfaced here, because a submitted-but-unconfirmed order is not exchange
+/// state and showing it here would let "submitted" be read as "filled".
+///
+/// [unknown] is the only safe fallback: a read that cannot determine the state stays
+/// unknown and is never widened to [filled], closed or successful.
+enum PortfolioOrderStatus {
+  /// Accepted by the exchange and resting on the book, nothing filled yet.
+  ///
+  /// Named `open` rather than `new` because `new` is a reserved word in Dart.
+  open('NEW'),
+  partiallyFilled('PARTIALLY_FILLED'),
+  filled('FILLED'),
+  canceled('CANCELED'),
+  rejected('REJECTED'),
+  expired('EXPIRED'),
+  unknown('UNKNOWN');
+
+  const PortfolioOrderStatus(this.apiValue);
+
+  final String apiValue;
+
+  /// True only when the exchange said the order is fully filled.
+  bool get isFilled => this == PortfolioOrderStatus.filled;
+
+  /// True while the order is still live on the exchange book.
+  bool get isOpen =>
+      this == PortfolioOrderStatus.open || this == PortfolioOrderStatus.partiallyFilled;
+
+  /// Maps a backend status name. Anything absent or unrecognised is [unknown].
+  static PortfolioOrderStatus parse(Object? raw) {
+    if (raw == null) return PortfolioOrderStatus.unknown;
+    final value = raw.toString().trim().toUpperCase();
+    for (final status in PortfolioOrderStatus.values) {
+      if (status.apiValue == value) return status;
+    }
+    return PortfolioOrderStatus.unknown;
   }
 }
 
@@ -331,6 +386,8 @@ class PortfolioHistoryEntry {
     required this.entryType,
     required this.accountMode,
     required this.accountCategory,
+    this.positionSide,
+    this.orderType,
     this.symbol,
     this.orderId,
     this.tradeId,
@@ -348,6 +405,13 @@ class PortfolioHistoryEntry {
   final String entryType;
   final PortfolioMode accountMode;
   final PortfolioCategory accountCategory;
+
+  /// BOTH, LONG or SHORT for futures records. Null for spot, which has no position
+  /// side, and for income records. Never derived from [side].
+  final String? positionSide;
+
+  /// LIMIT, MARKET, STOP_LOSS_LIMIT, ... as reported. Null for fills and income records.
+  final String? orderType;
   final String? symbol;
   final int? orderId;
 
@@ -441,4 +505,173 @@ class PortfolioSyncStatus {
   final String? message;
 
   bool get isStale => stale || availability.isStale;
+}
+
+/// One order as the exchange currently reports it.
+///
+/// Every figure comes from an order-read endpoint. An order that has not filled has
+/// a null [averageFillPrice] and a null [stopPrice] unless the exchange actually
+/// reported one; nothing here defaults a missing value to zero.
+class PortfolioOrder {
+  const PortfolioOrder({
+    required this.accountMode,
+    required this.accountCategory,
+    required this.symbol,
+    required this.orderType,
+    required this.status,
+    this.side,
+    this.positionSide,
+    this.price,
+    this.stopPrice,
+    this.averageFillPrice,
+    this.originalQuantity,
+    this.executedQuantity,
+    this.remainingQuantity,
+    this.reduceOnly,
+    this.orderId,
+    this.clientOrderId,
+    this.createdAt,
+    this.updatedAt,
+  });
+
+  final PortfolioMode accountMode;
+  final PortfolioCategory accountCategory;
+  final String symbol;
+
+  /// BUY or SELL as reported.
+  final String? side;
+
+  /// BOTH, LONG or SHORT for futures. Null for spot, which cannot be shorted.
+  final String? positionSide;
+
+  /// LIMIT, MARKET, STOP_LOSS_LIMIT, ... as reported.
+  final String orderType;
+
+  /// Normalised exchange state. Never widened to [PortfolioOrderStatus.filled].
+  final PortfolioOrderStatus status;
+
+  final double? price;
+
+  /// Trigger price. Null when the order type has no trigger.
+  final double? stopPrice;
+
+  /// The exchange's own average fill price. Null when nothing has filled.
+  final double? averageFillPrice;
+  final double? originalQuantity;
+  final double? executedQuantity;
+
+  /// originalQuantity minus executedQuantity, or null when either is unknown.
+  final double? remainingQuantity;
+
+  /// Futures only.
+  final bool? reduceOnly;
+  final int? orderId;
+  final String? clientOrderId;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+}
+
+/// Open orders for one account scope, answering "what is resting right now".
+///
+/// A scope with no such capability reports [PortfolioAvailability].unsupported with
+/// an empty list, so an absent capability is never shown as "no open orders".
+class PortfolioOrders {
+  const PortfolioOrders({
+    required this.accountMode,
+    required this.accountCategory,
+    required this.availability,
+    required this.orders,
+    this.source,
+    this.statusMessage,
+  });
+
+  final PortfolioMode accountMode;
+  final PortfolioCategory accountCategory;
+  final PortfolioAvailability availability;
+  final String? source;
+  final List<PortfolioOrder> orders;
+  final String? statusMessage;
+
+  bool get isEmptyBecauseUnsupported => orders.isEmpty && !availability.isAvailable;
+}
+
+/// One position that has been closed.
+///
+/// Provenance is strict: [realizedPnl] is summed from the values the exchange
+/// attributed to the closing fills, never recomputed from prices. [entryPrice] and
+/// [exitPrice] are quantity-weighted averages of the real fills on each side, and are
+/// null when that side of the round trip was not observable in the requested window.
+/// [funding] is always null, because a funding-fee record has no position attribution.
+class PortfolioClosedPosition {
+  const PortfolioClosedPosition({
+    required this.accountMode,
+    required this.accountCategory,
+    required this.symbol,
+    this.side,
+    this.entryPrice,
+    this.exitPrice,
+    this.quantity,
+    this.realizedPnl,
+    this.fees,
+    this.funding,
+    this.feesAsset,
+    this.marginType,
+    this.leverage,
+    this.openedAt,
+    this.closedAt,
+    this.duration,
+    this.orderIds = const [],
+    this.tradeIds = const [],
+  });
+
+  final PortfolioMode accountMode;
+  final PortfolioCategory accountCategory;
+  final String symbol;
+
+  /// LONG or SHORT. Null only when the source reported no position side at all.
+  final String? side;
+  final double? entryPrice;
+  final double? exitPrice;
+  final double? quantity;
+  final double? realizedPnl;
+  final double? fees;
+  final double? funding;
+  final String? feesAsset;
+  final String? marginType;
+  final int? leverage;
+  final DateTime? openedAt;
+  final DateTime? closedAt;
+
+  /// closedAt minus openedAt, or null when either is unknown.
+  final Duration? duration;
+  final List<int> orderIds;
+  final List<int> tradeIds;
+}
+
+/// Closed positions for one account scope, answering "what trades were closed".
+///
+/// [partial] is true when at least one round trip could only partly be observed, so
+/// some entry prices or durations are unavailable. The records are still real; this
+/// is an honest completeness signal rather than an error.
+class PortfolioClosedPositions {
+  const PortfolioClosedPositions({
+    required this.accountMode,
+    required this.accountCategory,
+    required this.availability,
+    required this.positions,
+    this.source,
+    this.partial = false,
+    this.statusMessage,
+  });
+
+  final PortfolioMode accountMode;
+  final PortfolioCategory accountCategory;
+  final PortfolioAvailability availability;
+  final String? source;
+  final bool partial;
+  final List<PortfolioClosedPosition> positions;
+  final String? statusMessage;
+
+  bool get isEmptyBecauseUnsupported =>
+      positions.isEmpty && !availability.isAvailable;
 }

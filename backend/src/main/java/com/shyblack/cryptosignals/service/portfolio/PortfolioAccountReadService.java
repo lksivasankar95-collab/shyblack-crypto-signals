@@ -90,14 +90,17 @@ public class PortfolioAccountReadService {
 					+ "balance and equity are unavailable here; position-level figures are exact.";
 
 	/**
-	 * Realized P&amp;L is reported as null for both live scopes. Binance supplies authoritative
-	 * realized P&amp;L only through a time-windowed income endpoint that needs a persisted cursor and a
-	 * pagination strategy; until that exists, the locally recorded position ledger is NOT substituted
-	 * and never labelled as exchange realized P&amp;L.
+	 * Realized P&amp;L is reported as null for both live scopes in the <em>summary</em> view.
+	 * Exchange income records are available, but they are time-windowed and paginated, so reading them
+	 * inline on every summary request would be unbounded work on a hot path. They are served instead by
+	 * the transaction-history endpoint, which resolves an explicit window. The locally recorded position
+	 * ledger is NOT substituted and is never labelled as exchange realized P&amp;L.
 	 */
 	static final String LIVE_REALIZED_PNL_UNAVAILABLE_MESSAGE =
-			"Realized P&L is unavailable: it requires the exchange income history, which is not "
-					+ "integrated yet. Local position P&L is never presented as exchange realized P&L.";
+			"Realized P&L is not part of this summary because exchange income records are time-windowed "
+					+ "and paginated. Read it from the transaction history, which reports the exchange's own "
+					+ "REALIZED_PNL income records. Local position P&L is never presented as exchange "
+					+ "realized P&L.";
 
 	static final String LIVE_SPOT_NO_POSITION_MESSAGE =
 			"Spot exposes balances, not open positions. A wallet asset balance is never presented as a "

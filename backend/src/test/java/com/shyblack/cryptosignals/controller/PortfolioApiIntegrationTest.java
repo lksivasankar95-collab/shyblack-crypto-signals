@@ -751,10 +751,10 @@ class PortfolioApiIntegrationTest {
 		credential();
 		Instant now = Instant.now();
 		spotAdapter.putOrder(new ExchangeOrderSnapshot("BTCUSDT", 1L, "c1", "BUY", "LIMIT", "FILLED",
-				new BigDecimal("100"), new BigDecimal("1"), new BigDecimal("1"),
+				new BigDecimal("100"), null, new BigDecimal("1"), new BigDecimal("1"),
 				new BigDecimal("100"), now.minusSeconds(600), now.minusSeconds(600)));
 		spotAdapter.putOrder(new ExchangeOrderSnapshot("BTCUSDT", 2L, "c2", "SELL", "MARKET", "FILLED",
-				new BigDecimal("110"), new BigDecimal("1"), new BigDecimal("1"),
+				new BigDecimal("110"), null, new BigDecimal("1"), new BigDecimal("1"),
 				new BigDecimal("110"), now.minusSeconds(60), now.minusSeconds(60)));
 
 		authGet("/api/v1/portfolio/SPOT/history?mode=LIVE&type=ORDER&symbol=BTCUSDT")
@@ -808,7 +808,7 @@ class PortfolioApiIntegrationTest {
 		signUp();
 		credential();
 		spotAdapter.putOrder(new ExchangeOrderSnapshot("BTCUSDT", 1L, "c1", "BUY", "LIMIT", "FILLED",
-				BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE,
+				BigDecimal.ONE, null, BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE,
 				Instant.now(), Instant.now()));
 
 		authGet("/api/v1/portfolio/SPOT/history?type=ORDER&symbol=BTCUSDT")

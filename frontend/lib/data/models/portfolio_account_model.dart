@@ -143,6 +143,8 @@ class PortfolioAccountModel {
       entryType: json['entryType'] as String? ?? '',
       accountMode: parseMode(json['accountMode']),
       accountCategory: parseCategory(json['accountCategory']),
+      positionSide: json['positionSide'] as String?,
+      orderType: json['orderType'] as String?,
       symbol: json['symbol'] as String?,
       orderId: _int(json['orderId']),
       tradeId: _int(json['tradeId']),
@@ -156,6 +158,149 @@ class PortfolioAccountModel {
       realizedPnl: _num(json['realizedPnl']),
       occurredAt: _date(json['occurredAt']),
     );
+  }
+
+  static PortfolioOrders ordersFromJson(Map<String, dynamic> json) {
+    final raw = json['orders'];
+    final orders = <PortfolioOrder>[];
+    if (raw is List) {
+      for (final entry in raw) {
+        if (entry is Map<String, dynamic>) {
+          orders.add(orderFromJson(entry));
+        }
+      }
+    }
+    return PortfolioOrders(
+      accountMode: parseMode(json['accountMode']),
+      accountCategory: parseCategory(json['accountCategory']),
+      availability: PortfolioAvailability.parse(json['availability'] as String?),
+      source: json['source'] as String?,
+      orders: orders,
+      statusMessage: json['statusMessage'] as String?,
+    );
+  }
+
+  static PortfolioOrder orderFromJson(Map<String, dynamic> json) {
+    return PortfolioOrder(
+      accountMode: parseMode(json['accountMode']),
+      accountCategory: parseCategory(json['accountCategory']),
+      symbol: json['symbol'] as String? ?? '',
+      side: json['side'] as String?,
+      positionSide: json['positionSide'] as String?,
+      orderType: json['orderType'] as String? ?? 'UNKNOWN',
+      // An absent or unrecognised status stays UNKNOWN. It is never widened to
+      // FILLED, which is what keeps "submitted" and "filled" impossible to
+      // confuse on screen.
+      status: PortfolioOrderStatus.parse(json['status']),
+      price: _num(json['price']),
+      stopPrice: _num(json['stopPrice']),
+      averageFillPrice: _num(json['averageFillPrice']),
+      originalQuantity: _num(json['originalQuantity']),
+      executedQuantity: _num(json['executedQuantity']),
+      remainingQuantity: _num(json['remainingQuantity']),
+      reduceOnly: json['reduceOnly'] as bool?,
+      orderId: _int(json['orderId']),
+      clientOrderId: json['clientOrderId'] as String?,
+      createdAt: _date(json['createdAt']),
+      updatedAt: _date(json['updatedAt']),
+    );
+  }
+
+  static PortfolioClosedPositions closedPositionsFromJson(
+    Map<String, dynamic> json,
+  ) {
+    final raw = json['positions'];
+    final positions = <PortfolioClosedPosition>[];
+    if (raw is List) {
+      for (final entry in raw) {
+        if (entry is Map<String, dynamic>) {
+          positions.add(closedPositionFromJson(entry));
+        }
+      }
+    }
+    return PortfolioClosedPositions(
+      accountMode: parseMode(json['accountMode']),
+      accountCategory: parseCategory(json['accountCategory']),
+      availability: PortfolioAvailability.parse(json['availability'] as String?),
+      source: json['source'] as String?,
+      partial: json['partial'] == true,
+      positions: positions,
+      statusMessage: json['statusMessage'] as String?,
+    );
+  }
+
+  static PortfolioClosedPosition closedPositionFromJson(
+    Map<String, dynamic> json,
+  ) {
+    return PortfolioClosedPosition(
+      accountMode: parseMode(json['accountMode']),
+      accountCategory: parseCategory(json['accountCategory']),
+      symbol: json['symbol'] as String? ?? '',
+      side: json['side'] as String?,
+      entryPrice: _num(json['entryPrice']),
+      exitPrice: _num(json['exitPrice']),
+      quantity: _num(json['quantity']),
+      realizedPnl: _num(json['realizedPnl']),
+      fees: _num(json['fees']),
+      funding: _num(json['funding']),
+      feesAsset: json['feesAsset'] as String?,
+      marginType: json['marginType'] as String?,
+      leverage: _int(json['leverage']),
+      openedAt: _date(json['openedAt']),
+      closedAt: _date(json['closedAt']),
+      duration: _duration(json['duration']),
+      orderIds: _intList(json['orderIds']),
+      tradeIds: _intList(json['tradeIds']),
+    );
+  }
+
+  /// Parses a duration as the backend serialises it.
+  ///
+  /// Spring Boot writes a `java.time.Duration` as an ISO-8601 string (`PT2H15M30S`) rather than a
+  /// number of seconds, but a numeric value is also accepted so a configuration change cannot turn a
+  /// real duration into "unavailable". Anything unrecognised returns null and renders as
+  /// unavailable; it never becomes a zero-length duration.
+  static Duration? _duration(Object? value) {
+    if (value == null) return null;
+    if (value is num) return Duration(microseconds: (value * 1000000).round());
+
+    final text = value.toString().trim().toUpperCase();
+    if (text.isEmpty) return null;
+
+    // Plain seconds, in case the value is numeric-as-string.
+    final asSeconds = num.tryParse(text);
+    if (asSeconds != null) {
+      return Duration(microseconds: (asSeconds * 1000000).round());
+    }
+
+    // ISO-8601: PnDTnHnMnS, where every component is optional but P is not.
+    if (!text.startsWith('P')) return null;
+    final match = RegExp(
+      r'^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?)?$',
+    ).firstMatch(text);
+    if (match == null) return null;
+
+    final days = int.tryParse(match.group(1) ?? '0') ?? 0;
+    final hours = int.tryParse(match.group(2) ?? '0') ?? 0;
+    final minutes = int.tryParse(match.group(3) ?? '0') ?? 0;
+    final seconds = double.tryParse(match.group(4) ?? '0') ?? 0;
+
+    return Duration(
+      days: days,
+      hours: hours,
+      minutes: minutes,
+      microseconds: (seconds * 1000000).round(),
+    );
+  }
+
+  static List<int> _intList(Object? value) {
+    if (value is! List) return const [];
+    final ids = <int>[];
+    for (final entry in value) {
+      final id = _int(entry);
+      if (id != null) ids.add(id);
+    }
+    return List.unmodifiable(ids);
   }
 
   static PortfolioSyncStatus syncStatusFromJson(Map<String, dynamic> json) {

@@ -13,11 +13,19 @@ class FakePortfolioRepository implements PortfolioRepository {
     Map<String, PortfolioHoldings>? holdings,
     Map<String, PortfolioHistory>? history,
     Map<String, PortfolioSyncStatus>? syncStatus,
+    Map<String, PortfolioOrders>? openOrders,
+    Map<String, PortfolioClosedPositions>? closedPositions,
+    Map<String, PortfolioHistory>? transactions,
+    Map<String, PortfolioHistory>? fundingFees,
   })  : accounts = accounts ?? <String, PortfolioAccount>{},
         positions = positions ?? <String, PortfolioPositions>{},
         holdings = holdings ?? <String, PortfolioHoldings>{},
         history = history ?? <String, PortfolioHistory>{},
-        syncStatus = syncStatus ?? <String, PortfolioSyncStatus>{};
+        syncStatus = syncStatus ?? <String, PortfolioSyncStatus>{},
+        openOrders = openOrders ?? <String, PortfolioOrders>{},
+        closedPositions = closedPositions ?? <String, PortfolioClosedPositions>{},
+        transactions = transactions ?? <String, PortfolioHistory>{},
+        fundingFees = fundingFees ?? <String, PortfolioHistory>{};
 
   /// Keyed by "MODE:CATEGORY".
   final Map<String, PortfolioAccount> accounts;
@@ -25,11 +33,19 @@ class FakePortfolioRepository implements PortfolioRepository {
   final Map<String, PortfolioHoldings> holdings;
   final Map<String, PortfolioHistory> history;
   final Map<String, PortfolioSyncStatus> syncStatus;
+  final Map<String, PortfolioOrders> openOrders;
+  final Map<String, PortfolioClosedPositions> closedPositions;
+  final Map<String, PortfolioHistory> transactions;
+  final Map<String, PortfolioHistory> fundingFees;
 
   final List<String> accountCalls = [];
   final List<String> positionCalls = [];
   final List<String> holdingsCalls = [];
   final List<String> syncStatusCalls = [];
+  final List<String> openOrderCalls = [];
+  final List<String> closedPositionCalls = [];
+  final List<String> transactionCalls = [];
+  final List<String> fundingCalls = [];
 
   /// Recorded as "MODE:CATEGORY:TYPE:SYMBOL" so a test can assert the exact
   /// window and symbol that were requested.
@@ -122,11 +138,119 @@ class FakePortfolioRepository implements PortfolioRepository {
     DateTime? from,
     DateTime? to,
     int? limit,
+    String? side,
+    String? orderType,
+    String? status,
+    String? positionSide,
   }) async {
     historyCalls.add('${key(mode, category)}:${type.apiValue}:${symbol ?? '-'}');
     if (historyFailWith != null) throw historyFailWith!;
     if (failWith != null) throw failWith!;
     return history[key(mode, category)] ??
+        PortfolioHistory(
+          accountMode: mode,
+          accountCategory: category,
+          availability: PortfolioAvailability.available,
+          entries: const [],
+        );
+  }
+
+  @override
+  Future<PortfolioOrders> getOpenOrders({
+    required PortfolioMode mode,
+    required PortfolioCategory category,
+    String? symbol,
+  }) async {
+    openOrderCalls.add(key(mode, category));
+    if (failWith != null) throw failWith!;
+    return openOrders[key(mode, category)] ??
+        // A paper account works no order book, so the backend reports it as
+        // unsupported rather than as an empty book.
+        PortfolioOrders(
+          accountMode: mode,
+          accountCategory: category,
+          availability: mode == PortfolioMode.paper
+              ? PortfolioAvailability.unsupported
+              : PortfolioAvailability.available,
+          orders: const [],
+          statusMessage: mode == PortfolioMode.paper
+              ? 'A simulated account works no order book.'
+              : null,
+        );
+  }
+
+  @override
+  Future<PortfolioClosedPositions> getClosedPositions({
+    required PortfolioMode mode,
+    required PortfolioCategory category,
+    String? symbol,
+    DateTime? from,
+    DateTime? to,
+    int? limit,
+  }) async {
+    closedPositionCalls.add(key(mode, category));
+    if (failWith != null) throw failWith!;
+    return closedPositions[key(mode, category)] ??
+        // Live spot has no leveraged position lifecycle to close, so the backend
+        // reports it as unsupported rather than as "nothing was ever closed".
+        PortfolioClosedPositions(
+          accountMode: mode,
+          accountCategory: category,
+          availability: mode == PortfolioMode.live &&
+                  category == PortfolioCategory.spot
+              ? PortfolioAvailability.unsupported
+              : PortfolioAvailability.available,
+          positions: const [],
+          statusMessage: mode == PortfolioMode.live &&
+                  category == PortfolioCategory.spot
+              ? 'Spot holds wallet assets rather than leveraged positions.'
+              : null,
+        );
+  }
+
+  @override
+  Future<PortfolioHistory> getTransactionHistory({
+    required PortfolioMode mode,
+    required PortfolioCategory category,
+    String? symbol,
+    DateTime? from,
+    DateTime? to,
+    int? limit,
+  }) async {
+    transactionCalls.add(key(mode, category));
+    if (failWith != null) throw failWith!;
+    return transactions[key(mode, category)] ??
+        // Mirrors the backend contract: Binance Spot publishes no account income
+        // endpoint at all, so the spot scope is reported as unsupported rather than as
+        // an empty ledger that would read as "no transactions happened".
+        PortfolioHistory(
+          accountMode: mode,
+          accountCategory: category,
+          availability: mode == PortfolioMode.live &&
+                  category == PortfolioCategory.spot
+              ? PortfolioAvailability.unsupported
+              : PortfolioAvailability.available,
+          entries: const [],
+          statusMessage: mode == PortfolioMode.live &&
+                  category == PortfolioCategory.spot
+              ? 'Not available: Binance Spot publishes no account income or transaction '
+                  'endpoint.'
+              : null,
+        );
+  }
+
+  @override
+  Future<PortfolioHistory> getFundingFees({
+    required PortfolioMode mode,
+    required PortfolioCategory category,
+    String? symbol,
+    DateTime? from,
+    DateTime? to,
+    int? limit,
+  }) async {
+    fundingCalls.add(key(mode, category));
+    if (failWith != null) throw failWith!;
+    return fundingFees[key(mode, category)] ??
         PortfolioHistory(
           accountMode: mode,
           accountCategory: category,

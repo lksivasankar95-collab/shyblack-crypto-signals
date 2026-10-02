@@ -299,6 +299,10 @@ public class BinanceLiveTradingAdapter implements ExchangeTradingAdapter {
 					str(o, "type"),
 					str(o, "status"),
 					dec(o, "price"),
+					// Binance reports stopPrice as "0.00000000" for an order with no trigger, which
+					// is indistinguishable from a genuine zero trigger. That single sentinel is
+					// normalised to null so "no stop" is never rendered as a stop at price 0.
+					zeroToNull(dec(o, "stopPrice")),
 					dec(o, "origQty"),
 					dec(o, "executedQty"),
 					dec(o, "cummulativeQuoteQty"),
@@ -357,6 +361,15 @@ public class BinanceLiveTradingAdapter implements ExchangeTradingAdapter {
 		} catch (NumberFormatException ex) {
 			return null;
 		}
+	}
+
+	/**
+	 * Binance reports an absent numeric field as "0" rather than omitting it, which makes "no stop
+	 * price" and a genuine zero stop price indistinguishable. That one sentinel is normalised to
+	 * null; every other value is preserved exactly.
+	 */
+	private static BigDecimal zeroToNull(BigDecimal value) {
+		return value == null || value.signum() == 0 ? null : value;
 	}
 
 	private static Instant millis(JsonObject json, String key) {

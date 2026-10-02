@@ -212,65 +212,14 @@ class PortfolioStatePanel extends StatelessWidget {
   }
 }
 
-/// PAPER / LIVE selector. Visually obvious so one mode is never mistaken for
-/// the other.
-class PortfolioModeSelector extends StatelessWidget {
-  const PortfolioModeSelector({
-    super.key,
-    required this.selected,
-    required this.onChanged,
-  });
-
-  final PortfolioMode selected;
-  final ValueChanged<PortfolioMode> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: PortfolioMode.values.map((mode) {
-        final active = mode == selected;
-        return Expanded(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: GestureDetector(
-              key: ValueKey('portfolio-mode-${mode.apiValue}'),
-              onTap: () => onChanged(mode),
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                decoration: BoxDecoration(
-                  color: active
-                      ? AppColors.accent.withValues(alpha: 0.16)
-                      : AppColors.card,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: active ? AppColors.accent : Colors.transparent,
-                    width: 1.2,
-                  ),
-                ),
-                child: Center(
-                  child: Text(
-                    mode == PortfolioMode.paper ? 'PAPER' : 'LIVE',
-                    style: TextStyle(
-                      color: active ? AppColors.accent : AppColors.muted,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.8,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
-}
-
-/// MAIN / SPOT / FUTURES / OPTIONS selector.
+/// SPOT / FUTURES / OPTIONS market-account tabs.
 ///
-/// Scrollable rather than a fixed four-column row, so the tabs stay usable on a
-/// narrow phone without horizontal overflow.
+/// MAIN is deliberately absent: it is the backend's aggregate read-model scope, not an
+/// account the user owns, and offering it as a tab would blur the wallet summary with a
+/// real market account.
+///
+/// Scrollable rather than a fixed row, so the tabs stay usable on a narrow phone
+/// without horizontal overflow.
 class PortfolioCategoryTabs extends StatelessWidget {
   const PortfolioCategoryTabs({
     super.key,
@@ -286,7 +235,7 @@ class PortfolioCategoryTabs extends StatelessWidget {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
-        children: PortfolioCategory.values.map((category) {
+        children: PortfolioCategory.portfolioTabs.map((category) {
           final active = category == selected;
           return Padding(
             padding: const EdgeInsets.only(right: 8),
@@ -312,6 +261,119 @@ class PortfolioCategoryTabs extends StatelessWidget {
             ),
           );
         }).toList(),
+      ),
+    );
+  }
+}
+
+/// Read-only badge naming the account a scope belongs to.
+///
+/// This reports which account the data comes from; it is **not** a control. The
+/// account mode is chosen in Settings and cannot be changed here.
+class PortfolioAccountBadge extends StatelessWidget {
+  const PortfolioAccountBadge({super.key, required this.mode});
+
+  final PortfolioMode mode;
+
+  @override
+  Widget build(BuildContext context) {
+    final live = mode == PortfolioMode.live;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: (live ? AppColors.loss : AppColors.muted).withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: (live ? AppColors.loss : AppColors.muted).withValues(alpha: 0.5),
+        ),
+      ),
+      child: Text(
+        live ? 'LIVE ACCOUNT' : 'PAPER ACCOUNT',
+        style: TextStyle(
+          color: live ? AppColors.loss : AppColors.muted,
+          fontSize: 9,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.8,
+        ),
+      ),
+    );
+  }
+}
+
+/// A section heading with an optional right-hand count.
+///
+/// The label takes the space it needs and the trailing count yields, so a long heading
+/// on a narrow screen ellipsises the label rather than overflowing the row.
+class PortfolioSectionHeader extends StatelessWidget {
+  const PortfolioSectionHeader({super.key, required this.label, this.trailing});
+
+  final String label;
+  final String? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Flexible(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: AppColors.muted,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.8,
+            ),
+          ),
+        ),
+        if (trailing != null) ...[
+          const SizedBox(width: 8),
+          Text(
+            trailing!,
+            style: const TextStyle(color: AppColors.muted, fontSize: 11),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// Compact status pill for an exchange order state.
+///
+/// An [PortfolioOrderStatus.unknown] order is styled as unresolved rather than as a
+/// terminal outcome, so an order whose state could not be read is never visually
+/// presented as filled or successfully closed.
+class PortfolioOrderStatusChip extends StatelessWidget {
+  const PortfolioOrderStatusChip({super.key, required this.status});
+
+  final PortfolioOrderStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    final (Color color, String label) = switch (status) {
+      PortfolioOrderStatus.open => (AppColors.muted, 'NEW'),
+      PortfolioOrderStatus.partiallyFilled => (AppColors.accent, 'PART FILLED'),
+      PortfolioOrderStatus.filled => (AppColors.accent, 'FILLED'),
+      PortfolioOrderStatus.canceled => (AppColors.muted, 'CANCELED'),
+      PortfolioOrderStatus.rejected => (AppColors.loss, 'REJECTED'),
+      PortfolioOrderStatus.expired => (AppColors.muted, 'EXPIRED'),
+      PortfolioOrderStatus.unknown => (AppColors.loss, 'UNKNOWN'),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(5),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 9,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.4,
+        ),
       ),
     );
   }

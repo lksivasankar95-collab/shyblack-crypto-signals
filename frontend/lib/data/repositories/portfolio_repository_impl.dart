@@ -50,11 +50,93 @@ class PortfolioRepositoryImpl implements PortfolioRepository {
     DateTime? from,
     DateTime? to,
     int? limit,
+    String? side,
+    String? orderType,
+    String? status,
+    String? positionSide,
   }) async {
     final json = await _remote.getHistory(
       mode: mode.apiValue,
       category: category.apiValue,
       type: type.apiValue,
+      symbol: symbol,
+      from: from,
+      to: to,
+      limit: limit,
+      side: side,
+      orderType: orderType,
+      status: status,
+      positionSide: positionSide,
+    );
+    return PortfolioAccountModel.historyFromJson(json);
+  }
+
+  @override
+  Future<PortfolioOrders> getOpenOrders({
+    required PortfolioMode mode,
+    required PortfolioCategory category,
+    String? symbol,
+  }) async {
+    final json = await _remote.getOpenOrders(
+      mode: mode.apiValue,
+      category: category.apiValue,
+      symbol: symbol,
+    );
+    return PortfolioAccountModel.ordersFromJson(json);
+  }
+
+  @override
+  Future<PortfolioClosedPositions> getClosedPositions({
+    required PortfolioMode mode,
+    required PortfolioCategory category,
+    String? symbol,
+    DateTime? from,
+    DateTime? to,
+    int? limit,
+  }) async {
+    final json = await _remote.getClosedPositions(
+      mode: mode.apiValue,
+      category: category.apiValue,
+      symbol: symbol,
+      from: from,
+      to: to,
+      limit: limit,
+    );
+    return PortfolioAccountModel.closedPositionsFromJson(json);
+  }
+
+  @override
+  Future<PortfolioHistory> getTransactionHistory({
+    required PortfolioMode mode,
+    required PortfolioCategory category,
+    String? symbol,
+    DateTime? from,
+    DateTime? to,
+    int? limit,
+  }) async {
+    final json = await _remote.getTransactionHistory(
+      mode: mode.apiValue,
+      category: category.apiValue,
+      symbol: symbol,
+      from: from,
+      to: to,
+      limit: limit,
+    );
+    return PortfolioAccountModel.historyFromJson(json);
+  }
+
+  @override
+  Future<PortfolioHistory> getFundingFees({
+    required PortfolioMode mode,
+    required PortfolioCategory category,
+    String? symbol,
+    DateTime? from,
+    DateTime? to,
+    int? limit,
+  }) async {
+    final json = await _remote.getFundingFees(
+      mode: mode.apiValue,
+      category: category.apiValue,
       symbol: symbol,
       from: from,
       to: to,

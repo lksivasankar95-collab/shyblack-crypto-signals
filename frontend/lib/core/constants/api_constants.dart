@@ -56,6 +56,16 @@ abstract final class ApiConstants {
   static String portfolioHistory(String category) =>
       '/v1/portfolio/$category/history';
 
+  // Binance-style account sections. All read-only.
+  static String portfolioOpenOrders(String category) =>
+      '/v1/portfolio/$category/open-orders';
+  static String portfolioClosedPositions(String category) =>
+      '/v1/portfolio/$category/closed-positions';
+  static String portfolioTransactionHistory(String category) =>
+      '/v1/portfolio/$category/transaction-history';
+  static String portfolioFundingFees(String category) =>
+      '/v1/portfolio/$category/funding-fees';
+
   static String portfolioSyncStatus(String category) =>
       '/v1/portfolio/$category/sync-status';
   static const String signals = '/v1/signals';
