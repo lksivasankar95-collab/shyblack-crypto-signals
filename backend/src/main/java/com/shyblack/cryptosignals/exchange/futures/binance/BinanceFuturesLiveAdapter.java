@@ -10,6 +10,7 @@ import com.shyblack.cryptosignals.entity.enums.ExchangeName;
 import com.shyblack.cryptosignals.entity.enums.FuturesMarginMode;
 import com.shyblack.cryptosignals.entity.enums.FuturesOrderStatus;
 import com.shyblack.cryptosignals.entity.enums.FuturesOrderType;
+import com.shyblack.cryptosignals.entity.enums.FuturesOrderType;
 import com.shyblack.cryptosignals.entity.enums.FuturesPositionMode;
 import com.shyblack.cryptosignals.entity.enums.PositionSide;
 import com.shyblack.cryptosignals.exchange.ExchangeAdapterException;
@@ -38,6 +39,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.web.client.HttpStatusCodeException;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 
 /**
@@ -234,7 +236,25 @@ public class BinanceFuturesLiveAdapter implements FuturesExchangeAdapter {
 		params.put("quantity", req.quantity().stripTrailingZeros().toPlainString());
 		if (req.reduceOnly()) params.put("reduceOnly", "true");
 		if (req.stopPrice() != null) params.put("stopPrice", req.stopPrice().stripTrailingZeros().toPlainString());
+		// A LIMIT futures order is invalid without a price and a time-in-force; Binance
+		// rejects the pair. The engines only place MARKET, STOP_MARKET and
+		// TAKE_PROFIT_MARKET today, so this was latent rather than active, but sending a
+		// LIMIT without these would be an order the exchange cannot accept.
+		if (req.type() == FuturesOrderType.LIMIT) {
+			if (req.price() == null) {
+				throw new ExchangeAdapterException(
+						"A LIMIT futures order requires a price", null, false, null, null);
+			}
+			params.put("price", req.price().stripTrailingZeros().toPlainString());
+			params.put("timeInForce", "GTC");
+		}
 		// ONE_WAY mode: don't send positionSide param (Binance defaults to BOTH).
+		// Sending it under HEDGE mode would address a specific side; leaving it out is
+		// what makes the order valid in the ONE_WAY mode the account is configured for.
+		//
+		// RESULT returns no fills[], so real commission is unavailable at submission time.
+		// The fee is therefore left null (UNKNOWN) rather than fabricated as zero; see
+		// parse() below.
 		params.put("newOrderRespType", "RESULT");
 
 		String body = signedRequest(credential, HttpMethod.POST, "/fapi/v1/order", params);
@@ -449,6 +469,16 @@ public class BinanceFuturesLiveAdapter implements FuturesExchangeAdapter {
 			try {
 				return rest.method(method).uri(url).headers(h -> h.addAll(headers))
 						.retrieve().body(String.class);
+			} catch (ResourceAccessException transport) {
+				// A timeout or connection reset leaves the exchange outcome unestablished.
+				// Wrapped as retryable so the execution service records UNKNOWN and
+				// reconciles, instead of the transport exception escaping and leaving the
+				// order SUBMITTING with no recorded outcome.
+				log.warn("[FutAdapter] Binance {} {} transport failure: {}",
+						method, path, transport.getClass().getSimpleName());
+				throw new ExchangeAdapterException(
+						"Exchange transport failure; the order outcome is unknown",
+						transport, true, null, null);
 			} catch (HttpStatusCodeException http) {
 				Integer code = parseCode(http.getResponseBodyAsString());
 				log.warn("[FutAdapter] Binance {} {} HTTP {} code={}",
@@ -546,10 +576,13 @@ public class BinanceFuturesLiveAdapter implements FuturesExchangeAdapter {
 		BigDecimal avg = json.has("avgPrice") ? num(json, "avgPrice")
 				: (executed.signum() > 0
 						? cumQuote.divide(executed, 8, java.math.RoundingMode.HALF_UP) : null);
-		BigDecimal fee = BigDecimal.ZERO;
+		// Binance Futures RESULT carries no fills[], so real commission is unavailable at
+		// submission time. It arrives via the user-data stream or a reconciliation read of
+		// realized income. Storing ZERO here would be indistinguishable from "Binance
+		// charged nothing", which is never true, so the fee stays null — UNKNOWN — until
+		// authoritative fill data arrives.
+		BigDecimal fee = null;
 		String feeAsset = null;
-		// Binance Futures RESULT doesn't include fills[]; commission comes via user-data
-		// stream (not implemented). For now, fees are set later by reconciliation.
 		String exchOrderId = json.has("orderId") ? json.get("orderId").getAsString() : null;
 		return new FuturesOrderResult(
 				exchOrderId, req.clientOrderId(), req.symbol(),

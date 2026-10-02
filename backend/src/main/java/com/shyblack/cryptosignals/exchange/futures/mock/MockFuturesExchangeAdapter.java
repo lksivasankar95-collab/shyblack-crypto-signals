@@ -261,4 +261,16 @@ public class MockFuturesExchangeAdapter implements FuturesExchangeAdapter {
 				cumQuote.multiply(new BigDecimal("0.0004")), "USDT",
 				Instant.now(), "MOCK force-fill"));
 	}
+
+	/**
+	 * Every order this simulator was asked to place, newest last.
+	 *
+	 * <p>Mirrors {@code MockExchangeTradingAdapter.allOrders()} so a test can assert
+	 * that a futures submission actually reached the exchange boundary rather than
+	 * inferring it from a downstream side effect. The spot mock has the same accessor;
+	 * the futures mock lacked it, which made "no order was sent" unprovable here.
+	 */
+	public List<FuturesOrderResult> allOrders() {
+		return List.copyOf(orders.values());
+	}
 }

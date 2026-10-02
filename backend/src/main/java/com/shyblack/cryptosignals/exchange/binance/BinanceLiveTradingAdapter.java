@@ -9,6 +9,7 @@ import com.shyblack.cryptosignals.entity.ExchangeCredential;
 import com.shyblack.cryptosignals.entity.enums.ExchangeName;
 import com.shyblack.cryptosignals.entity.enums.LiveOrderStatus;
 import com.shyblack.cryptosignals.entity.enums.LiveOrderType;
+import com.shyblack.cryptosignals.entity.enums.PositionSide;
 import com.shyblack.cryptosignals.exchange.ExchangeAccountSnapshot;
 import com.shyblack.cryptosignals.exchange.ExchangeAdapterException;
 import com.shyblack.cryptosignals.exchange.ExchangeAssetBalance;
@@ -36,6 +37,7 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.web.client.HttpStatusCodeException;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 
 /**
@@ -189,7 +191,7 @@ public class BinanceLiveTradingAdapter implements ExchangeTradingAdapter {
 	public ExchangeOrderResult placeOrder(ExchangeCredential credential, PlaceOrderRequest request) {
 		Map<String, String> params = new LinkedHashMap<>();
 		params.put("symbol", request.symbol());
-		params.put("side", request.side().name());
+		params.put("side", spotSide(request.side()));
 		params.put("type", binanceType(request.type()));
 		params.put("newClientOrderId", request.clientOrderId());
 		params.put("quantity", request.quantity().stripTrailingZeros().toPlainString());
@@ -388,6 +390,17 @@ public class BinanceLiveTradingAdapter implements ExchangeTradingAdapter {
 						.headers(h -> h.addAll(headers))
 						.retrieve()
 						.body(String.class);
+			} catch (ResourceAccessException transport) {
+				// A read timeout or connection reset leaves the exchange outcome
+				// unestablished: the order may or may not exist. It is wrapped as a
+				// retryable adapter failure so the execution service records UNKNOWN and
+				// reconciles, rather than the raw transport exception escaping and the
+				// order being left SUBMITTING with no recorded outcome.
+				log.warn("[LiveAdapter] Binance {} {} transport failure: {}",
+						method, path, transport.getClass().getSimpleName());
+				throw new ExchangeAdapterException(
+						"Exchange transport failure; the order outcome is unknown",
+						transport, true, null, null);
 			} catch (HttpStatusCodeException http) {
 				Integer code = parseCode(http.getResponseBodyAsString());
 				log.warn("[LiveAdapter] Binance {} {} -> HTTP {} code={} bodyLen={}",
@@ -437,6 +450,27 @@ public class BinanceLiveTradingAdapter implements ExchangeTradingAdapter {
 		};
 	}
 
+	/**
+	 * Translates the application's {@link PositionSide} into Binance's spot vocabulary.
+	 *
+	 * <p>Binance spot accepts only {@code BUY} and {@code SELL}; it has no notion of a
+	 * position side, because spot cannot be shorted. The internal enum is
+	 * {@code {LONG, SHORT}}, so sending {@code side().name()} directly would produce
+	 * {@code side=LONG} and be rejected with {@code -1102 Invalid side}.
+	 *
+	 * <p>Spot is long-only: the live engine refuses a SHORT signal before it reaches
+	 * here, so SHORT maps to SELL for completeness and to keep a manual close or a
+	 * future caller correct rather than silently producing an invalid order.
+	 */
+	private static String spotSide(PositionSide side) {
+		if (side == null) {
+			throw new ExchangeAdapterException(
+					"An order side is required; the exchange accepts only BUY or SELL",
+					null, false, null, null);
+		}
+		return side == PositionSide.LONG ? "BUY" : "SELL";
+	}
+
 	private static ExchangeOrderResult parseOrderResponse(PlaceOrderRequest ref, String body) {
 		JsonObject json = JsonParser.parseString(body).getAsJsonObject();
 		String status = json.has("status") ? json.get("status").getAsString() : "UNKNOWN";
@@ -447,13 +481,27 @@ public class BinanceLiveTradingAdapter implements ExchangeTradingAdapter {
 		BigDecimal avgFill = executed.signum() > 0
 				? cumQuote.divide(executed, 8, java.math.RoundingMode.HALF_UP)
 				: null;
-		BigDecimal fee = BigDecimal.ZERO;
+		// Fee stays null unless the exchange actually reported commission. A zero fee
+		// is indistinguishable from "Binance charged nothing", which is never true:
+		// an absent fills[] means UNKNOWN, and null keeps that distinction until
+		// authoritative fill data arrives.
+		BigDecimal fee = null;
 		String feeAsset = null;
 		if (json.has("fills")) {
+			BigDecimal summed = BigDecimal.ZERO;
+			boolean sawCommission = false;
 			for (JsonElement f : json.getAsJsonArray("fills")) {
 				JsonObject fill = f.getAsJsonObject();
-				fee = fee.add(new BigDecimal(fill.get("commission").getAsString()));
-				feeAsset = fill.get("commissionAsset").getAsString();
+				if (fill.has("commission") && !fill.get("commission").isJsonNull()) {
+					summed = summed.add(new BigDecimal(fill.get("commission").getAsString()));
+					sawCommission = true;
+				}
+				if (fill.has("commissionAsset") && !fill.get("commissionAsset").isJsonNull()) {
+					feeAsset = fill.get("commissionAsset").getAsString();
+				}
+			}
+			if (sawCommission) {
+				fee = summed;
 			}
 		}
 		String exchOrderId = json.has("orderId") ? json.get("orderId").getAsString()
