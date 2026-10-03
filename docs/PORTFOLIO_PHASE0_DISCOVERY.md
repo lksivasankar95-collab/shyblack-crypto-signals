@@ -840,16 +840,22 @@ than a new `AccountConnection` entity. Option B: introduce `PortfolioAccountConn
 
 ---
 
-## 10. Defects and risks found during discovery — NOT fixed
+## 10. Defects and risks found during discovery — NOT fixed (unless marked ✅)
 
-**D-1. Backtesting 500 — confirmed regression at HEAD (out of Portfolio scope).**
-`service/backtest/BacktestService.java:81` calls `run.setConfigurationJson(GSON.toJson(requestSnapshot))`.
-Gson reflectively serializes `java.time.Instant`, which under JPMS throws
-`JsonIOException → InaccessibleObjectException: Unable to make field private final long java.time.Instant.seconds accessible`.
-Result: **HTTP 500 on `POST /api/v1/backtests`.** Minimal fix: serialize with Jackson (already a
-transitive bean) or register a Gson `Instant` TypeAdapter; add a regression test.
-*This contradicts `docs/BACKTESTING_MODULE_REPORT.md`, which reports the API working end-to-end.*
-**Awaiting approval — outside Portfolio scope.**
+**D-1. Backtesting 500 — ✅ FIXED.** *(originally: confirmed regression at HEAD, out of Portfolio scope)*
+`service/backtest/BacktestService.java` called `run.setConfigurationJson(GSON.toJson(requestSnapshot))`.
+Gson 2.13.2 has no `java.time` support, so it reflected over `java.time.Instant`, which under JPMS
+threw `JsonIOException → InaccessibleObjectException: Unable to make field private final long
+java.time.Instant.seconds accessible`. Result: **HTTP 500 on `POST /api/v1/backtests`** for *every*
+valid request, regardless of strategy or payload. It was not specific to Portfolio or `ema-rsi`.
+
+**Fix:** replaced the static `Gson` with the injected Spring `ObjectMapper` — the same instance that
+already bound `startDate`/`endDate` off the wire — which registers `JavaTimeModule` and writes
+`Instant` as ISO-8601. Serialization moved into the `snapshotJson(...)` helper.
+**Regression test:** `service/backtest/BacktestServiceTest.java` (snapshot with `Instant`s, with
+`strategyParams`, with a null snapshot, plus the SPOT-only market guard).
+*Note: `docs/BACKTESTING_MODULE_REPORT.md` reports the API working end-to-end, which never held at
+HEAD — that report is wrong, not D-1.*
 
 **D-2. `ExchangeCredentialService.testConnection` is cosmetic.** It sets `CONNECTED` with a
 hardcoded `SIMULATED_LATENCY_MS = 42` and **never calls `adapter.validateCredentials()`**. The UI

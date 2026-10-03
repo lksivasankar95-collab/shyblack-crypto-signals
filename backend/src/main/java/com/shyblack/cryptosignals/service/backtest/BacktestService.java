@@ -1,6 +1,7 @@
 package com.shyblack.cryptosignals.service.backtest;
 
-import com.google.gson.Gson;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shyblack.cryptosignals.config.BacktestingProperties;
 import com.shyblack.cryptosignals.entity.BacktestEquityPoint;
 import com.shyblack.cryptosignals.entity.BacktestRun;
@@ -37,8 +38,6 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class BacktestService {
 
-	private static final Gson GSON = new Gson();
-
 	private final BacktestRunRepository runRepo;
 	private final BacktestTradeRepository tradeRepo;
 	private final BacktestSignalRepository signalRepo;
@@ -47,6 +46,7 @@ public class BacktestService {
 	private final BacktestingProperties props;
 	private final BacktestLimits limits;
 	private final BacktestStrategyRegistry strategyRegistry;
+	private final ObjectMapper objectMapper;
 
 	@Transactional
 	public BacktestRun startBacktest(User user, BacktestConfig config, Object requestSnapshot) {
@@ -78,11 +78,29 @@ public class BacktestService {
 		run.setExecutionModel(config.executionModel());
 		run.setSameCandlePolicy(config.sameCandlePolicy());
 		run.setConfigurationHash(config.hash());
-		run.setConfigurationJson(GSON.toJson(requestSnapshot));
+		run.setConfigurationJson(snapshotJson(requestSnapshot));
 
 		BacktestRun saved = runRepo.save(run);
 		jobRunner.enqueue(saved.getId(), config);
 		return saved;
+	}
+
+	/**
+	 * Serialises the raw request body for the run's reproducibility snapshot.
+	 *
+	 * Uses the application {@link ObjectMapper} — the same instance that already
+	 * bound {@code startDate}/{@code endDate} — because it registers
+	 * {@code JavaTimeModule} and writes {@link Instant} as ISO-8601. Gson must
+	 * not be used here: it reflects over {@code java.time} and throws
+	 * {@link java.lang.reflect.InaccessibleObjectException}, which surfaced as an
+	 * HTTP 500 on POST /api/v1/backtests.
+	 */
+	private String snapshotJson(Object requestSnapshot) {
+		try {
+			return objectMapper.writeValueAsString(requestSnapshot);
+		} catch (JsonProcessingException ex) {
+			throw new IllegalStateException("Backtest configuration snapshot is not serializable", ex);
+		}
 	}
 
 	private void validateConfig(BacktestConfig config) {
