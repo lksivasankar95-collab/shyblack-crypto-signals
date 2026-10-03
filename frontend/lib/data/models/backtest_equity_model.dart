@@ -5,16 +5,18 @@ class BacktestEquityModel {
   final BacktestEquityPoint point;
 
   factory BacktestEquityModel.fromJson(Map<String, dynamic> json) {
-    return BacktestEquityModel(BacktestEquityPoint(
-      time: DateTime.parse(json['time'].toString()),
-      equity: _num(json['equity']),
-      availableBalance: _num(json['availableBalance']),
-      unrealizedPnl: _num(json['unrealizedPnl']),
-      realizedPnl: _num(json['realizedPnl']),
-      peakEquity: _num(json['peakEquity']),
-      drawdown: _num(json['drawdown']),
-      drawdownPct: _numOrNull(json['drawdownPct']),
-    ));
+    return BacktestEquityModel(
+      BacktestEquityPoint(
+        time: DateTime.parse(json['time'].toString()),
+        equity: _num(json['equity']),
+        availableBalance: _num(json['availableBalance']),
+        unrealizedPnl: _num(json['unrealizedPnl']),
+        realizedPnl: _num(json['realizedPnl']),
+        peakEquity: _num(json['peakEquity']),
+        drawdown: _num(json['drawdown']),
+        drawdownPct: _numOrNull(json['drawdownPct']),
+      ),
+    );
   }
 
   static double _num(dynamic v) {

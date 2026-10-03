@@ -4,7 +4,12 @@ enum BacktestTradingMode { spot, futures, options }
 
 enum BacktestExecutionModel { nextCandleOpen, sameCandleClose }
 
-enum BacktestSameCandlePolicy { conservative, slFirst, tpFirst, requireLowerTimeframe }
+enum BacktestSameCandlePolicy {
+  conservative,
+  slFirst,
+  tpFirst,
+  requireLowerTimeframe,
+}
 
 class BacktestRun {
   const BacktestRun({
@@ -106,6 +111,7 @@ class BacktestRun {
       status == BacktestStatus.failed ||
       status == BacktestStatus.cancelled;
 
-  double get progressPct =>
-      totalCandles == 0 ? 0.0 : (processedCandles / totalCandles).clamp(0.0, 1.0);
+  double get progressPct => totalCandles == 0
+      ? 0.0
+      : (processedCandles / totalCandles).clamp(0.0, 1.0);
 }

@@ -13,7 +13,8 @@ class CreateStrategyScreen extends ConsumerStatefulWidget {
   const CreateStrategyScreen({super.key, required this.mode});
 
   @override
-  ConsumerState<CreateStrategyScreen> createState() => _CreateStrategyScreenState();
+  ConsumerState<CreateStrategyScreen> createState() =>
+      _CreateStrategyScreenState();
 }
 
 class _CreateStrategyScreenState extends ConsumerState<CreateStrategyScreen> {
@@ -39,7 +40,9 @@ class _CreateStrategyScreenState extends ConsumerState<CreateStrategyScreen> {
     }
     setState(() => _saving = true);
     try {
-      await ref.read(strategyTabProvider(widget.mode).notifier).createStrategy(
+      await ref
+          .read(strategyTabProvider(widget.mode).notifier)
+          .createStrategy(
             name,
             _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
             engineKey: switch (_engine) {
@@ -48,10 +51,12 @@ class _CreateStrategyScreenState extends ConsumerState<CreateStrategyScreen> {
               _StrategyEngine.defaultEngine => null,
             },
             config: switch (_engine) {
-              _StrategyEngine.trendPullback =>
-                const StrategyConfig(pullback: PullbackConfig()),
-              _StrategyEngine.emaTrendFollowing =>
-                const StrategyConfig(emaTrendFollowing: EmaTrendFollowingConfig()),
+              _StrategyEngine.trendPullback => const StrategyConfig(
+                pullback: PullbackConfig(),
+              ),
+              _StrategyEngine.emaTrendFollowing => const StrategyConfig(
+                emaTrendFollowing: EmaTrendFollowingConfig(),
+              ),
               _StrategyEngine.defaultEngine => null,
             },
           );
@@ -69,21 +74,37 @@ class _CreateStrategyScreenState extends ConsumerState<CreateStrategyScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final modeLabel = widget.mode == StrategyTradingMode.spot ? 'Spot' : 'Futures';
+    final modeLabel = widget.mode == StrategyTradingMode.spot
+        ? 'Spot'
+        : 'Futures';
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: AppColors.background,
         foregroundColor: AppColors.onBackground,
-        title: Text('New $modeLabel Strategy',
-            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
+        title: Text(
+          'New $modeLabel Strategy',
+          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17),
+        ),
         actions: [
           TextButton(
             onPressed: _saving ? null : _save,
             child: _saving
-                ? const SizedBox(width: 16, height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent))
-                : const Text('Save', style: TextStyle(color: AppColors.accent, fontWeight: FontWeight.w800)),
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.accent,
+                    ),
+                  )
+                : const Text(
+                    'Save',
+                    style: TextStyle(
+                      color: AppColors.accent,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
           ),
         ],
       ),
@@ -105,19 +126,35 @@ class _CreateStrategyScreenState extends ConsumerState<CreateStrategyScreen> {
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: const Color(0xFF2A2A2A)),
             ),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('Trading Mode',
-                  style: TextStyle(color: AppColors.muted, fontSize: 12, fontWeight: FontWeight.w600)),
-              const SizedBox(height: 8),
-              Row(children: [
-                const Icon(Icons.lock, color: AppColors.muted, size: 16),
-                const SizedBox(width: 6),
-                Text(
-                  widget.mode == StrategyTradingMode.spot ? 'SPOT' : 'FUTURES',
-                  style: const TextStyle(color: AppColors.onBackground, fontWeight: FontWeight.w700),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Trading Mode',
+                  style: TextStyle(
+                    color: AppColors.muted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ]),
-            ]),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Icon(Icons.lock, color: AppColors.muted, size: 16),
+                    const SizedBox(width: 6),
+                    Text(
+                      widget.mode == StrategyTradingMode.spot
+                          ? 'SPOT'
+                          : 'FUTURES',
+                      style: const TextStyle(
+                        color: AppColors.onBackground,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
           if (widget.mode == StrategyTradingMode.spot) ...[
             const SizedBox(height: 16),
@@ -128,19 +165,39 @@ class _CreateStrategyScreenState extends ConsumerState<CreateStrategyScreen> {
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: const Color(0xFF2A2A2A)),
               ),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('Signal Engine',
-                    style: TextStyle(color: AppColors.muted, fontSize: 12, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 8),
-                _engineOption('Default (EMA + RSI)', _engine == _StrategyEngine.defaultEngine,
-                    () => setState(() => _engine = _StrategyEngine.defaultEngine)),
-                _engineOption('Trend Pullback (HTF pullback continuation)',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Signal Engine',
+                    style: TextStyle(
+                      color: AppColors.muted,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  _engineOption(
+                    'Default (EMA + RSI)',
+                    _engine == _StrategyEngine.defaultEngine,
+                    () =>
+                        setState(() => _engine = _StrategyEngine.defaultEngine),
+                  ),
+                  _engineOption(
+                    'Trend Pullback (HTF pullback continuation)',
                     _engine == _StrategyEngine.trendPullback,
-                    () => setState(() => _engine = _StrategyEngine.trendPullback)),
-                _engineOption('EMA Trend Following (HTF trend + entry EMA transition)',
+                    () =>
+                        setState(() => _engine = _StrategyEngine.trendPullback),
+                  ),
+                  _engineOption(
+                    'EMA Trend Following (HTF trend + entry EMA transition)',
                     _engine == _StrategyEngine.emaTrendFollowing,
-                    () => setState(() => _engine = _StrategyEngine.emaTrendFollowing)),
-              ]),
+                    () => setState(
+                      () => _engine = _StrategyEngine.emaTrendFollowing,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
           const SizedBox(height: 24),
@@ -151,51 +208,60 @@ class _CreateStrategyScreenState extends ConsumerState<CreateStrategyScreen> {
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: const Color(0xFF2A2A2A)),
             ),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('Strategy Configuration',
-                  style: TextStyle(color: AppColors.onBackground, fontWeight: FontWeight.w700, fontSize: 14)),
-              const SizedBox(height: 6),
-              if (_engine == _StrategyEngine.trendPullback) ...[
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 const Text(
-                  'Trend Pullback will run with its default configuration. You can '
-                  'tune parameters after creation via the strategy config.',
-                  style: TextStyle(color: AppColors.muted, fontSize: 12),
+                  'Strategy Configuration',
+                  style: TextStyle(
+                    color: AppColors.onBackground,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                  ),
                 ),
-                const SizedBox(height: 12),
-                _configRow('Market', 'SPOT · LONG only'),
-                _configRow('Timeframes', '1H / 15M'),
-                _configRow('Trend', 'EMA 50/200 · ADX ≥ 20'),
-                _configRow('Pullback', 'EMA20-EMA50 · RSI 40-60'),
-                _configRow('Risk', 'R:R ≥ 1.5 · TP 1R/2R/3R'),
-                _configRow('Min score', '70/100'),
-              ] else if (_engine == _StrategyEngine.emaTrendFollowing) ...[
-                const Text(
-                  'EMA Trend Following will run with its default configuration. You can '
-                  'tune parameters after creation via the strategy config.',
-                  style: TextStyle(color: AppColors.muted, fontSize: 12),
-                ),
-                const SizedBox(height: 12),
-                _configRow('Market', 'SPOT · LONG only'),
-                _configRow('Timeframes', '1H / 15M'),
-                _configRow('Trend', 'EMA 50/200 · slope + separation'),
-                _configRow('Entry', 'EMA20/50 transition · RSI 50-70'),
-                _configRow('Risk', 'R:R ≥ 1.5 · TP 1.5R/2.5R/4R'),
-                _configRow('Min score', '70/100'),
-              ] else ...[
-                const Text(
-                  'Your strategy will use the default EMA+RSI indicator configuration. '
-                  'Advanced parameter customization is available after creation.',
-                  style: TextStyle(color: AppColors.muted, fontSize: 12),
-                ),
-                const SizedBox(height: 12),
-                _configRow('EMA Periods', '20 / 50 / 200'),
-                _configRow('RSI Period', '14'),
-                _configRow('MACD', '12-26-9'),
-                _configRow('Min R:R', '1.5'),
-                if (widget.mode == StrategyTradingMode.futures)
-                  _configRow('Default Leverage', '3x'),
+                const SizedBox(height: 6),
+                if (_engine == _StrategyEngine.trendPullback) ...[
+                  const Text(
+                    'Trend Pullback will run with its default configuration. You can '
+                    'tune parameters after creation via the strategy config.',
+                    style: TextStyle(color: AppColors.muted, fontSize: 12),
+                  ),
+                  const SizedBox(height: 12),
+                  _configRow('Market', 'SPOT · LONG only'),
+                  _configRow('Timeframes', '1H / 15M'),
+                  _configRow('Trend', 'EMA 50/200 · ADX ≥ 20'),
+                  _configRow('Pullback', 'EMA20-EMA50 · RSI 40-60'),
+                  _configRow('Risk', 'R:R ≥ 1.5 · TP 1R/2R/3R'),
+                  _configRow('Min score', '70/100'),
+                ] else if (_engine == _StrategyEngine.emaTrendFollowing) ...[
+                  const Text(
+                    'EMA Trend Following will run with its default configuration. You can '
+                    'tune parameters after creation via the strategy config.',
+                    style: TextStyle(color: AppColors.muted, fontSize: 12),
+                  ),
+                  const SizedBox(height: 12),
+                  _configRow('Market', 'SPOT · LONG only'),
+                  _configRow('Timeframes', '1H / 15M'),
+                  _configRow('Trend', 'EMA 50/200 · slope + separation'),
+                  _configRow('Entry', 'EMA20/50 transition · RSI 50-70'),
+                  _configRow('Risk', 'R:R ≥ 1.5 · TP 1.5R/2.5R/4R'),
+                  _configRow('Min score', '70/100'),
+                ] else ...[
+                  const Text(
+                    'Your strategy will use the default EMA+RSI indicator configuration. '
+                    'Advanced parameter customization is available after creation.',
+                    style: TextStyle(color: AppColors.muted, fontSize: 12),
+                  ),
+                  const SizedBox(height: 12),
+                  _configRow('EMA Periods', '20 / 50 / 200'),
+                  _configRow('RSI Period', '14'),
+                  _configRow('MACD', '12-26-9'),
+                  _configRow('Min R:R', '1.5'),
+                  if (widget.mode == StrategyTradingMode.futures)
+                    _configRow('Default Leverage', '3x'),
+                ],
               ],
-            ]),
+            ),
           ),
           const SizedBox(height: 28),
           ElevatedButton(
@@ -204,23 +270,46 @@ class _CreateStrategyScreenState extends ConsumerState<CreateStrategyScreen> {
               backgroundColor: AppColors.accent,
               foregroundColor: AppColors.background,
               minimumSize: const Size.fromHeight(50),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             child: _saving
-                ? const SizedBox(width: 20, height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.background))
-                : const Text('CREATE STRATEGY',
-                    style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 0.8)),
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.background,
+                    ),
+                  )
+                : const Text(
+                    'CREATE STRATEGY',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
           ),
         ],
       ),
     );
   }
 
-  static Widget _label(String text) => Text(text,
-      style: const TextStyle(color: AppColors.muted, fontSize: 12, fontWeight: FontWeight.w600));
+  static Widget _label(String text) => Text(
+    text,
+    style: const TextStyle(
+      color: AppColors.muted,
+      fontSize: 12,
+      fontWeight: FontWeight.w600,
+    ),
+  );
 
-  static Widget _field(TextEditingController ctrl, String hint, {int maxLines = 1}) => TextField(
+  static Widget _field(
+    TextEditingController ctrl,
+    String hint, {
+    int maxLines = 1,
+  }) => TextField(
     controller: ctrl,
     maxLines: maxLines,
     style: const TextStyle(color: AppColors.onBackground),
@@ -244,32 +333,58 @@ class _CreateStrategyScreenState extends ConsumerState<CreateStrategyScreen> {
     ),
   );
 
-  static Widget _engineOption(String label, bool selected, VoidCallback onTap) => InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6),
-          child: Row(children: [
-            Icon(selected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-                color: selected ? AppColors.accent : AppColors.muted, size: 18),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(label,
-                  style: TextStyle(
-                      color: selected ? AppColors.onBackground : AppColors.muted,
-                      fontSize: 13,
-                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500)),
+  static Widget _engineOption(
+    String label,
+    bool selected,
+    VoidCallback onTap,
+  ) => InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(8),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Icon(
+            selected
+                ? Icons.radio_button_checked
+                : Icons.radio_button_unchecked,
+            color: selected ? AppColors.accent : AppColors.muted,
+            size: 18,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: selected ? AppColors.onBackground : AppColors.muted,
+                fontSize: 13,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              ),
             ),
-          ]),
-        ),
-      );
+          ),
+        ],
+      ),
+    ),
+  );
 
   static Widget _configRow(String label, String value) => Padding(
     padding: const EdgeInsets.symmetric(vertical: 4),
-    child: Row(children: [
-      Text(label, style: const TextStyle(color: AppColors.muted, fontSize: 12)),
-      const Spacer(),
-      Text(value, style: const TextStyle(color: AppColors.onBackground, fontSize: 12, fontWeight: FontWeight.w600)),
-    ]),
+    child: Row(
+      children: [
+        Text(
+          label,
+          style: const TextStyle(color: AppColors.muted, fontSize: 12),
+        ),
+        const Spacer(),
+        Text(
+          value,
+          style: const TextStyle(
+            color: AppColors.onBackground,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    ),
   );
 }

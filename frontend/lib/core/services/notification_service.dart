@@ -17,7 +17,8 @@ class NotificationService {
   NotificationService(this._ref);
   final Ref _ref;
   bool _initialized = false;
-  final FlutterLocalNotificationsPlugin _local = FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin _local =
+      FlutterLocalNotificationsPlugin();
   final Set<String> _displayed = <String>{};
 
   Future<void> init() async {
@@ -27,7 +28,9 @@ class NotificationService {
     // Setup local notification channel for foreground presentation
     const AndroidInitializationSettings initSettingsAndroid =
         AndroidInitializationSettings('launcher_icon');
-    const InitializationSettings initSettings = InitializationSettings(android: initSettingsAndroid);
+    const InitializationSettings initSettings = InitializationSettings(
+      android: initSettingsAndroid,
+    );
     await _local.initialize(initSettings);
 
     const AndroidNotificationChannel channel = AndroidNotificationChannel(
@@ -36,7 +39,10 @@ class NotificationService {
       importance: Importance.high,
       description: 'Signal notifications',
     );
-    await _local.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+    await _local
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >()
         ?.createNotificationChannel(channel);
 
     // Foreground message presentation
@@ -92,7 +98,10 @@ class NotificationService {
     final body = message.notification?.body ?? data['body'] ?? '';
     final type = data['type'] as String?;
     final newsId = data['newsId'] as String?;
-    final nid = newsId ?? data['notificationId'] as String? ?? data['signalId'] as String?;
+    final nid =
+        newsId ??
+        data['notificationId'] as String? ??
+        data['signalId'] as String?;
 
     // prevent duplicate local presentation
     if (nid != null && _displayed.contains(nid)) return;
@@ -105,7 +114,9 @@ class NotificationService {
     // News: insert the exact article at the top of the feed (dedup inside).
     if (type == 'news' && newsId != null) {
       try {
-        await _ref.read(newsFeedControllerProvider.notifier).prependById(newsId);
+        await _ref
+            .read(newsFeedControllerProvider.notifier)
+            .prependById(newsId);
       } catch (_) {}
     }
 
@@ -118,7 +129,9 @@ class NotificationService {
         importance: Importance.high,
         priority: Priority.high,
       );
-      const NotificationDetails platform = NotificationDetails(android: details);
+      const NotificationDetails platform = NotificationDetails(
+        android: details,
+      );
       await _local.show(id, title, body, platform, payload: nid);
       if (nid != null) _displayed.add(nid);
     }

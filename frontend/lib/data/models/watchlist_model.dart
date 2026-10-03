@@ -1,10 +1,7 @@
 import '../../domain/entities/watchlist_item.dart';
 
 class WatchlistModel {
-  const WatchlistModel({
-    required this.id,
-    required this.symbol,
-  });
+  const WatchlistModel({required this.id, required this.symbol});
 
   final String id;
   final String symbol;

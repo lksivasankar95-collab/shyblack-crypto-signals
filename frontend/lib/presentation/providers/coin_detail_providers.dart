@@ -79,36 +79,42 @@ class LocalWatchlist extends Notifier<Set<String>> {
   }
 }
 
-final localWatchlistProvider = NotifierProvider<LocalWatchlist, Set<String>>(LocalWatchlist.new);
+final localWatchlistProvider = NotifierProvider<LocalWatchlist, Set<String>>(
+  LocalWatchlist.new,
+);
 
-final coinTickerRestProvider =
-    FutureProvider.autoDispose.family<MarketTicker, MarketRef>((ref, target) async {
-  return ref.read(getMarketTickerProvider).call(target.symbol, target.market);
-});
+final coinTickerRestProvider = FutureProvider.autoDispose
+    .family<MarketTicker, MarketRef>((ref, target) async {
+      return ref
+          .read(getMarketTickerProvider)
+          .call(target.symbol, target.market);
+    });
 
-final coinTickerProvider =
-    Provider.autoDispose.family<AsyncValue<MarketTicker>, MarketRef>((ref, target) {
-  // Only a ticker from the requested market may satisfy this lookup. Without the mode check
-  // a spot cache entry would silently answer a futures request for the same symbol.
-  final live = ref.watch(
-    marketsControllerProvider.select(
-      (async) => async.value?.tickerFor(target.symbol),
-    ),
-  );
-  if (live != null && live.marketType == target.market) {
-    return AsyncData(live);
-  }
-  return ref.watch(coinTickerRestProvider(target));
-});
-
-final coinKlinesProvider =
-    FutureProvider.autoDispose.family<List<KlineCandle>, KlineQuery>((ref, query) async {
-  return ref.read(getKlinesProvider).call(
-        symbol: query.symbol,
-        interval: query.interval,
-        mode: query.market,
+final coinTickerProvider = Provider.autoDispose
+    .family<AsyncValue<MarketTicker>, MarketRef>((ref, target) {
+      // Only a ticker from the requested market may satisfy this lookup. Without the mode check
+      // a spot cache entry would silently answer a futures request for the same symbol.
+      final live = ref.watch(
+        marketsControllerProvider.select(
+          (async) => async.value?.tickerFor(target.symbol),
+        ),
       );
-});
+      if (live != null && live.marketType == target.market) {
+        return AsyncData(live);
+      }
+      return ref.watch(coinTickerRestProvider(target));
+    });
+
+final coinKlinesProvider = FutureProvider.autoDispose
+    .family<List<KlineCandle>, KlineQuery>((ref, query) async {
+      return ref
+          .read(getKlinesProvider)
+          .call(
+            symbol: query.symbol,
+            interval: query.interval,
+            mode: query.market,
+          );
+    });
 
 class PerformanceChange {
   const PerformanceChange({this.hour, this.day, this.week, this.month});
@@ -119,7 +125,10 @@ class PerformanceChange {
   final double? month;
 }
 
-PerformanceChange performanceFromKlines(List<KlineCandle> klines, {double? changePercent24h}) {
+PerformanceChange performanceFromKlines(
+  List<KlineCandle> klines, {
+  double? changePercent24h,
+}) {
   if (klines.isEmpty) {
     return PerformanceChange(day: changePercent24h);
   }
@@ -132,7 +141,11 @@ PerformanceChange performanceFromKlines(List<KlineCandle> klines, {double? chang
   );
 }
 
-double? _pctSince(List<KlineCandle> klines, KlineCandle last, Duration lookback) {
+double? _pctSince(
+  List<KlineCandle> klines,
+  KlineCandle last,
+  Duration lookback,
+) {
   final target = last.openTime - lookback.inMilliseconds;
   KlineCandle? match;
   for (final candle in klines) {
@@ -150,7 +163,11 @@ double? _pctSince(List<KlineCandle> klines, KlineCandle last, Duration lookback)
   return (last.close - match.close) / match.close * 100;
 }
 
-List<MarketTicker> similarCoins(List<MarketTicker> all, String symbol, {int limit = 4}) {
+List<MarketTicker> similarCoins(
+  List<MarketTicker> all,
+  String symbol, {
+  int limit = 4,
+}) {
   final others = all.where((ticker) => ticker.symbol != symbol).toList()
     ..sort((a, b) => b.volume24h.compareTo(a.volume24h));
   return others.take(limit).toList();

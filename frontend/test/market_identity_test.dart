@@ -16,29 +16,32 @@ MarketTicker ticker(
   TradingMode market = TradingMode.spot,
   String? contractType,
   String? displaySymbol,
-}) =>
-    MarketTicker(
-      symbol: symbol,
-      name: 'Bitcoin',
-      price: price,
-      change24h: 1,
-      changePercent24h: 1,
-      volume24h: 10,
-      high24h: price,
-      low24h: price,
-      marketType: market,
-      exchangeSymbol: symbol,
-      displaySymbol: displaySymbol ?? symbol,
-      baseAsset: 'BTC',
-      quoteAsset: 'USDT',
-      contractType: contractType,
-    );
+}) => MarketTicker(
+  symbol: symbol,
+  name: 'Bitcoin',
+  price: price,
+  change24h: 1,
+  changePercent24h: 1,
+  volume24h: 10,
+  high24h: price,
+  low24h: price,
+  marketType: market,
+  exchangeSymbol: symbol,
+  displaySymbol: displaySymbol ?? symbol,
+  baseAsset: 'BTC',
+  quoteAsset: 'USDT',
+  contractType: contractType,
+);
 
 void main() {
   group('ticker identity', () {
     test('two markets on one symbol are different values', () {
       final spot = ticker('BTCUSDT', spotPrice);
-      final futures = ticker('BTCUSDT', futuresPrice, market: TradingMode.futures);
+      final futures = ticker(
+        'BTCUSDT',
+        futuresPrice,
+        market: TradingMode.futures,
+      );
 
       // Same symbol, different instrument. Collapsing these is how one market's price
       // comes to stand in for the other's.
@@ -92,13 +95,17 @@ void main() {
       expect(model.toEntity().isFutures, isTrue);
     });
 
-    test('an omitted marketType falls back to the requested market, not a guess', () {
-      final model = MarketTickerModel.fromJson(
-        {'symbol': 'BTCUSDT', 'name': 'BTC', 'price': 1},
-        fallbackMode: TradingMode.futures,
-      );
-      expect(model.marketType, TradingMode.futures);
-    });
+    test(
+      'an omitted marketType falls back to the requested market, not a guess',
+      () {
+        final model = MarketTickerModel.fromJson({
+          'symbol': 'BTCUSDT',
+          'name': 'BTC',
+          'price': 1,
+        }, fallbackMode: TradingMode.futures);
+        expect(model.marketType, TradingMode.futures);
+      },
+    );
 
     test('a spot payload has no contract type', () {
       final model = MarketTickerModel.fromJson({
@@ -116,39 +123,37 @@ void main() {
 
   group('market price book', () {
     test('the same symbol resolves independently per market', () {
-      final book = const MarketPriceBook().withSnapshot(
-        TradingMode.spot,
-        [ticker('BTCUSDT', spotPrice)],
-      ).withSnapshot(
-        TradingMode.futures,
-        [ticker('BTCUSDT', futuresPrice, market: TradingMode.futures)],
-      );
+      final book = const MarketPriceBook()
+          .withSnapshot(TradingMode.spot, [ticker('BTCUSDT', spotPrice)])
+          .withSnapshot(TradingMode.futures, [
+            ticker('BTCUSDT', futuresPrice, market: TradingMode.futures),
+          ]);
 
       expect(book.priceFor(TradingMode.spot, 'BTCUSDT'), spotPrice);
       expect(book.priceFor(TradingMode.futures, 'BTCUSDT'), futuresPrice);
     });
 
-    test('a missing market returns null rather than another market\'s price', () {
-      final book = const MarketPriceBook().withSnapshot(
-        TradingMode.spot,
-        [ticker('BTCUSDT', spotPrice)],
-      );
+    test(
+      'a missing market returns null rather than another market\'s price',
+      () {
+        final book = const MarketPriceBook().withSnapshot(TradingMode.spot, [
+          ticker('BTCUSDT', spotPrice),
+        ]);
 
-      // A fallback would be indistinguishable from a real quote.
-      expect(book.priceFor(TradingMode.futures, 'BTCUSDT'), isNull);
-    });
+        // A fallback would be indistinguishable from a real quote.
+        expect(book.priceFor(TradingMode.futures, 'BTCUSDT'), isNull);
+      },
+    );
 
     test('a tick on one market does not disturb the other', () {
       final book = const MarketPriceBook()
           .withSnapshot(TradingMode.spot, [ticker('BTCUSDT', spotPrice)])
-          .withSnapshot(
-            TradingMode.futures,
-            [ticker('BTCUSDT', futuresPrice, market: TradingMode.futures)],
-          )
-          .withTicks(
-            TradingMode.futures,
-            [ticker('BTCUSDT', 100900, market: TradingMode.futures)],
-          );
+          .withSnapshot(TradingMode.futures, [
+            ticker('BTCUSDT', futuresPrice, market: TradingMode.futures),
+          ])
+          .withTicks(TradingMode.futures, [
+            ticker('BTCUSDT', 100900, market: TradingMode.futures),
+          ]);
 
       expect(book.priceFor(TradingMode.spot, 'BTCUSDT'), spotPrice);
       expect(book.priceFor(TradingMode.futures, 'BTCUSDT'), 100900);
@@ -166,14 +171,16 @@ void main() {
     });
 
     test('lookup is case-insensitive on the exchange symbol', () {
-      final book = const MarketPriceBook()
-          .withSnapshot(TradingMode.spot, [ticker('BTCUSDT', spotPrice)]);
+      final book = const MarketPriceBook().withSnapshot(TradingMode.spot, [
+        ticker('BTCUSDT', spotPrice),
+      ]);
       expect(book.priceFor(TradingMode.spot, 'btcusdt'), spotPrice);
     });
 
     test('connection state is tracked per market', () {
-      final book = const MarketPriceBook()
-          .withSnapshot(TradingMode.spot, [ticker('BTCUSDT', spotPrice)]);
+      final book = const MarketPriceBook().withSnapshot(TradingMode.spot, [
+        ticker('BTCUSDT', spotPrice),
+      ]);
       expect(book.isConnected(TradingMode.spot), isTrue);
       expect(book.isConnected(TradingMode.futures), isFalse);
     });
@@ -184,7 +191,10 @@ void main() {
       // Guards the provider-family key: these are family keys, so collapsing them would
       // let one market's cached entry answer the other's request.
       const spotRef = MarketRef(symbol: 'BTCUSDT', market: TradingMode.spot);
-      const futuresRef = MarketRef(symbol: 'BTCUSDT', market: TradingMode.futures);
+      const futuresRef = MarketRef(
+        symbol: 'BTCUSDT',
+        market: TradingMode.futures,
+      );
 
       expect(spotRef, isNot(futuresRef));
       expect(spotRef.hashCode, isNot(futuresRef.hashCode));

@@ -18,14 +18,23 @@ class StrategyRemoteDataSource {
   }
 
   Future<TradingStrategy> createStrategy({
-    required String name, String? description,
-    required String tradingMode, Map<String, dynamic>? config,
+    required String name,
+    String? description,
+    required String tradingMode,
+    Map<String, dynamic>? config,
     String? engineKey,
   }) async {
     final body = TradingStrategyModel.createToJson(
-        name: name, description: description, tradingMode: tradingMode,
-        config: config, engineKey: engineKey);
-    final resp = await _client.dio.post<Map<String, dynamic>>(ApiConstants.strategies, data: body);
+      name: name,
+      description: description,
+      tradingMode: tradingMode,
+      config: config,
+      engineKey: engineKey,
+    );
+    final resp = await _client.dio.post<Map<String, dynamic>>(
+      ApiConstants.strategies,
+      data: body,
+    );
     return TradingStrategyModel.fromJson(resp.data!);
   }
 
@@ -41,9 +50,15 @@ class StrategyRemoteDataSource {
     return TradingStrategyModel.activeFromJson(resp.data!);
   }
 
-  Future<ActiveStrategyInfo> setActiveStrategy(String tradingMode, String strategyId) async {
+  Future<ActiveStrategyInfo> setActiveStrategy(
+    String tradingMode,
+    String strategyId,
+  ) async {
     final body = TradingStrategyModel.setActiveToJson(tradingMode, strategyId);
-    final resp = await _client.dio.post<Map<String, dynamic>>(ApiConstants.strategiesActive, data: body);
+    final resp = await _client.dio.post<Map<String, dynamic>>(
+      ApiConstants.strategiesActive,
+      data: body,
+    );
     return TradingStrategyModel.activeFromJson(resp.data!);
   }
 }

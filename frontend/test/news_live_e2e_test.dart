@@ -26,10 +26,14 @@ class _LiveTokens extends TokenLocalDataSource {
 
 Future<String> _login(Dio dio) async {
   final email = 'e2e+${DateTime.now().microsecondsSinceEpoch}@example.com';
-  await dio.post('/auth/signup',
-      data: {'email': email, 'password': 'Abcdef12', 'fullName': 'Flutter E2E'});
-  final login = await dio.post<Map<String, dynamic>>('/auth/login',
-      data: {'email': email, 'password': 'Abcdef12'});
+  await dio.post(
+    '/auth/signup',
+    data: {'email': email, 'password': 'Abcdef12', 'fullName': 'Flutter E2E'},
+  );
+  final login = await dio.post<Map<String, dynamic>>(
+    '/auth/login',
+    data: {'email': email, 'password': 'Abcdef12'},
+  );
   return login.data!['accessToken'] as String;
 }
 
@@ -42,58 +46,69 @@ void main() {
 
   final runLive = Platform.environment['NEWS_LIVE'] == 'true';
 
-  test('LIVE datasource->repository->controller against the running backend',
-      () async {
-    final tokens = _LiveTokens();
-    final container = ProviderContainer(
-      overrides: [tokenLocalDataSourceProvider.overrideWith((ref) => tokens)],
-    );
-    addTearDown(container.dispose);
-
-    final dio = Dio(BaseOptions(baseUrl: ApiConstants.baseUrl));
-    tokens.token = await _login(dio);
-    expect(tokens.token, isNotEmpty);
-
-    // Real NewsRemoteDataSource -> NewsRepositoryImpl -> NewsFeedController.
-    final feed = await container.read(newsFeedControllerProvider.future);
-    expect(feed.articles, isNotEmpty, reason: 'live backend returned no articles');
-    for (var i = 0; i + 1 < feed.articles.length; i++) {
-      expect(
-        feed.articles[i].publishedAt.isBefore(feed.articles[i + 1].publishedAt),
-        isFalse,
-        reason: 'feed must be newest-first',
+  test(
+    'LIVE datasource->repository->controller against the running backend',
+    () async {
+      final tokens = _LiveTokens();
+      final container = ProviderContainer(
+        overrides: [tokenLocalDataSourceProvider.overrideWith((ref) => tokens)],
       );
-    }
+      addTearDown(container.dispose);
 
-    final ctrl = container.read(newsFeedControllerProvider.notifier);
-    await ctrl.loadMore(); // page 1
-    var ids = container
-        .read(newsFeedControllerProvider)
-        .value!
-        .articles
-        .map((a) => a.id)
-        .toList();
-    expect(ids.toSet().length, ids.length, reason: 'duplicate ids rendered');
+      final dio = Dio(BaseOptions(baseUrl: ApiConstants.baseUrl));
+      tokens.token = await _login(dio);
+      expect(tokens.token, isNotEmpty);
 
-    // Refresh must reset the cursor; the next loadMore is page 1, not page 2.
-    await ctrl.refresh();
-    await ctrl.loadMore();
-    ids = container
-        .read(newsFeedControllerProvider)
-        .value!
-        .articles
-        .map((a) => a.id)
-        .toList();
-    expect(ids.toSet().length, ids.length);
+      // Real NewsRemoteDataSource -> NewsRepositoryImpl -> NewsFeedController.
+      final feed = await container.read(newsFeedControllerProvider.future);
+      expect(
+        feed.articles,
+        isNotEmpty,
+        reason: 'live backend returned no articles',
+      );
+      for (var i = 0; i + 1 < feed.articles.length; i++) {
+        expect(
+          feed.articles[i].publishedAt.isBefore(
+            feed.articles[i + 1].publishedAt,
+          ),
+          isFalse,
+          reason: 'feed must be newest-first',
+        );
+      }
 
-    // Live detail path.
-    final detail =
-        await container.read(newsDetailProvider(feed.articles.first.id).future);
-    expect(detail.article.id, feed.articles.first.id);
-  }, skip: !runLive);
+      final ctrl = container.read(newsFeedControllerProvider.notifier);
+      await ctrl.loadMore(); // page 1
+      var ids = container
+          .read(newsFeedControllerProvider)
+          .value!
+          .articles
+          .map((a) => a.id)
+          .toList();
+      expect(ids.toSet().length, ids.length, reason: 'duplicate ids rendered');
 
-  testWidgets('LIVE NewsScreen renders articles from the running backend',
-      (tester) async {
+      // Refresh must reset the cursor; the next loadMore is page 1, not page 2.
+      await ctrl.refresh();
+      await ctrl.loadMore();
+      ids = container
+          .read(newsFeedControllerProvider)
+          .value!
+          .articles
+          .map((a) => a.id)
+          .toList();
+      expect(ids.toSet().length, ids.length);
+
+      // Live detail path.
+      final detail = await container.read(
+        newsDetailProvider(feed.articles.first.id).future,
+      );
+      expect(detail.article.id, feed.articles.first.id);
+    },
+    skip: !runLive,
+  );
+
+  testWidgets('LIVE NewsScreen renders articles from the running backend', (
+    tester,
+  ) async {
     final tokens = _LiveTokens();
     final container = ProviderContainer(
       overrides: [tokenLocalDataSourceProvider.overrideWith((ref) => tokens)],
@@ -117,7 +132,10 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 200));
 
-    expect(find.byType(NewsArticleCard), findsWidgets,
-        reason: 'live articles must render on the News screen');
+    expect(
+      find.byType(NewsArticleCard),
+      findsWidgets,
+      reason: 'live articles must render on the News screen',
+    );
   }, skip: !runLive);
 }

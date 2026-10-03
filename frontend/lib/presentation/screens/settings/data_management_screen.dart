@@ -74,7 +74,9 @@ class DataManagementScreen extends ConsumerWidget {
     ref.invalidate(settingsControllerProvider);
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Settings cache cleared. Reloading from server…')),
+        const SnackBar(
+          content: Text('Settings cache cleared. Reloading from server…'),
+        ),
       );
     }
   }
@@ -90,7 +92,10 @@ class DataManagementScreen extends ConsumerWidget {
           'Your account, signals, and trade history are not affected.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             child: const Text('CLEAR', style: TextStyle(color: AppColors.loss)),
@@ -104,9 +109,9 @@ class DataManagementScreen extends ConsumerWidget {
     await prefs.clear();
     ref.invalidate(settingsControllerProvider);
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('App cache cleared')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('App cache cleared')));
       Navigator.of(context).pop();
     }
   }
@@ -123,7 +128,10 @@ class DataManagementScreen extends ConsumerWidget {
           'We will prepare and send your data within 7 business days.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
         ],
       ),
     );

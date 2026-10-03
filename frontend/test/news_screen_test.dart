@@ -15,9 +15,7 @@ void main() {
   testWidgets('news screen lists articles from the feed', (tester) async {
     final container = ProviderContainer(
       overrides: [
-        newsRepositoryProvider.overrideWith(
-          (ref) => _FakeNewsRepository(),
-        ),
+        newsRepositoryProvider.overrideWith((ref) => _FakeNewsRepository()),
       ],
     );
     addTearDown(container.dispose);
@@ -47,9 +45,7 @@ void main() {
   testWidgets('tapping an article opens the detail route', (tester) async {
     final container = ProviderContainer(
       overrides: [
-        newsRepositoryProvider.overrideWith(
-          (ref) => _FakeNewsRepository(),
-        ),
+        newsRepositoryProvider.overrideWith((ref) => _FakeNewsRepository()),
       ],
     );
     addTearDown(container.dispose);

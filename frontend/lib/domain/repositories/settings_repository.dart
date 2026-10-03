@@ -10,7 +10,9 @@ abstract class SettingsRepository {
   Future<void> deleteExchange(String id);
 
   Future<Map<String, dynamic>> getNotificationPrefs();
-  Future<Map<String, dynamic>> updateNotificationPrefs(Map<String, dynamic> body);
+  Future<Map<String, dynamic>> updateNotificationPrefs(
+    Map<String, dynamic> body,
+  );
 
   Future<List<Map<String, dynamic>>> listDeviceTokens();
 }

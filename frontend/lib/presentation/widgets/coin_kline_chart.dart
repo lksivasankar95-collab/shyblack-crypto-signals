@@ -16,7 +16,10 @@ class CoinKlineChart extends StatelessWidget {
       return const SizedBox(
         height: 280,
         child: Center(
-          child: Text('No chart data', style: TextStyle(color: AppColors.muted)),
+          child: Text(
+            'No chart data',
+            style: TextStyle(color: AppColors.muted),
+          ),
         ),
       );
     }
@@ -59,7 +62,10 @@ class CoinKlineChart extends StatelessWidget {
               gridData: FlGridData(
                 show: true,
                 drawVerticalLine: false,
-                horizontalInterval: _interval(candles.map((c) => c.high).reduce((a, b) => a > b ? a : b), candles.map((c) => c.low).reduce((a, b) => a < b ? a : b)),
+                horizontalInterval: _interval(
+                  candles.map((c) => c.high).reduce((a, b) => a > b ? a : b),
+                  candles.map((c) => c.low).reduce((a, b) => a < b ? a : b),
+                ),
                 getDrawingHorizontalLine: (_) => FlLine(
                   color: AppColors.muted.withValues(alpha: 0.18),
                   strokeWidth: 0.6,
@@ -68,16 +74,25 @@ class CoinKlineChart extends StatelessWidget {
               borderData: FlBorderData(show: false),
               titlesData: FlTitlesData(
                 show: true,
-                topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                bottomTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                topTitles: const AxisTitles(
+                  sideTitles: SideTitles(showTitles: false),
+                ),
+                rightTitles: const AxisTitles(
+                  sideTitles: SideTitles(showTitles: false),
+                ),
+                bottomTitles: const AxisTitles(
+                  sideTitles: SideTitles(showTitles: false),
+                ),
                 leftTitles: AxisTitles(
                   sideTitles: SideTitles(
                     showTitles: true,
                     reservedSize: 52,
                     getTitlesWidget: (value, meta) => Text(
                       MarketFormat.compact(value),
-                      style: const TextStyle(color: AppColors.muted, fontSize: 10),
+                      style: const TextStyle(
+                        color: AppColors.muted,
+                        fontSize: 10,
+                      ),
                     ),
                   ),
                 ),

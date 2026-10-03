@@ -42,11 +42,14 @@ class _MainShellState extends ConsumerState<MainShell> {
     _processingPendingNews = newsId;
     try {
       Navigator.of(context).push(
-        MaterialPageRoute<void>(builder: (_) => NewsDetailScreen(articleId: newsId)),
+        MaterialPageRoute<void>(
+          builder: (_) => NewsDetailScreen(articleId: newsId),
+        ),
       );
     } finally {
       final current = ref.read(pendingNewsProvider);
-      if (current == newsId) ref.read(pendingNewsProvider.notifier).state = null;
+      if (current == newsId)
+        ref.read(pendingNewsProvider.notifier).state = null;
       _processingPendingNews = null;
     }
   }
@@ -66,7 +69,8 @@ class _MainShellState extends ConsumerState<MainShell> {
       while (mounted) {
         final auth = ref.read(authSessionProvider).value;
         if (auth == AuthStatus.authenticated) break;
-        if (DateTime.now().difference(start) > timeout) return _clearPendingIfMatching(signalId);
+        if (DateTime.now().difference(start) > timeout)
+          return _clearPendingIfMatching(signalId);
         await Future.delayed(const Duration(milliseconds: 200));
       }
 
@@ -94,26 +98,21 @@ class _MainShellState extends ConsumerState<MainShell> {
 
   void _clearPendingIfMatching(String signalId) {
     final current = ref.read(pendingSignalProvider);
-    if (current == signalId) ref.read(pendingSignalProvider.notifier).state = null;
+    if (current == signalId)
+      ref.read(pendingSignalProvider.notifier).state = null;
     _processingPending = null;
   }
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<String?>(
-      pendingSignalProvider,
-      (previous, next) {
-        _handlePendingSignal(next);
-      },
-    );
+    ref.listen<String?>(pendingSignalProvider, (previous, next) {
+      _handlePendingSignal(next);
+    });
     _handlePendingSignal(ref.read(pendingSignalProvider));
 
-    ref.listen<String?>(
-      pendingNewsProvider,
-      (previous, next) {
-        _handlePendingNews(next);
-      },
-    );
+    ref.listen<String?>(pendingNewsProvider, (previous, next) {
+      _handlePendingNews(next);
+    });
     _handlePendingNews(ref.read(pendingNewsProvider));
 
     final index = ref.watch(selectedTabProvider);
@@ -123,7 +122,11 @@ class _MainShellState extends ConsumerState<MainShell> {
     return Scaffold(
       appBar: index == 0
           ? null
-          : AppBar(title: Text('${AppConstants.appName} · ${MainShell._titles[index]}')),
+          : AppBar(
+              title: Text(
+                '${AppConstants.appName} · ${MainShell._titles[index]}',
+              ),
+            ),
       body: IndexedStack(
         index: index,
         children: const [

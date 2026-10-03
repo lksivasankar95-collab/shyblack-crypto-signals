@@ -21,62 +21,66 @@ import 'package:flutter_test/flutter_test.dart';
 /// share a symbol side by side as if they were one instrument, and tapping one would
 /// silently choose which market is meant.
 void main() {
-  testWidgets('markets offers SPOT and FUTURES views and no merged All Markets',
-      (WidgetTester tester) async {
-    tester.view.physicalSize = const Size(1200, 2000);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
+  testWidgets(
+    'markets offers SPOT and FUTURES views and no merged All Markets',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(1200, 2000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
 
-    final requestedModes = <TradingMode>[];
-    final container = ProviderContainer(
-      overrides: [
-        authSessionProvider.overrideWith(() => _AuthedSessionController()),
-        marketRepositoryProvider.overrideWith(
-          (ref) => _RecordingMarketRepository(requestedModes),
+      final requestedModes = <TradingMode>[];
+      final container = ProviderContainer(
+        overrides: [
+          authSessionProvider.overrideWith(() => _AuthedSessionController()),
+          marketRepositoryProvider.overrideWith(
+            (ref) => _RecordingMarketRepository(requestedModes),
+          ),
+          marketsSocketConnectorProvider.overrideWith(
+            (ref) => const _IdleSocketConnector(),
+          ),
+          settingsRepositoryProvider.overrideWith(
+            (ref) => _FakeSettingsRepository(),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            darkTheme: AppTheme.dark(),
+            themeMode: ThemeMode.dark,
+            home: const Scaffold(body: MarketsScreen()),
+          ),
         ),
-        marketsSocketConnectorProvider.overrideWith(
-          (ref) => const _IdleSocketConnector(),
-        ),
-        settingsRepositoryProvider.overrideWith((ref) => _FakeSettingsRepository()),
-      ],
-    );
-    addTearDown(container.dispose);
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
 
-    await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: MaterialApp(
-          theme: AppTheme.dark(),
-          darkTheme: AppTheme.dark(),
-          themeMode: ThemeMode.dark,
-          home: const Scaffold(body: MarketsScreen()),
-        ),
-      ),
-    );
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 50));
+      // Both markets are offered.
+      expect(find.text('SPOT'), findsOneWidget);
+      expect(find.text('FUTURES'), findsWidgets);
 
-    // Both markets are offered.
-    expect(find.text('SPOT'), findsOneWidget);
-    expect(find.text('FUTURES'), findsWidgets);
+      // The merged view is gone.
+      expect(find.text('All Markets'), findsNothing);
+      expect(find.text('Markets'), findsOneWidget);
 
-    // The merged view is gone.
-    expect(find.text('All Markets'), findsNothing);
-    expect(find.text('Markets'), findsOneWidget);
+      // Spot is the default view.
+      expect(container.read(marketsModeProvider), TradingMode.spot);
+      expect(requestedModes, contains(TradingMode.spot));
 
-    // Spot is the default view.
-    expect(container.read(marketsModeProvider), TradingMode.spot);
-    expect(requestedModes, contains(TradingMode.spot));
+      // Selecting Futures asks the backend for the futures universe.
+      await tester.tap(find.text('FUTURES').first);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
 
-    // Selecting Futures asks the backend for the futures universe.
-    await tester.tap(find.text('FUTURES').first);
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 50));
-
-    expect(container.read(marketsModeProvider), TradingMode.futures);
-    expect(requestedModes, contains(TradingMode.futures));
-  });
+      expect(container.read(marketsModeProvider), TradingMode.futures);
+      expect(requestedModes, contains(TradingMode.futures));
+    },
+  );
 }
 
 class _AuthedSessionController extends AuthSessionController {
@@ -94,7 +98,9 @@ class _RecordingMarketRepository implements MarketRepository {
     requestedModes.add(mode);
     return MarketSnapshot(
       mode: mode.apiParam,
-      tickers: [_ticker('BTCUSDT', mode == TradingMode.spot ? 100000 : 100500, mode)],
+      tickers: [
+        _ticker('BTCUSDT', mode == TradingMode.spot ? 100000 : 100500, mode),
+      ],
     );
   }
 
@@ -114,12 +120,12 @@ class _RecordingMarketRepository implements MarketRepository {
     required String interval,
     required int limit,
     required TradingMode mode,
-  }) async =>
-      const [];
+  }) async => const [];
 }
 
 /// Builds a ticker carrying the metadata the real API now supplies.
-MarketTicker _ticker(String symbol, double price, TradingMode market) => MarketTicker(
+MarketTicker _ticker(String symbol, double price, TradingMode market) =>
+    MarketTicker(
       symbol: symbol,
       name: 'BTC',
       price: price,
@@ -130,7 +136,9 @@ MarketTicker _ticker(String symbol, double price, TradingMode market) => MarketT
       low24h: price,
       marketType: market,
       exchangeSymbol: symbol,
-      displaySymbol: market == TradingMode.spot ? 'BTC/USDT' : 'BTCUSDT Perpetual',
+      displaySymbol: market == TradingMode.spot
+          ? 'BTC/USDT'
+          : 'BTCUSDT Perpetual',
       baseAsset: 'BTC',
       quoteAsset: 'USDT',
       contractType: market == TradingMode.spot ? null : 'PERPETUAL',

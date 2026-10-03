@@ -11,8 +11,9 @@ import 'package:cryptosignals/domain/repositories/backtesting_repository.dart';
 import 'package:cryptosignals/presentation/screens/backtesting/backtesting_screen.dart';
 
 void main() {
-  testWidgets('backtesting — empty list shows CTA + config form',
-      (WidgetTester tester) async {
+  testWidgets('backtesting — empty list shows CTA + config form', (
+    WidgetTester tester,
+  ) async {
     tester.view.physicalSize = const Size(1000, 1600);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -39,8 +40,9 @@ void main() {
     expect(find.text('No runs yet.'), findsOneWidget);
   });
 
-  testWidgets('backtesting — completed run displays metrics',
-      (WidgetTester tester) async {
+  testWidgets('backtesting — completed run displays metrics', (
+    WidgetTester tester,
+  ) async {
     tester.view.physicalSize = const Size(1000, 1600);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -136,13 +138,12 @@ class _FakeRepo implements BacktestingRepository {
   Future<void> deleteRun(String id) async {}
 
   @override
-  Future<List<StrategyDescriptor>> listStrategies() async =>
-      const [
-        StrategyDescriptor(
-          id: 'ema-rsi',
-          name: 'EMA + RSI',
-          version: 'v1',
-          marketType: 'SPOT',
-        ),
-      ];
+  Future<List<StrategyDescriptor>> listStrategies() async => const [
+    StrategyDescriptor(
+      id: 'ema-rsi',
+      name: 'EMA + RSI',
+      version: 'v1',
+      marketType: 'SPOT',
+    ),
+  ];
 }

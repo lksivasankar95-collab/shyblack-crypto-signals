@@ -62,11 +62,11 @@ class MarketTicker {
   String get displayLabel => displaySymbol ?? exchangeSymbol ?? symbol;
 
   /// Underlying asset, from Binance metadata.
-///
-/// Falls back to the exchange symbol rather than trying to slice the asset out of it.
-/// Splitting `BTCUSDT` into `BTC` would be a guess about the quote asset that is wrong for
-/// any non-USDT market, and this app supports a configurable quote asset.
-String get baseSymbol => baseAsset ?? exchangeSymbol ?? symbol;
+  ///
+  /// Falls back to the exchange symbol rather than trying to slice the asset out of it.
+  /// Splitting `BTCUSDT` into `BTC` would be a guess about the quote asset that is wrong for
+  /// any non-USDT market, and this app supports a configurable quote asset.
+  String get baseSymbol => baseAsset ?? exchangeSymbol ?? symbol;
 
   MarketTicker copyWith({
     String? symbol,
@@ -125,18 +125,18 @@ String get baseSymbol => baseAsset ?? exchangeSymbol ?? symbol;
 
   @override
   int get hashCode => Object.hash(
-        marketType,
-        symbol,
-        name,
-        price,
-        change24h,
-        changePercent24h,
-        volume24h,
-        high24h,
-        low24h,
-        displaySymbol,
-        contractType,
-      );
+    marketType,
+    symbol,
+    name,
+    price,
+    change24h,
+    changePercent24h,
+    volume24h,
+    high24h,
+    low24h,
+    displaySymbol,
+    contractType,
+  );
 }
 
 class MarketSnapshot {

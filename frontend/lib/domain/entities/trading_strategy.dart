@@ -1,5 +1,7 @@
 enum StrategyTradingMode { spot, futures }
+
 enum StrategyType { system, user }
+
 enum StrategyStatus { active, inactive }
 
 class TradingStrategy {
@@ -84,8 +86,12 @@ class EmaTrendFollowingConfig {
   final double slAtrBuffer, minRR, tp1R, tp2R, tp3R;
   final int cooldownCandles;
   final int minimumScore;
-  final int weightTrendAlignment, weightEmaTransition, weightPriceConfirmation,
-      weightMomentum, weightVolume, weightVolatility;
+  final int weightTrendAlignment,
+      weightEmaTransition,
+      weightPriceConfirmation,
+      weightMomentum,
+      weightVolume,
+      weightVolatility;
 
   const EmaTrendFollowingConfig({
     this.htfTimeframe = '1H',
@@ -123,38 +129,38 @@ class EmaTrendFollowingConfig {
 
   /// Serializable form matching the backend EMATrendFollowingConfig.
   Map<String, dynamic> toJson() => {
-        'htfTimeframe': htfTimeframe,
-        'entryTimeframe': entryTimeframe,
-        'htfFastEma': htfFastEma,
-        'htfSlowEma': htfSlowEma,
-        'trendSlopeLookback': trendSlopeLookback,
-        'entryFastEma': entryFastEma,
-        'entrySlowEma': entrySlowEma,
-        'minimumEmaSeparationPct': minimumEmaSeparationPct,
-        'rsiFilterEnabled': rsiFilterEnabled,
-        'rsiPeriod': rsiPeriod,
-        'minimumRsiForLong': minimumRsiForLong,
-        'maximumRsiForLong': maximumRsiForLong,
-        'volumeFilterEnabled': volumeFilterEnabled,
-        'volumePeriod': volumePeriod,
-        'minimumVolumeRatio': minimumVolumeRatio,
-        'atrFilterEnabled': atrFilterEnabled,
-        'atrPeriod': atrPeriod,
-        'minimumAtrPct': minimumAtrPct,
-        'slAtrBuffer': slAtrBuffer,
-        'minRR': minRR,
-        'tp1R': tp1R,
-        'tp2R': tp2R,
-        'tp3R': tp3R,
-        'cooldownCandles': cooldownCandles,
-        'minimumScore': minimumScore,
-        'weightTrendAlignment': weightTrendAlignment,
-        'weightEmaTransition': weightEmaTransition,
-        'weightPriceConfirmation': weightPriceConfirmation,
-        'weightMomentum': weightMomentum,
-        'weightVolume': weightVolume,
-        'weightVolatility': weightVolatility,
-      };
+    'htfTimeframe': htfTimeframe,
+    'entryTimeframe': entryTimeframe,
+    'htfFastEma': htfFastEma,
+    'htfSlowEma': htfSlowEma,
+    'trendSlopeLookback': trendSlopeLookback,
+    'entryFastEma': entryFastEma,
+    'entrySlowEma': entrySlowEma,
+    'minimumEmaSeparationPct': minimumEmaSeparationPct,
+    'rsiFilterEnabled': rsiFilterEnabled,
+    'rsiPeriod': rsiPeriod,
+    'minimumRsiForLong': minimumRsiForLong,
+    'maximumRsiForLong': maximumRsiForLong,
+    'volumeFilterEnabled': volumeFilterEnabled,
+    'volumePeriod': volumePeriod,
+    'minimumVolumeRatio': minimumVolumeRatio,
+    'atrFilterEnabled': atrFilterEnabled,
+    'atrPeriod': atrPeriod,
+    'minimumAtrPct': minimumAtrPct,
+    'slAtrBuffer': slAtrBuffer,
+    'minRR': minRR,
+    'tp1R': tp1R,
+    'tp2R': tp2R,
+    'tp3R': tp3R,
+    'cooldownCandles': cooldownCandles,
+    'minimumScore': minimumScore,
+    'weightTrendAlignment': weightTrendAlignment,
+    'weightEmaTransition': weightEmaTransition,
+    'weightPriceConfirmation': weightPriceConfirmation,
+    'weightMomentum': weightMomentum,
+    'weightVolume': weightVolume,
+    'weightVolatility': weightVolatility,
+  };
 }
 
 /// Configuration for the TREND_PULLBACK strategy (LONG-only SPOT).
@@ -215,36 +221,36 @@ class PullbackConfig {
 
   /// Serializable form matching the backend TrendPullbackConfig.
   Map<String, dynamic> toJson() => {
-        'htf': htf,
-        'entryTimeframe': entryTimeframe,
-        'emaFastHtf': emaFastHtf,
-        'emaSlowHtf': emaSlowHtf,
-        'adxPeriod': adxPeriod,
-        'minAdx': minAdx,
-        'requirePositiveSlope': requirePositiveSlope,
-        'pullbackEma': pullbackEma,
-        'entryEma': entryEma,
-        'zoneMode': zoneMode,
-        'maxPullbackDistanceAtr': maxPullbackDistanceAtr,
-        'rsiPeriod': rsiPeriod,
-        'rsiMin': rsiMin,
-        'rsiMax': rsiMax,
-        'requireRecovery': requireRecovery,
-        'volumeFilterEnabled': volumeFilterEnabled,
-        'volumeSmaPeriod': volumeSmaPeriod,
-        'minVolumeMultiplier': minVolumeMultiplier,
-        'atrPeriod': atrPeriod,
-        'slAtrBuffer': slAtrBuffer,
-        'maxSlAtr': maxSlAtr,
-        'minRR': minRR,
-        'tp1R': tp1R,
-        'tp2R': tp2R,
-        'tp3R': tp3R,
-        'maxSetupCandles': maxSetupCandles,
-        'cooldownCandles': cooldownCandles,
-        'candleConfirmationEnabled': candleConfirmationEnabled,
-        'minimumScore': minimumScore,
-      };
+    'htf': htf,
+    'entryTimeframe': entryTimeframe,
+    'emaFastHtf': emaFastHtf,
+    'emaSlowHtf': emaSlowHtf,
+    'adxPeriod': adxPeriod,
+    'minAdx': minAdx,
+    'requirePositiveSlope': requirePositiveSlope,
+    'pullbackEma': pullbackEma,
+    'entryEma': entryEma,
+    'zoneMode': zoneMode,
+    'maxPullbackDistanceAtr': maxPullbackDistanceAtr,
+    'rsiPeriod': rsiPeriod,
+    'rsiMin': rsiMin,
+    'rsiMax': rsiMax,
+    'requireRecovery': requireRecovery,
+    'volumeFilterEnabled': volumeFilterEnabled,
+    'volumeSmaPeriod': volumeSmaPeriod,
+    'minVolumeMultiplier': minVolumeMultiplier,
+    'atrPeriod': atrPeriod,
+    'slAtrBuffer': slAtrBuffer,
+    'maxSlAtr': maxSlAtr,
+    'minRR': minRR,
+    'tp1R': tp1R,
+    'tp2R': tp2R,
+    'tp3R': tp3R,
+    'maxSetupCandles': maxSetupCandles,
+    'cooldownCandles': cooldownCandles,
+    'candleConfirmationEnabled': candleConfirmationEnabled,
+    'minimumScore': minimumScore,
+  };
 }
 
 class IndicatorConfig {
@@ -255,11 +261,20 @@ class IndicatorConfig {
   final int atrPeriod, adxPeriod, volumeMaPeriod;
 
   const IndicatorConfig({
-    this.emaFast = 20, this.emaMid = 50, this.emaSlow = 200,
-    this.rsiPeriod = 14, this.rsiOversold = 30, this.rsiNeutral = 50,
-    this.rsiOverbought = 70, this.rsiExtremeOb = 80,
-    this.macdFast = 12, this.macdSlow = 26, this.macdSignalPeriod = 9,
-    this.atrPeriod = 14, this.adxPeriod = 14, this.volumeMaPeriod = 20,
+    this.emaFast = 20,
+    this.emaMid = 50,
+    this.emaSlow = 200,
+    this.rsiPeriod = 14,
+    this.rsiOversold = 30,
+    this.rsiNeutral = 50,
+    this.rsiOverbought = 70,
+    this.rsiExtremeOb = 80,
+    this.macdFast = 12,
+    this.macdSlow = 26,
+    this.macdSignalPeriod = 9,
+    this.atrPeriod = 14,
+    this.adxPeriod = 14,
+    this.volumeMaPeriod = 20,
   });
 }
 
@@ -268,8 +283,10 @@ class ScoringConfig {
   final double minRiskReward;
 
   const ScoringConfig({
-    this.strongBuyThreshold = 85, this.buyThreshold = 75,
-    this.watchThreshold = 65, this.minRiskReward = 1.5,
+    this.strongBuyThreshold = 85,
+    this.buyThreshold = 75,
+    this.watchThreshold = 65,
+    this.minRiskReward = 1.5,
   });
 }
 
@@ -279,7 +296,9 @@ class FilterConfig {
   final bool skipBearishRegime;
 
   const FilterConfig({
-    this.minVolumeUsdt = 5000000, this.signalCooldownHours = 4, this.skipBearishRegime = true,
+    this.minVolumeUsdt = 5000000,
+    this.signalCooldownHours = 4,
+    this.skipBearishRegime = true,
   });
 }
 
@@ -287,8 +306,10 @@ class EntryConfig {
   final double atrSlBuffer, tp1RMultiple, tp2RMultiple, tp3RMultiple;
 
   const EntryConfig({
-    this.atrSlBuffer = 0.5, this.tp1RMultiple = 1.5,
-    this.tp2RMultiple = 2.5, this.tp3RMultiple = 4.0,
+    this.atrSlBuffer = 0.5,
+    this.tp1RMultiple = 1.5,
+    this.tp2RMultiple = 2.5,
+    this.tp3RMultiple = 4.0,
   });
 }
 
@@ -297,6 +318,8 @@ class FuturesStrategyConfig {
   final bool allowLong, allowShort;
 
   const FuturesStrategyConfig({
-    this.defaultLeverage = 3, this.allowLong = true, this.allowShort = true,
+    this.defaultLeverage = 3,
+    this.allowLong = true,
+    this.allowShort = true,
   });
 }

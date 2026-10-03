@@ -21,7 +21,9 @@ class LiveTradingRepositoryImpl implements LiveTradingRepository {
 
   @override
   Future<LiveAccount> connect(LiveExchange exchange) async =>
-      LiveAccountModel.fromJson(await _remote.connect(_exchangeName(exchange))).account;
+      LiveAccountModel.fromJson(
+        await _remote.connect(_exchangeName(exchange)),
+      ).account;
 
   @override
   Future<LiveAccount> validate() async =>
@@ -72,9 +74,9 @@ class LiveTradingRepositoryImpl implements LiveTradingRepository {
       LivePerformanceModel.fromJson(await _remote.getPerformance()).performance;
 
   static String _exchangeName(LiveExchange exchange) => switch (exchange) {
-        LiveExchange.binance => 'BINANCE',
-        LiveExchange.bybit => 'BYBIT',
-        LiveExchange.okx => 'OKX',
-        LiveExchange.coinbase => 'COINBASE',
-      };
+    LiveExchange.binance => 'BINANCE',
+    LiveExchange.bybit => 'BYBIT',
+    LiveExchange.okx => 'OKX',
+    LiveExchange.coinbase => 'COINBASE',
+  };
 }

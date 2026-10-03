@@ -21,7 +21,8 @@ class LiveTradingViewData {
   final List<LiveOrder> history;
   final LivePerformance performance;
 
-  bool get connected => account?.connectionStatus == LiveConnectionStatus.connected;
+  bool get connected =>
+      account?.connectionStatus == LiveConnectionStatus.connected;
   bool get isTradingReady => account?.isTradingReady ?? false;
 }
 
@@ -45,11 +46,12 @@ class LiveTradingController extends AsyncNotifier<LiveTradingViewData> {
         openOrders: const [],
         history: const [],
         performance: const LivePerformance(
-            totalOrders: 0,
-            filledEntries: 0,
-            rejections: 0,
-            totalFees: 0,
-            totalNotional: 0),
+          totalOrders: 0,
+          filledEntries: 0,
+          rejections: 0,
+          totalFees: 0,
+          totalNotional: 0,
+        ),
       );
     }
     final results = await Future.wait([
@@ -74,13 +76,16 @@ class LiveTradingController extends AsyncNotifier<LiveTradingViewData> {
   }
 
   Future<LiveAccount> connect(LiveExchange exchange) async {
-    final account = await ref.read(liveTradingRepositoryProvider).connect(exchange);
+    final account = await ref
+        .read(liveTradingRepositoryProvider)
+        .connect(exchange);
     unawaited(refresh());
     return account;
   }
 
   Future<LiveAccount> activate({required bool acknowledged}) async {
-    final acc = await ref.read(liveTradingRepositoryProvider)
+    final acc = await ref
+        .read(liveTradingRepositoryProvider)
         .activate(acknowledged: acknowledged);
     unawaited(refresh());
     return acc;
@@ -93,13 +98,17 @@ class LiveTradingController extends AsyncNotifier<LiveTradingViewData> {
   }
 
   Future<LiveAccount> triggerKillSwitch() async {
-    final acc = await ref.read(liveTradingRepositoryProvider).triggerKillSwitch();
+    final acc = await ref
+        .read(liveTradingRepositoryProvider)
+        .triggerKillSwitch();
     unawaited(refresh());
     return acc;
   }
 
   Future<LiveAccount> releaseKillSwitch() async {
-    final acc = await ref.read(liveTradingRepositoryProvider).releaseKillSwitch();
+    final acc = await ref
+        .read(liveTradingRepositoryProvider)
+        .releaseKillSwitch();
     unawaited(refresh());
     return acc;
   }
@@ -111,7 +120,8 @@ class LiveTradingController extends AsyncNotifier<LiveTradingViewData> {
   }
 
   Future<LiveOrder> closePosition(String entryOrderId) async {
-    final order = await ref.read(liveTradingRepositoryProvider)
+    final order = await ref
+        .read(liveTradingRepositoryProvider)
         .closePosition(entryOrderId);
     unawaited(refresh());
     return order;
@@ -127,5 +137,5 @@ class LiveTradingController extends AsyncNotifier<LiveTradingViewData> {
 
 final liveTradingControllerProvider =
     AsyncNotifierProvider<LiveTradingController, LiveTradingViewData>(
-  LiveTradingController.new,
-);
+      LiveTradingController.new,
+    );

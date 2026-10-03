@@ -53,7 +53,10 @@ class MarketRemoteDataSource {
       );
       return (response.data ?? [])
           .whereType<Map>()
-          .map((item) => KlineCandleModel.fromJson(Map<String, dynamic>.from(item)))
+          .map(
+            (item) =>
+                KlineCandleModel.fromJson(Map<String, dynamic>.from(item)),
+          )
           .toList();
     } on DioException catch (error) {
       throw ApiExceptionMapper.fromDio(error);

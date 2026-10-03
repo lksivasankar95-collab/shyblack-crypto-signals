@@ -8,11 +8,7 @@ import '../../widgets/news_article_card.dart';
 import 'asset_news_screen.dart';
 
 class NewsDetailScreen extends ConsumerWidget {
-  const NewsDetailScreen({
-    super.key,
-    required this.articleId,
-    this.initial,
-  });
+  const NewsDetailScreen({super.key, required this.articleId, this.initial});
 
   final String articleId;
   final NewsArticle? initial;
@@ -111,10 +107,7 @@ class _DetailBody extends StatelessWidget {
           const SizedBox(height: 24),
         ],
         if (article.assets.isNotEmpty) ...[
-          Text(
-            'Affected assets',
-            style: _sectionStyle(),
-          ),
+          Text('Affected assets', style: _sectionStyle()),
           const SizedBox(height: 8),
           for (final asset in article.assets)
             _AssetRow(
@@ -265,7 +258,10 @@ class _AssetRow extends StatelessWidget {
                     asset.relationshipType == NewsAssetRelationshipType.primary
                         ? 'Primary subject'
                         : 'Mentioned',
-                    style: const TextStyle(color: AppColors.muted, fontSize: 12),
+                    style: const TextStyle(
+                      color: AppColors.muted,
+                      fontSize: 12,
+                    ),
                   ),
                 ],
               ),
@@ -280,11 +276,7 @@ class _AssetRow extends StatelessWidget {
                 ),
               ),
             const SizedBox(width: 4),
-            const Icon(
-              Icons.chevron_right,
-              color: AppColors.muted,
-              size: 20,
-            ),
+            const Icon(Icons.chevron_right, color: AppColors.muted, size: 20),
           ],
         ),
       ),

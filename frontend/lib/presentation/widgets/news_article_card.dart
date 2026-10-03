@@ -21,10 +21,7 @@ class NewsSentimentBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (label, color) = switch (sentiment) {
-      NewsSentiment.positive => (
-        'Positive',
-        AppColors.accent,
-      ),
+      NewsSentiment.positive => ('Positive', AppColors.accent),
       NewsSentiment.negative => ('Negative', AppColors.loss),
       NewsSentiment.neutral => ('Neutral', AppColors.muted),
     };
@@ -168,8 +165,7 @@ class NewsArticleCard extends StatelessWidget {
                 spacing: 6,
                 runSpacing: 6,
                 children: [
-                  for (final asset in article.assets)
-                    _AssetChip(asset: asset),
+                  for (final asset in article.assets) _AssetChip(asset: asset),
                 ],
               ),
             ],

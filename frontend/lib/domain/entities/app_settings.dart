@@ -16,40 +16,40 @@ enum PositionSizingMode { fixedPercent, fixedAmount, kellyPercent }
 
 extension TradingModeLabel on TradingMode {
   String get label => switch (this) {
-        TradingMode.spot => 'Spot',
-        TradingMode.futures => 'Futures',
-        TradingMode.options => 'Options',
-      };
+    TradingMode.spot => 'Spot',
+    TradingMode.futures => 'Futures',
+    TradingMode.options => 'Options',
+  };
 
   String get apiParam => name.toUpperCase();
 }
 
 extension TradingAccountLabel on TradingAccount {
   String get label => switch (this) {
-        TradingAccount.paper => 'Paper Trading Account',
-        TradingAccount.live => 'Live Trading Account',
-      };
+    TradingAccount.paper => 'Paper Trading Account',
+    TradingAccount.live => 'Live Trading Account',
+  };
 
   String get subtitle => switch (this) {
-        TradingAccount.paper => 'Practice with virtual funds',
-        TradingAccount.live => 'Connect exchange, real funds',
-      };
+    TradingAccount.paper => 'Practice with virtual funds',
+    TradingAccount.live => 'Connect exchange, real funds',
+  };
 }
 
 extension RiskProfileLabel on RiskProfile {
   String get label => switch (this) {
-        RiskProfile.conservative => 'Conservative',
-        RiskProfile.moderate => 'Moderate',
-        RiskProfile.aggressive => 'Aggressive',
-      };
+    RiskProfile.conservative => 'Conservative',
+    RiskProfile.moderate => 'Moderate',
+    RiskProfile.aggressive => 'Aggressive',
+  };
 }
 
 extension PositionSizingModeLabel on PositionSizingMode {
   String get label => switch (this) {
-        PositionSizingMode.fixedPercent => 'Fixed %',
-        PositionSizingMode.fixedAmount => 'Fixed Amount',
-        PositionSizingMode.kellyPercent => 'Kelly %',
-      };
+    PositionSizingMode.fixedPercent => 'Fixed %',
+    PositionSizingMode.fixedAmount => 'Fixed Amount',
+    PositionSizingMode.kellyPercent => 'Kelly %',
+  };
 }
 
 class AppSettings {

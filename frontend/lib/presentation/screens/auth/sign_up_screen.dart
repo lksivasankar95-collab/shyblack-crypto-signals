@@ -35,7 +35,9 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     if (!_formKey.currentState!.validate()) {
       return;
     }
-    final ok = await ref.read(signupControllerProvider.notifier).submit(
+    final ok = await ref
+        .read(signupControllerProvider.notifier)
+        .submit(
           fullName: _nameController.text.trim(),
           email: _emailController.text.trim(),
           password: _passwordController.text,
@@ -45,7 +47,9 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     }
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute<void>(
-        builder: (_) => const LoginScreen(successMessage: 'Account created. Please log in.'),
+        builder: (_) => const LoginScreen(
+          successMessage: 'Account created. Please log in.',
+        ),
       ),
       (route) => false,
     );
@@ -92,7 +96,9 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                         if (email.isEmpty) {
                           return 'Email is required';
                         }
-                        final valid = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email);
+                        final valid = RegExp(
+                          r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
+                        ).hasMatch(email);
                         if (!valid) {
                           return 'Enter a valid email';
                         }
@@ -119,9 +125,13 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                       decoration: InputDecoration(
                         labelText: 'Password',
                         suffixIcon: IconButton(
-                          onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                          onPressed: () => setState(
+                            () => _obscurePassword = !_obscurePassword,
+                          ),
                           icon: Icon(
-                            _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                            _obscurePassword
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
                             color: AppColors.muted,
                           ),
                         ),
@@ -132,7 +142,9 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                       Text(
                         state.error!,
                         textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.loss),
+                        style: Theme.of(
+                          context,
+                        ).textTheme.bodyMedium?.copyWith(color: AppColors.loss),
                       ),
                     ],
                     const SizedBox(height: 24),
@@ -152,7 +164,13 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                         Expanded(child: Divider(color: AppColors.muted)),
                         Padding(
                           padding: EdgeInsets.symmetric(horizontal: 12),
-                          child: Text('OR', style: TextStyle(color: AppColors.muted, fontWeight: FontWeight.w700)),
+                          child: Text(
+                            'OR',
+                            style: TextStyle(
+                              color: AppColors.muted,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
                         ),
                         Expanded(child: Divider(color: AppColors.muted)),
                       ],
@@ -161,22 +179,30 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                     ContinueWithGoogleButton(
                       loading: state.loading,
                       onPressed: () {
-                        ref.read(signupControllerProvider.notifier).signInWithGoogle();
+                        ref
+                            .read(signupControllerProvider.notifier)
+                            .signInWithGoogle();
                       },
                       onWebIdToken: (idToken) {
-                        ref.read(signupControllerProvider.notifier).signInWithGoogle(idToken: idToken);
+                        ref
+                            .read(signupControllerProvider.notifier)
+                            .signInWithGoogle(idToken: idToken);
                       },
                     ),
                     const SizedBox(height: 16),
                     Wrap(
                       alignment: WrapAlignment.center,
                       children: [
-                        Text('Already have an account? ', style: Theme.of(context).textTheme.bodyMedium),
+                        Text(
+                          'Already have an account? ',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
                         GestureDetector(
                           onTap: () => Navigator.of(context).pop(),
                           child: Text(
                             'Login',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(
                                   color: AppColors.accent,
                                   fontWeight: FontWeight.w700,
                                 ),

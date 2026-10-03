@@ -40,7 +40,10 @@ abstract final class AppTheme {
         fillColor: AppColors.card,
         hintStyle: const TextStyle(color: AppColors.muted),
         labelStyle: const TextStyle(color: AppColors.muted),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: AppColors.accent, width: 1.2),
@@ -64,8 +67,14 @@ abstract final class AppTheme {
           foregroundColor: const Color(0xFF003318),
           elevation: 0,
           minimumSize: const Size.fromHeight(52),
-          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, letterSpacing: 0.4),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          textStyle: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.4,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -74,7 +83,9 @@ abstract final class AppTheme {
           minimumSize: const Size.fromHeight(52),
           side: const BorderSide(color: AppColors.accent),
           textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
@@ -99,8 +110,14 @@ abstract final class AppTheme {
         }),
       ),
       textTheme: const TextTheme(
-        headlineSmall: TextStyle(color: AppColors.onBackground, fontWeight: FontWeight.w600),
-        titleMedium: TextStyle(color: AppColors.onBackground, fontWeight: FontWeight.w600),
+        headlineSmall: TextStyle(
+          color: AppColors.onBackground,
+          fontWeight: FontWeight.w600,
+        ),
+        titleMedium: TextStyle(
+          color: AppColors.onBackground,
+          fontWeight: FontWeight.w600,
+        ),
         bodyMedium: TextStyle(color: AppColors.onCard),
         bodySmall: TextStyle(color: AppColors.muted),
       ),

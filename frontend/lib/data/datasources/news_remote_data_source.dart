@@ -50,11 +50,15 @@ class NewsRemoteDataSource {
   NewsRemoteDataSource(this._apiClient);
   final ApiClient _apiClient;
 
-  Future<NewsPageModel> getNews([NewsQueryParams params = const NewsQueryParams()]) {
+  Future<NewsPageModel> getNews([
+    NewsQueryParams params = const NewsQueryParams(),
+  ]) {
     return _fetchPage(ApiConstants.news, params);
   }
 
-  Future<NewsPageModel> searchNews([NewsQueryParams params = const NewsQueryParams()]) {
+  Future<NewsPageModel> searchNews([
+    NewsQueryParams params = const NewsQueryParams(),
+  ]) {
     return _fetchPage('${ApiConstants.news}/search', params);
   }
 
@@ -66,23 +70,24 @@ class NewsRemoteDataSource {
   }
 
   Future<NewsArticleDetailModel> getDetail(String id) async {
-    final response = await _apiClient.dio
-        .get<Map<String, dynamic>>(ApiConstants.newsDetail(id));
+    final response = await _apiClient.dio.get<Map<String, dynamic>>(
+      ApiConstants.newsDetail(id),
+    );
     return NewsArticleDetailModel.fromJson(response.data ?? const {});
   }
 
   Future<NewsMetaModel> getMeta() async {
-    final response = await _apiClient.dio
-        .get<Map<String, dynamic>>(ApiConstants.newsMeta);
+    final response = await _apiClient.dio.get<Map<String, dynamic>>(
+      ApiConstants.newsMeta,
+    );
     return NewsMetaModel.fromJson(response.data ?? const {});
   }
 
   Future<List<String>> getSources() async {
-    final response = await _apiClient.dio
-        .get<List<dynamic>>(ApiConstants.newsSources);
-    return [
-      for (final item in (response.data ?? const [])) item.toString(),
-    ];
+    final response = await _apiClient.dio.get<List<dynamic>>(
+      ApiConstants.newsSources,
+    );
+    return [for (final item in (response.data ?? const [])) item.toString()];
   }
 
   Future<NewsContextModel> getAssetContext(
@@ -91,17 +96,12 @@ class NewsRemoteDataSource {
   }) async {
     final response = await _apiClient.dio.get<Map<String, dynamic>>(
       ApiConstants.newsAssetContext(symbol),
-      queryParameters: {
-        'windowHours': ?windowHours,
-      },
+      queryParameters: {'windowHours': ?windowHours},
     );
     return NewsContextModel.fromJson(response.data ?? const {});
   }
 
-  Future<NewsPageModel> _fetchPage(
-    String path,
-    NewsQueryParams params,
-  ) async {
+  Future<NewsPageModel> _fetchPage(String path, NewsQueryParams params) async {
     final response = await _apiClient.dio.get<Map<String, dynamic>>(
       path,
       queryParameters: params.toQueryParameters(),

@@ -17,18 +17,18 @@ class SignupController extends Notifier<AuthFormState> {
   }) async {
     state = const AuthFormState(loading: true);
     try {
-      await ref.read(signupUserProvider).call(
-            fullName: fullName,
-            email: email,
-            password: password,
-          );
+      await ref
+          .read(signupUserProvider)
+          .call(fullName: fullName, email: email, password: password);
       state = const AuthFormState();
       return true;
     } on AuthException catch (error) {
       state = AuthFormState(error: error.message);
       return false;
     } catch (_) {
-      state = const AuthFormState(error: 'Something went wrong. Please try again.');
+      state = const AuthFormState(
+        error: 'Something went wrong. Please try again.',
+      );
       return false;
     }
   }
@@ -47,12 +47,13 @@ class SignupController extends Notifier<AuthFormState> {
       state = AuthFormState(error: error.message);
       return false;
     } catch (_) {
-      state = const AuthFormState(error: 'Google Sign-In failed. Please try again.');
+      state = const AuthFormState(
+        error: 'Google Sign-In failed. Please try again.',
+      );
       return false;
     }
   }
 }
 
-final signupControllerProvider = NotifierProvider<SignupController, AuthFormState>(
-  SignupController.new,
-);
+final signupControllerProvider =
+    NotifierProvider<SignupController, AuthFormState>(SignupController.new);

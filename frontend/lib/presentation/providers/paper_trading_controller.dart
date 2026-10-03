@@ -89,5 +89,5 @@ class PaperTradingController extends AsyncNotifier<PaperTradingViewData> {
 
 final paperTradingControllerProvider =
     AsyncNotifierProvider<PaperTradingController, PaperTradingViewData>(
-  PaperTradingController.new,
-);
+      PaperTradingController.new,
+    );

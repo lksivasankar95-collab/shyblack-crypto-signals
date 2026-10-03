@@ -7,7 +7,9 @@ class UserRemoteDataSource {
   final ApiClient _apiClient;
 
   Future<List<UserModel>> getUsers() async {
-    final response = await _apiClient.dio.get<List<dynamic>>(ApiConstants.users);
+    final response = await _apiClient.dio.get<List<dynamic>>(
+      ApiConstants.users,
+    );
     return (response.data ?? [])
         .map((item) => UserModel.fromJson(item as Map<String, dynamic>))
         .toList();

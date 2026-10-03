@@ -1,9 +1,13 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
 
 class PremiumBadge extends StatelessWidget {
-  const PremiumBadge({super.key, this.compact = false, this.label = 'Standard'});
+  const PremiumBadge({
+    super.key,
+    this.compact = false,
+    this.label = 'Standard',
+  });
 
   final bool compact;
   final String label;
@@ -11,7 +15,10 @@ class PremiumBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: compact ? 8 : 10, vertical: compact ? 3 : 4),
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 8 : 10,
+        vertical: compact ? 3 : 4,
+      ),
       decoration: BoxDecoration(
         color: AppColors.accent.withValues(alpha: 0.16),
         borderRadius: BorderRadius.circular(20),
@@ -101,7 +108,11 @@ class SettingsNavTile extends StatelessWidget {
           Flexible(
             child: Text(
               title,
-              style: const TextStyle(color: AppColors.onCard, fontWeight: FontWeight.w600, fontSize: 14),
+              style: const TextStyle(
+                color: AppColors.onCard,
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+              ),
             ),
           ),
           if (badge != null) const SizedBox(width: 8),
@@ -110,7 +121,10 @@ class SettingsNavTile extends StatelessWidget {
       ),
       subtitle: switch (subtitle) {
         null => null,
-        final text => Text(text, style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+        final text => Text(
+          text,
+          style: const TextStyle(color: AppColors.muted, fontSize: 12),
+        ),
       },
       trailing: Row(
         mainAxisSize: MainAxisSize.min,

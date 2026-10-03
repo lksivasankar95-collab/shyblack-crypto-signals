@@ -15,17 +15,28 @@ class MarketsScreen extends ConsumerStatefulWidget {
   ConsumerState<MarketsScreen> createState() => _MarketsScreenState();
 }
 
-class _MarketsScreenState extends ConsumerState<MarketsScreen> with SingleTickerProviderStateMixin {
+class _MarketsScreenState extends ConsumerState<MarketsScreen>
+    with SingleTickerProviderStateMixin {
   late final TabController _tabs;
   final _search = TextEditingController();
   String _query = '';
 
-  static const _tabLabels = ['Watchlist', 'Markets', 'Top Gainers', 'Top Losers', 'New Listings'];
+  static const _tabLabels = [
+    'Watchlist',
+    'Markets',
+    'Top Gainers',
+    'Top Losers',
+    'New Listings',
+  ];
 
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: _tabLabels.length, vsync: this, initialIndex: 1);
+    _tabs = TabController(
+      length: _tabLabels.length,
+      vsync: this,
+      initialIndex: 1,
+    );
     _tabs.addListener(() {
       if (mounted) {
         setState(() {});
@@ -64,7 +75,10 @@ class _MarketsScreenState extends ConsumerState<MarketsScreen> with SingleTicker
             unselectedLabelColor: AppColors.muted,
             indicatorColor: AppColors.accent,
             dividerColor: Colors.transparent,
-            labelStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+            labelStyle: const TextStyle(
+              fontWeight: FontWeight.w800,
+              fontSize: 13,
+            ),
             tabs: [for (final label in _tabLabels) Tab(text: label)],
           ),
           if (_tabs.index == 1)
@@ -85,13 +99,16 @@ class _MarketsScreenState extends ConsumerState<MarketsScreen> with SingleTicker
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (error, _) => _ErrorState(
                 message: error.toString(),
-                onRetry: () => ref.read(marketsControllerProvider.notifier).refresh(),
+                onRetry: () =>
+                    ref.read(marketsControllerProvider.notifier).refresh(),
               ),
               data: (data) => _MarketsBody(
                 data: data,
                 tabIndex: _tabs.index,
                 query: _query,
-                onRefresh: () => ref.read(marketsControllerProvider.notifier).refresh(silent: true),
+                onRefresh: () => ref
+                    .read(marketsControllerProvider.notifier)
+                    .refresh(silent: true),
               ),
             ),
           ),
@@ -126,7 +143,8 @@ class _MarketSelector extends ConsumerWidget {
                 child: _MarketSelectorButton(
                   mode: mode,
                   selected: mode == selected,
-                  onTap: () => ref.read(marketsModeProvider.notifier).select(mode),
+                  onTap: () =>
+                      ref.read(marketsModeProvider.notifier).select(mode),
                 ),
               ),
             ),
@@ -214,23 +232,34 @@ class _MarketsBody extends StatelessWidget {
     };
 
     final empty = switch (tabIndex) {
-0 => const _EmptyState(
-          icon: Icons.star_border,
-          title: 'No watchlist coins yet',
-          subtitle: 'Watchlist is coming next — Markets still lists every instrument in the selected market.',
-        ),
+      0 => const _EmptyState(
+        icon: Icons.star_border,
+        title: 'No watchlist coins yet',
+        subtitle:
+            'Watchlist is coming next — Markets still lists every instrument in the selected market.',
+      ),
       1 => _EmptyState(
-          icon: Icons.search_off,
-          title: query.isEmpty ? 'No markets to show' : 'No matches for "$query"',
-          subtitle: query.isEmpty ? 'Pull to refresh, or check the backend is running.' : 'Try another symbol or name.',
-        ),
-      2 => const _EmptyState(icon: Icons.trending_up, title: 'No gainers yet', subtitle: 'Pull to refresh.'),
-      3 => const _EmptyState(icon: Icons.trending_down, title: 'No losers yet', subtitle: 'Pull to refresh.'),
+        icon: Icons.search_off,
+        title: query.isEmpty ? 'No markets to show' : 'No matches for "$query"',
+        subtitle: query.isEmpty
+            ? 'Pull to refresh, or check the backend is running.'
+            : 'Try another symbol or name.',
+      ),
+      2 => const _EmptyState(
+        icon: Icons.trending_up,
+        title: 'No gainers yet',
+        subtitle: 'Pull to refresh.',
+      ),
+      3 => const _EmptyState(
+        icon: Icons.trending_down,
+        title: 'No losers yet',
+        subtitle: 'Pull to refresh.',
+      ),
       _ => const _EmptyState(
-          icon: Icons.new_releases_outlined,
-          title: 'No new listings yet',
-          subtitle: 'This tab will light up when listing data is available.',
-        ),
+        icon: Icons.new_releases_outlined,
+        title: 'No new listings yet',
+        subtitle: 'This tab will light up when listing data is available.',
+      ),
     };
 
     return RefreshIndicator(
@@ -253,7 +282,9 @@ class _MarketsBody extends StatelessWidget {
                 return _LiveMarketTile(
                   // Keyed by market as well as symbol: the same symbol on two markets is
                   // two different instruments and must not share a widget subtree.
-                  key: ValueKey('${ticker.marketType.apiParam}:${ticker.symbol}'),
+                  key: ValueKey(
+                    '${ticker.marketType.apiParam}:${ticker.symbol}',
+                  ),
                   symbol: ticker.symbol,
                   fallback: ticker,
                 );
@@ -295,7 +326,11 @@ class _ReconnectingBanner extends StatelessWidget {
           SizedBox(width: 8),
           Text(
             'Reconnecting...',
-            style: TextStyle(color: AppColors.muted, fontSize: 12, fontWeight: FontWeight.w600),
+            style: TextStyle(
+              color: AppColors.muted,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),
@@ -304,22 +339,27 @@ class _ReconnectingBanner extends StatelessWidget {
 }
 
 class _LiveMarketTile extends ConsumerWidget {
-  const _LiveMarketTile({super.key, required this.symbol, required this.fallback});
+  const _LiveMarketTile({
+    super.key,
+    required this.symbol,
+    required this.fallback,
+  });
 
   final String symbol;
   final MarketTicker fallback;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final ticker = ref.watch(
-          marketsControllerProvider.select(
-            (async) {
-              final live = async.value?.tickerFor(symbol);
-              // Guard on market as well as symbol so a live quote for the same symbol on a
-              // different market can never stand in for this tile's instrument.
-              return live != null && live.marketType == fallback.marketType ? live : null;
-            },
-          ),
+    final ticker =
+        ref.watch(
+          marketsControllerProvider.select((async) {
+            final live = async.value?.tickerFor(symbol);
+            // Guard on market as well as symbol so a live quote for the same symbol on a
+            // different market can never stand in for this tile's instrument.
+            return live != null && live.marketType == fallback.marketType
+                ? live
+                : null;
+          }),
         ) ??
         fallback;
     return _MarketTile(
@@ -372,7 +412,10 @@ class _MarketTile extends StatelessWidget {
                         ticker.isFutures ? ticker.displayLabel : ticker.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: AppColors.muted, fontSize: 12),
+                        style: const TextStyle(
+                          color: AppColors.muted,
+                          fontSize: 12,
+                        ),
                       ),
                     ],
                   ),
@@ -391,7 +434,11 @@ class _MarketTile extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       MarketFormat.signedPercent(ticker.changePercent24h),
-                      style: TextStyle(color: changeColor, fontWeight: FontWeight.w700, fontSize: 12),
+                      style: TextStyle(
+                        color: changeColor,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                      ),
                     ),
                   ],
                 ),
@@ -405,7 +452,11 @@ class _MarketTile extends StatelessWidget {
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.icon, required this.title, required this.subtitle});
+  const _EmptyState({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
 
   final IconData icon;
   final String title;
@@ -423,7 +474,11 @@ class _EmptyState extends StatelessWidget {
           Text(
             title,
             textAlign: TextAlign.center,
-            style: const TextStyle(color: AppColors.onBackground, fontWeight: FontWeight.w800, fontSize: 18),
+            style: const TextStyle(
+              color: AppColors.onBackground,
+              fontWeight: FontWeight.w800,
+              fontSize: 18,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
@@ -453,11 +508,18 @@ class _ErrorState extends StatelessWidget {
           children: [
             const Icon(Icons.wifi_off, color: AppColors.muted, size: 40),
             const SizedBox(height: 12),
-            Text(message, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.muted)),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: AppColors.muted),
+            ),
             const SizedBox(height: 16),
             SizedBox(
               width: 160,
-              child: ElevatedButton(onPressed: onRetry, child: const Text('Retry')),
+              child: ElevatedButton(
+                onPressed: onRetry,
+                child: const Text('Retry'),
+              ),
             ),
           ],
         ),

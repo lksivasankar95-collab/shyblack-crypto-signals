@@ -22,7 +22,11 @@ class BrandMark extends StatelessWidget {
             borderRadius: BorderRadius.circular(22),
             border: Border.all(color: AppColors.accent, width: 1.6),
           ),
-          child: Icon(Icons.bolt_rounded, color: AppColors.accent, size: compact ? 32 : 48),
+          child: Icon(
+            Icons.bolt_rounded,
+            color: AppColors.accent,
+            size: compact ? 32 : 48,
+          ),
         ),
         SizedBox(height: compact ? 12 : 20),
         Text(

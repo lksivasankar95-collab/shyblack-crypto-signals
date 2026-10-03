@@ -68,30 +68,35 @@ void main() {
   });
 
   test('publishedAt preserves the UTC instant', () {
-    final article = NewsPageModel.fromJson(backendPayload).toEntity().items.first;
+    final article = NewsPageModel.fromJson(
+      backendPayload,
+    ).toEntity().items.first;
     expect(article.publishedAt.isUtc, isTrue);
     expect(article.publishedAt, DateTime.utc(2026, 9, 27, 8, 0, 22));
     // Presenting in local time must not change the instant.
     expect(article.publishedAt.toLocal().toUtc(), article.publishedAt);
   });
 
-  test('query params map filters with UTC timestamps and backend field names', () {
-    final params = NewsQueryParams(
-      query: 'btc',
-      sort: 'publishedAt',
-      direction: 'desc',
-      page: 0,
-      size: 20,
-      from: DateTime.utc(2026, 1, 1),
-    ).toQueryParameters();
+  test(
+    'query params map filters with UTC timestamps and backend field names',
+    () {
+      final params = NewsQueryParams(
+        query: 'btc',
+        sort: 'publishedAt',
+        direction: 'desc',
+        page: 0,
+        size: 20,
+        from: DateTime.utc(2026, 1, 1),
+      ).toQueryParameters();
 
-    expect(params['q'], 'btc');
-    expect(params['sort'], 'publishedAt');
-    expect(params['direction'], 'desc');
-    expect(params['page'], 0);
-    expect(params['size'], 20);
-    expect(params['from'], '2026-01-01T00:00:00.000Z');
-  });
+      expect(params['q'], 'btc');
+      expect(params['sort'], 'publishedAt');
+      expect(params['direction'], 'desc');
+      expect(params['page'], 0);
+      expect(params['size'], 20);
+      expect(params['from'], '2026-01-01T00:00:00.000Z');
+    },
+  );
 
   test('news endpoint resolves to /api/v1/news with a single /api prefix', () {
     debugDefaultTargetPlatformOverride = TargetPlatform.linux;
@@ -99,8 +104,10 @@ void main() {
 
     expect(ApiConstants.baseUrl, 'http://localhost:8080/api');
     expect(ApiConstants.news, '/v1/news');
-    expect('${ApiConstants.baseUrl}${ApiConstants.news}',
-        'http://localhost:8080/api/v1/news');
+    expect(
+      '${ApiConstants.baseUrl}${ApiConstants.news}',
+      'http://localhost:8080/api/v1/news',
+    );
   });
 
   test('Android default uses 10.0.2.2 host without doubling /api', () {
@@ -108,7 +115,9 @@ void main() {
     addTearDown(() => debugDefaultTargetPlatformOverride = null);
 
     expect(ApiConstants.baseUrl, 'http://10.0.2.2:8080/api');
-    expect('${ApiConstants.baseUrl}${ApiConstants.news}',
-        'http://10.0.2.2:8080/api/v1/news');
+    expect(
+      '${ApiConstants.baseUrl}${ApiConstants.news}',
+      'http://10.0.2.2:8080/api/v1/news',
+    );
   });
 }

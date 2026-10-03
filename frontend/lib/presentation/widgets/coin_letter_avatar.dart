@@ -32,7 +32,8 @@ abstract final class MarketFormat {
     return '$sign${value.toStringAsFixed(2)}%';
   }
 
-  static Color changeColor(double value) => value >= 0 ? AppColors.accent : AppColors.loss;
+  static Color changeColor(double value) =>
+      value >= 0 ? AppColors.accent : AppColors.loss;
 
   static Color avatarColor(String symbol) {
     final hue = (symbol.hashCode.abs() % 360).toDouble();
@@ -52,7 +53,12 @@ abstract final class MarketFormat {
 }
 
 class CoinLetterAvatar extends StatelessWidget {
-  const CoinLetterAvatar({super.key, required this.symbol, required this.name, this.radius = 20});
+  const CoinLetterAvatar({
+    super.key,
+    required this.symbol,
+    required this.name,
+    this.radius = 20,
+  });
 
   final String symbol;
   final String name;

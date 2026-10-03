@@ -3,7 +3,12 @@ import 'futures_order.dart' show FuturesSide;
 
 enum FuturesPositionStatus { open, closed }
 
-enum FuturesProtectionStatus { notApplicable, pending, protected_, protectionFailed }
+enum FuturesProtectionStatus {
+  notApplicable,
+  pending,
+  protected_,
+  protectionFailed,
+}
 
 class FuturesPosition {
   const FuturesPosition({

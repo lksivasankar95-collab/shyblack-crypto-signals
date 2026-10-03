@@ -1,4 +1,10 @@
-enum FuturesConnectionStatus { notConnected, connecting, connected, failed, revoked }
+enum FuturesConnectionStatus {
+  notConnected,
+  connecting,
+  connected,
+  failed,
+  revoked,
+}
 
 enum FuturesMarginMode { isolated, cross }
 
@@ -56,6 +62,8 @@ class FuturesAccount {
   final String? lastValidationMessage;
 
   bool get isTradingReady =>
-      enabled && !killSwitchActive && acknowledged &&
+      enabled &&
+      !killSwitchActive &&
+      acknowledged &&
       connectionStatus == FuturesConnectionStatus.connected;
 }

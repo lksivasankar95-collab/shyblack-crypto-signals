@@ -18,16 +18,15 @@ class StrategyTabState {
     ActiveStrategyInfo? activeInfo,
     String? error,
   }) => StrategyTabState(
-        strategies: strategies ?? this.strategies,
-        activeInfo: activeInfo ?? this.activeInfo,
-        error: error,
-      );
+    strategies: strategies ?? this.strategies,
+    activeInfo: activeInfo ?? this.activeInfo,
+    error: error,
+  );
 }
 
 // ── Base controller ───────────────────────────────────────────────────────────
 
-abstract class StrategyTabController
-    extends AsyncNotifier<StrategyTabState> {
+abstract class StrategyTabController extends AsyncNotifier<StrategyTabState> {
   StrategyTradingMode get mode;
 
   @override
@@ -66,8 +65,12 @@ abstract class StrategyTabController
   }) async {
     final repo = ref.read(strategyRepositoryProvider);
     await repo.createStrategy(
-        name: name, description: description, tradingMode: mode,
-        engineKey: engineKey, config: config);
+      name: name,
+      description: description,
+      tradingMode: mode,
+      engineKey: engineKey,
+      config: config,
+    );
     state = await AsyncValue.guard(() => _load());
   }
 
@@ -99,16 +102,17 @@ class FuturesStrategyController extends StrategyTabController {
 
 final spotStrategyTabProvider =
     AsyncNotifierProvider<SpotStrategyController, StrategyTabState>(
-  SpotStrategyController.new,
-);
+      SpotStrategyController.new,
+    );
 
 final futuresStrategyTabProvider =
     AsyncNotifierProvider<FuturesStrategyController, StrategyTabState>(
-  FuturesStrategyController.new,
-);
+      FuturesStrategyController.new,
+    );
 
 /// Convenience helper — returns the provider for a given mode.
 AsyncNotifierProvider<StrategyTabController, StrategyTabState>
-    strategyTabProvider(StrategyTradingMode mode) => mode == StrategyTradingMode.spot
-        ? spotStrategyTabProvider
-        : futuresStrategyTabProvider;
+strategyTabProvider(StrategyTradingMode mode) =>
+    mode == StrategyTradingMode.spot
+    ? spotStrategyTabProvider
+    : futuresStrategyTabProvider;

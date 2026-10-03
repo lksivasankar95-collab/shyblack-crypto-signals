@@ -46,11 +46,7 @@ class AuthRemoteDataSource {
     try {
       await _apiClient.dio.post<Map<String, dynamic>>(
         ApiConstants.authSignup,
-        data: {
-          'fullName': fullName,
-          'email': email,
-          'password': password,
-        },
+        data: {'fullName': fullName, 'email': email, 'password': password},
       );
     } on DioException catch (error) {
       throw ApiExceptionMapper.fromDio(error);

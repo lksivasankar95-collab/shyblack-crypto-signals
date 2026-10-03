@@ -19,11 +19,13 @@ class NotificationsScreen extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => _NotificationError(
           message: error.toString(),
-          onRetry: () => ref.read(notificationsControllerProvider.notifier).refresh(),
+          onRetry: () =>
+              ref.read(notificationsControllerProvider.notifier).refresh(),
         ),
         data: (items) => _NotificationHistory(
           items: items,
-          onRefresh: () => ref.read(notificationsControllerProvider.notifier).refresh(),
+          onRefresh: () =>
+              ref.read(notificationsControllerProvider.notifier).refresh(),
         ),
       ),
     );
@@ -87,7 +89,9 @@ class _NotificationTile extends StatelessWidget {
         color: item.read ? AppColors.card : const Color(0xFF202A23),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: item.read ? Colors.transparent : AppColors.accent.withValues(alpha: 0.6),
+          color: item.read
+              ? Colors.transparent
+              : AppColors.accent.withValues(alpha: 0.6),
         ),
       ),
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 13),
@@ -116,7 +120,9 @@ class _NotificationTile extends StatelessWidget {
                         style: TextStyle(
                           color: AppColors.onCard,
                           fontSize: 15,
-                          fontWeight: item.read ? FontWeight.w600 : FontWeight.w800,
+                          fontWeight: item.read
+                              ? FontWeight.w600
+                              : FontWeight.w800,
                         ),
                       ),
                     ),
@@ -154,12 +160,18 @@ class _NotificationTile extends StatelessWidget {
                       if (item.category != null && item.createdAt != null)
                         const Padding(
                           padding: EdgeInsets.symmetric(horizontal: 7),
-                          child: Text('·', style: TextStyle(color: AppColors.muted)),
+                          child: Text(
+                            '·',
+                            style: TextStyle(color: AppColors.muted),
+                          ),
                         ),
                       if (item.createdAt != null)
                         Text(
                           _formatDate(item.createdAt!),
-                          style: const TextStyle(color: AppColors.muted, fontSize: 11),
+                          style: const TextStyle(
+                            color: AppColors.muted,
+                            fontSize: 11,
+                          ),
                         ),
                     ],
                   ),
@@ -200,7 +212,11 @@ class _NotificationError extends StatelessWidget {
             const SizedBox(height: 12),
             const Text(
               'Could not load notifications',
-              style: TextStyle(color: AppColors.onCard, fontSize: 16, fontWeight: FontWeight.w700),
+              style: TextStyle(
+                color: AppColors.onCard,
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 6),

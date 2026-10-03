@@ -17,7 +17,12 @@ class SubscriptionScreen extends ConsumerWidget {
       appBar: AppBar(title: const Text('Subscription')),
       body: asyncSettings.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => const Center(child: Text('Could not load', style: TextStyle(color: AppColors.muted))),
+        error: (e, _) => const Center(
+          child: Text(
+            'Could not load',
+            style: TextStyle(color: AppColors.muted),
+          ),
+        ),
         data: (settings) => SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -33,7 +38,11 @@ class SubscriptionScreen extends ConsumerWidget {
                         color: AppColors.accent.withValues(alpha: 0.15),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.workspace_premium, color: AppColors.accent, size: 34),
+                      child: const Icon(
+                        Icons.workspace_premium,
+                        color: AppColors.accent,
+                        size: 34,
+                      ),
                     ),
                     const SizedBox(height: 14),
                     Text(
@@ -47,11 +56,17 @@ class SubscriptionScreen extends ConsumerWidget {
                     const SizedBox(height: 4),
                     Text(
                       'Member since: ${settings.memberSince.isEmpty ? "—" : settings.memberSince}',
-                      style: const TextStyle(color: AppColors.muted, fontSize: 13),
+                      style: const TextStyle(
+                        color: AppColors.muted,
+                        fontSize: 13,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: settings.hasVerifiedExchange
                             ? AppColors.profit.withValues(alpha: 0.15)
@@ -59,9 +74,13 @@ class SubscriptionScreen extends ConsumerWidget {
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
-                        settings.hasVerifiedExchange ? 'Exchange Connected' : 'Paper Trading',
+                        settings.hasVerifiedExchange
+                            ? 'Exchange Connected'
+                            : 'Paper Trading',
                         style: TextStyle(
-                          color: settings.hasVerifiedExchange ? AppColors.profit : AppColors.muted,
+                          color: settings.hasVerifiedExchange
+                              ? AppColors.profit
+                              : AppColors.muted,
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
                         ),
@@ -96,14 +115,20 @@ class SubscriptionScreen extends ConsumerWidget {
                 decoration: BoxDecoration(
                   color: AppColors.card,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
+                  border: Border.all(
+                    color: AppColors.accent.withValues(alpha: 0.3),
+                  ),
                 ),
                 child: const Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       'Premium Plans Coming Soon',
-                      style: TextStyle(color: AppColors.accent, fontWeight: FontWeight.w700, fontSize: 14),
+                      style: TextStyle(
+                        color: AppColors.accent,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                      ),
                     ),
                     SizedBox(height: 6),
                     Text(
@@ -147,7 +172,10 @@ class _FeatureRow extends StatelessWidget {
           size: 18,
         ),
         const SizedBox(width: 10),
-        Text(label, style: const TextStyle(color: AppColors.onBackground, fontSize: 14)),
+        Text(
+          label,
+          style: const TextStyle(color: AppColors.onBackground, fontSize: 14),
+        ),
       ],
     );
   }

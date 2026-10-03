@@ -58,23 +58,24 @@ class LiveOrderModel {
       raw?.toUpperCase() == 'SHORT' ? LiveSide.short : LiveSide.long;
 
   static LiveOrderType _type(String? raw) => switch (raw?.toUpperCase()) {
-        'MARKET' => LiveOrderType.market,
-        'LIMIT' => LiveOrderType.limit,
-        'STOP_LOSS_LIMIT' => LiveOrderType.stopLossLimit,
-        'TAKE_PROFIT_LIMIT' => LiveOrderType.takeProfitLimit,
-        _ => LiveOrderType.market,
-      };
+    'MARKET' => LiveOrderType.market,
+    'LIMIT' => LiveOrderType.limit,
+    'STOP_LOSS_LIMIT' => LiveOrderType.stopLossLimit,
+    'TAKE_PROFIT_LIMIT' => LiveOrderType.takeProfitLimit,
+    _ => LiveOrderType.market,
+  };
 
   static LiveOrderPurpose _purpose(String? raw) => switch (raw?.toUpperCase()) {
-        'ENTRY' => LiveOrderPurpose.entry,
-        'STOP_LOSS' => LiveOrderPurpose.stopLoss,
-        'TAKE_PROFIT' => LiveOrderPurpose.takeProfit,
-        'MANUAL_CLOSE' => LiveOrderPurpose.manualClose,
-        'EMERGENCY_CLOSE' => LiveOrderPurpose.emergencyClose,
-        _ => LiveOrderPurpose.entry,
-      };
+    'ENTRY' => LiveOrderPurpose.entry,
+    'STOP_LOSS' => LiveOrderPurpose.stopLoss,
+    'TAKE_PROFIT' => LiveOrderPurpose.takeProfit,
+    'MANUAL_CLOSE' => LiveOrderPurpose.manualClose,
+    'EMERGENCY_CLOSE' => LiveOrderPurpose.emergencyClose,
+    _ => LiveOrderPurpose.entry,
+  };
 
-  static LiveProtectionStatus _protection(String? raw) => switch (raw?.toUpperCase()) {
+  static LiveProtectionStatus _protection(String? raw) =>
+      switch (raw?.toUpperCase()) {
         'PENDING' => LiveProtectionStatus.pending,
         'PROTECTED' => LiveProtectionStatus.protected_,
         'PROTECTION_FAILED' => LiveProtectionStatus.protectionFailed,
@@ -82,18 +83,18 @@ class LiveOrderModel {
       };
 
   static LiveOrderStatus _status(String? raw) => switch (raw?.toUpperCase()) {
-        'CREATED' => LiveOrderStatus.created,
-        'SUBMITTING' => LiveOrderStatus.submitting,
-        'SUBMITTED' => LiveOrderStatus.submitted,
-        'ACKNOWLEDGED' => LiveOrderStatus.acknowledged,
-        'PARTIALLY_FILLED' => LiveOrderStatus.partiallyFilled,
-        'FILLED' => LiveOrderStatus.filled,
-        'CANCEL_REQUESTED' => LiveOrderStatus.cancelRequested,
-        'CANCELLED' => LiveOrderStatus.cancelled,
-        'REJECTED' => LiveOrderStatus.rejected,
-        'EXPIRED' => LiveOrderStatus.expired,
-        'FAILED' => LiveOrderStatus.failed,
-        'RECONCILING' => LiveOrderStatus.reconciling,
-        _ => LiveOrderStatus.unknown,
-      };
+    'CREATED' => LiveOrderStatus.created,
+    'SUBMITTING' => LiveOrderStatus.submitting,
+    'SUBMITTED' => LiveOrderStatus.submitted,
+    'ACKNOWLEDGED' => LiveOrderStatus.acknowledged,
+    'PARTIALLY_FILLED' => LiveOrderStatus.partiallyFilled,
+    'FILLED' => LiveOrderStatus.filled,
+    'CANCEL_REQUESTED' => LiveOrderStatus.cancelRequested,
+    'CANCELLED' => LiveOrderStatus.cancelled,
+    'REJECTED' => LiveOrderStatus.rejected,
+    'EXPIRED' => LiveOrderStatus.expired,
+    'FAILED' => LiveOrderStatus.failed,
+    'RECONCILING' => LiveOrderStatus.reconciling,
+    _ => LiveOrderStatus.unknown,
+  };
 }

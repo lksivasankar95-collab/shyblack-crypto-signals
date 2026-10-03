@@ -28,40 +28,42 @@ void main() {
     },
   );
 
-  test('prependById inserts at index 0, dedups, and preserves pagination',
-      () async {
-    final repo = _PagingNewsRepository();
-    final container = ProviderContainer(
-      overrides: [newsRepositoryProvider.overrideWith((ref) => repo)],
-    );
-    addTearDown(container.dispose);
+  test(
+    'prependById inserts at index 0, dedups, and preserves pagination',
+    () async {
+      final repo = _PagingNewsRepository();
+      final container = ProviderContainer(
+        overrides: [newsRepositoryProvider.overrideWith((ref) => repo)],
+      );
+      addTearDown(container.dispose);
 
-    final feed0 = await container.read(newsFeedControllerProvider.future);
-    final existingFirstId = feed0.articles.first.id;
-    final ctrl = container.read(newsFeedControllerProvider.notifier);
+      final feed0 = await container.read(newsFeedControllerProvider.future);
+      final existingFirstId = feed0.articles.first.id;
+      final ctrl = container.read(newsFeedControllerProvider.notifier);
 
-    await ctrl.prependById('realtime-1');
-    var items = container.read(newsFeedControllerProvider).value!.articles;
-    expect(items.first.id, 'realtime-1');
-    expect(items.where((a) => a.id == 'realtime-1').length, 1);
+      await ctrl.prependById('realtime-1');
+      var items = container.read(newsFeedControllerProvider).value!.articles;
+      expect(items.first.id, 'realtime-1');
+      expect(items.where((a) => a.id == 'realtime-1').length, 1);
 
-    // Duplicate real-time event is ignored.
-    await ctrl.prependById('realtime-1');
-    items = container.read(newsFeedControllerProvider).value!.articles;
-    expect(items.where((a) => a.id == 'realtime-1').length, 1);
+      // Duplicate real-time event is ignored.
+      await ctrl.prependById('realtime-1');
+      items = container.read(newsFeedControllerProvider).value!.articles;
+      expect(items.where((a) => a.id == 'realtime-1').length, 1);
 
-    // Pagination cursor is not corrupted by the insertion.
-    await ctrl.loadMore();
-    expect(repo.requestedPages.last, 1);
-    expect(
-      container
-          .read(newsFeedControllerProvider)
-          .value!
-          .articles
-          .any((a) => a.id == existingFirstId),
-      isTrue,
-    );
-  });
+      // Pagination cursor is not corrupted by the insertion.
+      await ctrl.loadMore();
+      expect(repo.requestedPages.last, 1);
+      expect(
+        container
+            .read(newsFeedControllerProvider)
+            .value!
+            .articles
+            .any((a) => a.id == existingFirstId),
+        isTrue,
+      );
+    },
+  );
 
   test('loadMore does not render duplicate article ids', () async {
     final repo = _PagingNewsRepository(repeatIds: true);

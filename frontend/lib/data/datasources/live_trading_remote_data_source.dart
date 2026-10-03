@@ -10,7 +10,9 @@ class LiveTradingRemoteDataSource {
 
   Future<Map<String, dynamic>?> getAccount() async {
     try {
-      final res = await _api.dio.get<Map<String, dynamic>>(ApiConstants.liveAccount);
+      final res = await _api.dio.get<Map<String, dynamic>>(
+        ApiConstants.liveAccount,
+      );
       return res.data;
     } on DioException catch (e) {
       if (e.response?.statusCode == 404) return null;

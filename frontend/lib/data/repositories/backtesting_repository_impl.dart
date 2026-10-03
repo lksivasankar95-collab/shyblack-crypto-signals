@@ -13,8 +13,9 @@ class BacktestingRepositoryImpl implements BacktestingRepository {
   final BacktestingRemoteDataSource _remote;
 
   @override
-  Future<List<BacktestRun>> listRuns() async =>
-      (await _remote.listRuns()).map((r) => BacktestRunModel.fromJson(r).run).toList();
+  Future<List<BacktestRun>> listRuns() async => (await _remote.listRuns())
+      .map((r) => BacktestRunModel.fromJson(r).run)
+      .toList();
 
   @override
   Future<BacktestRun> getRun(String id) async =>
@@ -42,11 +43,15 @@ class BacktestingRepositoryImpl implements BacktestingRepository {
 
   @override
   Future<List<BacktestTrade>> getTrades(String id) async =>
-      (await _remote.getTrades(id)).map((r) => BacktestTradeModel.fromJson(r).trade).toList();
+      (await _remote.getTrades(
+        id,
+      )).map((r) => BacktestTradeModel.fromJson(r).trade).toList();
 
   @override
   Future<List<BacktestEquityPoint>> getEquity(String id) async =>
-      (await _remote.getEquity(id)).map((r) => BacktestEquityModel.fromJson(r).point).toList();
+      (await _remote.getEquity(
+        id,
+      )).map((r) => BacktestEquityModel.fromJson(r).point).toList();
 
   @override
   Future<BacktestRun> cancelRun(String id) async =>
@@ -70,18 +75,20 @@ class BacktestingRepositoryImpl implements BacktestingRepository {
       }).toList();
 
   static String _mode(BacktestTradingMode m) => switch (m) {
-        BacktestTradingMode.spot => 'SPOT',
-        BacktestTradingMode.futures => 'FUTURES',
-        BacktestTradingMode.options => 'OPTIONS',
-      };
+    BacktestTradingMode.spot => 'SPOT',
+    BacktestTradingMode.futures => 'FUTURES',
+    BacktestTradingMode.options => 'OPTIONS',
+  };
 
   static String _exec(BacktestExecutionModel m) =>
-      m == BacktestExecutionModel.sameCandleClose ? 'SAME_CANDLE_CLOSE' : 'NEXT_CANDLE_OPEN';
+      m == BacktestExecutionModel.sameCandleClose
+      ? 'SAME_CANDLE_CLOSE'
+      : 'NEXT_CANDLE_OPEN';
 
   static String _scp(BacktestSameCandlePolicy p) => switch (p) {
-        BacktestSameCandlePolicy.conservative => 'CONSERVATIVE',
-        BacktestSameCandlePolicy.slFirst => 'SL_FIRST',
-        BacktestSameCandlePolicy.tpFirst => 'TP_FIRST',
-        BacktestSameCandlePolicy.requireLowerTimeframe => 'REQUIRE_LOWER_TIMEFRAME',
-      };
+    BacktestSameCandlePolicy.conservative => 'CONSERVATIVE',
+    BacktestSameCandlePolicy.slFirst => 'SL_FIRST',
+    BacktestSameCandlePolicy.tpFirst => 'TP_FIRST',
+    BacktestSameCandlePolicy.requireLowerTimeframe => 'REQUIRE_LOWER_TIMEFRAME',
+  };
 }

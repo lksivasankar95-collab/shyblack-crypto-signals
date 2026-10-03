@@ -10,7 +10,8 @@ import '../../core/error/google_sign_in_cancelled_exception.dart';
 class GoogleSignInDataSource {
   Future<void>? _initializing;
   StreamSubscription<GoogleSignInAuthenticationEvent>? _events;
-  final StreamController<String> _idTokens = StreamController<String>.broadcast();
+  final StreamController<String> _idTokens =
+      StreamController<String>.broadcast();
 
   Stream<String> get idTokens => _idTokens.stream;
 
@@ -58,7 +59,9 @@ class GoogleSignInDataSource {
       );
     }
     if (!supportsInteractiveAuthenticate) {
-      throw const AuthException('Google Sign-In is not available on this platform.');
+      throw const AuthException(
+        'Google Sign-In is not available on this platform.',
+      );
     }
     try {
       await GoogleSignIn.instance.signOut();
@@ -67,7 +70,9 @@ class GoogleSignInDataSource {
       );
       final token = account.authentication.idToken;
       if (token == null || token.isEmpty) {
-        throw const AuthException('Google did not return an ID token. Try again.');
+        throw const AuthException(
+          'Google did not return an ID token. Try again.',
+        );
       }
       return token;
     } on GoogleSignInException catch (error) {
@@ -75,7 +80,9 @@ class GoogleSignInDataSource {
           error.code == GoogleSignInExceptionCode.interrupted) {
         throw const GoogleSignInCancelledException();
       }
-      throw AuthException(error.description ?? 'Google Sign-In failed. Please try again.');
+      throw AuthException(
+        error.description ?? 'Google Sign-In failed. Please try again.',
+      );
     }
   }
 

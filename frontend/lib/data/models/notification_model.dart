@@ -28,13 +28,12 @@ class NotificationModel {
     );
   }
 
-  NotificationItem toEntity() =>
-      NotificationItem(
-        id: id,
-        title: title,
-        body: body,
-        read: read,
-        category: category,
-        createdAt: createdAt,
-      );
+  NotificationItem toEntity() => NotificationItem(
+    id: id,
+    title: title,
+    body: body,
+    read: read,
+    category: category,
+    createdAt: createdAt,
+  );
 }

@@ -38,8 +38,10 @@ class SignalDetailsScreen extends StatelessWidget {
               const SizedBox(height: 12),
               _ExtendedTargetsCard(signal: signal),
             ],
-            if (signal.score != null || signal.signalGrade != null ||
-                signal.entryType != null || signal.marketRegime != null ||
+            if (signal.score != null ||
+                signal.signalGrade != null ||
+                signal.entryType != null ||
+                signal.marketRegime != null ||
                 signal.riskReward != null) ...[
               const SizedBox(height: 12),
               _SignalEngineCard(signal: signal),
@@ -178,10 +180,7 @@ class _SignalEngineCard extends StatelessWidget {
             const SizedBox(height: 8),
           ],
           if (signal.signalGrade case final grade?)
-            _DetailRow(
-              label: 'Grade',
-              value: grade.label,
-            ),
+            _DetailRow(label: 'Grade', value: grade.label),
           if (signal.entryType case final et?)
             _DetailRow(label: 'Entry Type', value: et.label),
           if (signal.marketRegime case final regime?)
@@ -222,7 +221,9 @@ class _NfmEventCard extends StatelessWidget {
           if (nfm.source case final source?)
             _DetailRow(
               label: 'Source',
-              value: nfm.sourceTier == null ? source : '$source (${nfm.sourceTier})',
+              value: nfm.sourceTier == null
+                  ? source
+                  : '$source (${nfm.sourceTier})',
             ),
           if (nfm.eventTime case final time?)
             _DetailRow(label: 'Event Time', value: _dateTime(time)),
@@ -236,14 +237,20 @@ class _NfmEventCard extends StatelessWidget {
                   : '${_num(nfm.surpriseValue)} (${nfm.surpriseDirection})',
             ),
           ],
-          _DetailRow(label: 'Price Reaction', value: _pct(nfm.priceReactionPct)),
+          _DetailRow(
+            label: 'Price Reaction',
+            value: _pct(nfm.priceReactionPct),
+          ),
           _DetailRow(
             label: 'Volume',
             value: nfm.volumeMultiplier == null
                 ? '—'
                 : '${nfm.volumeMultiplier!.toStringAsFixed(2)}x',
           ),
-          _DetailRow(label: 'Open Interest Δ', value: _pct(nfm.openInterestChangePct)),
+          _DetailRow(
+            label: 'Open Interest Δ',
+            value: _pct(nfm.openInterestChangePct),
+          ),
           if (nfm.fundingState case final funding?)
             _DetailRow(label: 'Funding', value: funding),
           if (nfm.liquidationState case final liquidation?)
@@ -262,8 +269,9 @@ class _NfmEventCard extends StatelessWidget {
   static String _num(double? value) =>
       value == null ? '—' : value.toStringAsFixed(4);
 
-  static String _pct(double? value) =>
-      value == null ? '—' : '${value >= 0 ? '+' : ''}${value.toStringAsFixed(2)}%';
+  static String _pct(double? value) => value == null
+      ? '—'
+      : '${value >= 0 ? '+' : ''}${value.toStringAsFixed(2)}%';
 
   static String _dateTime(DateTime value) {
     final local = value.toLocal();
@@ -396,10 +404,7 @@ class _SummaryCard extends StatelessWidget {
                         ],
                         if (signal.signalGrade case final grade?) ...[
                           const SizedBox(width: 6),
-                          _Badge(
-                            label: grade.label,
-                            color: _gradeColor(grade),
-                          ),
+                          _Badge(label: grade.label, color: _gradeColor(grade)),
                         ],
                       ],
                     ),

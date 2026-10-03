@@ -21,7 +21,9 @@ class LoginController extends Notifier<AuthFormState> {
       state = AuthFormState(error: error.message);
       return false;
     } catch (_) {
-      state = const AuthFormState(error: 'Something went wrong. Please try again.');
+      state = const AuthFormState(
+        error: 'Something went wrong. Please try again.',
+      );
       return false;
     }
   }
@@ -40,7 +42,9 @@ class LoginController extends Notifier<AuthFormState> {
       state = AuthFormState(error: error.message);
       return false;
     } catch (_) {
-      state = const AuthFormState(error: 'Google Sign-In failed. Please try again.');
+      state = const AuthFormState(
+        error: 'Google Sign-In failed. Please try again.',
+      );
       return false;
     }
   }
@@ -52,6 +56,5 @@ class LoginController extends Notifier<AuthFormState> {
   }
 }
 
-final loginControllerProvider = NotifierProvider<LoginController, AuthFormState>(
-  LoginController.new,
-);
+final loginControllerProvider =
+    NotifierProvider<LoginController, AuthFormState>(LoginController.new);

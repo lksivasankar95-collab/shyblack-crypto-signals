@@ -49,7 +49,10 @@ class SettingsScreen extends ConsumerWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('Could not load settings', style: TextStyle(color: AppColors.muted)),
+                const Text(
+                  'Could not load settings',
+                  style: TextStyle(color: AppColors.muted),
+                ),
                 const SizedBox(height: 12),
                 TextButton(
                   onPressed: () => ref.invalidate(settingsControllerProvider),
@@ -76,8 +79,9 @@ class SettingsScreen extends ConsumerWidget {
                         _AccountTile(
                           account: account,
                           selected: settings.tradingAccount == account,
-                          onTap: () =>
-                              ref.read(settingsControllerProvider.notifier).setTradingAccount(account),
+                          onTap: () => ref
+                              .read(settingsControllerProvider.notifier)
+                              .setTradingAccount(account),
                         ),
                     ],
                   ),
@@ -107,9 +111,12 @@ class SettingsScreen extends ConsumerWidget {
                         title: 'Connect Exchange Accounts',
                         badge: _badge(
                           settings.hasVerifiedExchange ? 'Connected' : 'New',
-                          settings.hasVerifiedExchange ? AppColors.profit : AppColors.accent,
+                          settings.hasVerifiedExchange
+                              ? AppColors.profit
+                              : AppColors.accent,
                         ),
-                        onTap: () => _open(context, const ExchangeAccountsScreen()),
+                        onTap: () =>
+                            _open(context, const ExchangeAccountsScreen()),
                       ),
                       SettingsNavTile(
                         icon: Icons.bolt,
@@ -119,7 +126,9 @@ class SettingsScreen extends ConsumerWidget {
                             : 'Real orders disabled',
                         badge: _badge(
                           settings.liveTradingAllowed ? 'LIVE' : 'OFF',
-                          settings.liveTradingAllowed ? AppColors.loss : AppColors.muted,
+                          settings.liveTradingAllowed
+                              ? AppColors.loss
+                              : AppColors.muted,
                         ),
                         onTap: () => _open(context, const LiveTradingScreen()),
                       ),
@@ -128,13 +137,15 @@ class SettingsScreen extends ConsumerWidget {
                         title: 'Futures Trading',
                         subtitle: 'USDT-M leveraged — off by default',
                         badge: _badge('FUTURES', AppColors.loss),
-                        onTap: () => _open(context, const FuturesTradingScreen()),
+                        onTap: () =>
+                            _open(context, const FuturesTradingScreen()),
                       ),
                       SettingsNavTile(
                         icon: Icons.architecture,
                         title: 'Strategy Build',
                         subtitle: 'Manage Spot & Futures strategies',
-                        onTap: () => _open(context, const StrategyBuildScreen()),
+                        onTap: () =>
+                            _open(context, const StrategyBuildScreen()),
                       ),
                     ],
                   ),
@@ -173,17 +184,20 @@ class SettingsScreen extends ConsumerWidget {
                       SettingsNavTile(
                         icon: Icons.notifications_outlined,
                         title: 'Notifications',
-                        onTap: () => _open(context, const NotificationsScreen()),
+                        onTap: () =>
+                            _open(context, const NotificationsScreen()),
                       ),
                       SettingsNavTile(
                         icon: Icons.bolt_outlined,
                         title: 'Signal Preferences',
-                        onTap: () => _open(context, const SignalPreferencesScreen()),
+                        onTap: () =>
+                            _open(context, const SignalPreferencesScreen()),
                       ),
                       SettingsNavTile(
                         icon: Icons.show_chart,
                         title: 'Market Preferences',
-                        onTap: () => _open(context, const MarketPreferencesScreen()),
+                        onTap: () =>
+                            _open(context, const MarketPreferencesScreen()),
                       ),
                       SettingsNavTile(
                         icon: Icons.palette_outlined,
@@ -191,7 +205,13 @@ class SettingsScreen extends ConsumerWidget {
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text(settings.themeName, style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+                            Text(
+                              settings.themeName,
+                              style: const TextStyle(
+                                color: AppColors.muted,
+                                fontSize: 12,
+                              ),
+                            ),
                             const SizedBox(width: 8),
                             Container(
                               width: 12,
@@ -199,7 +219,10 @@ class SettingsScreen extends ConsumerWidget {
                               decoration: BoxDecoration(
                                 color: const Color(0xFF000000),
                                 shape: BoxShape.circle,
-                                border: Border.all(color: AppColors.accent, width: 1.5),
+                                border: Border.all(
+                                  color: AppColors.accent,
+                                  width: 1.5,
+                                ),
                               ),
                             ),
                           ],
@@ -211,7 +234,10 @@ class SettingsScreen extends ConsumerWidget {
                         title: 'Language',
                         trailing: Text(
                           settings.language,
-                          style: const TextStyle(color: AppColors.muted, fontSize: 12),
+                          style: const TextStyle(
+                            color: AppColors.muted,
+                            fontSize: 12,
+                          ),
                         ),
                         onTap: () => _pickLanguage(context, ref, settings),
                       ),
@@ -226,7 +252,8 @@ class SettingsScreen extends ConsumerWidget {
                       SettingsNavTile(
                         icon: Icons.storage_outlined,
                         title: 'Data Management',
-                        onTap: () => _open(context, const DataManagementScreen()),
+                        onTap: () =>
+                            _open(context, const DataManagementScreen()),
                       ),
                       SettingsNavTile(
                         icon: Icons.help_outline,
@@ -249,7 +276,13 @@ class SettingsScreen extends ConsumerWidget {
                     side: const BorderSide(color: AppColors.loss),
                     minimumSize: const Size.fromHeight(48),
                   ),
-                  child: const Text('LOGOUT', style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 1)),
+                  child: const Text(
+                    'LOGOUT',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -269,7 +302,11 @@ class SettingsScreen extends ConsumerWidget {
       ),
       child: Text(
         label,
-        style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w800),
+        style: TextStyle(
+          color: color,
+          fontSize: 10,
+          fontWeight: FontWeight.w800,
+        ),
       ),
     );
   }
@@ -291,35 +328,76 @@ class SettingsScreen extends ConsumerWidget {
     Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => screen));
   }
 
-  static Future<void> _pickTheme(BuildContext context, WidgetRef ref, AppSettings settings) async {
-    final next = await _choice(context, 'Theme', const ['dark', 'light', 'system'], settings.themeName);
+  static Future<void> _pickTheme(
+    BuildContext context,
+    WidgetRef ref,
+    AppSettings settings,
+  ) async {
+    final next = await _choice(context, 'Theme', const [
+      'dark',
+      'light',
+      'system',
+    ], settings.themeName);
     if (next != null) {
-      await ref.read(settingsControllerProvider.notifier).patch(settings.copyWith(themeName: next));
+      await ref
+          .read(settingsControllerProvider.notifier)
+          .patch(settings.copyWith(themeName: next));
     }
   }
 
-  static Future<void> _pickLanguage(BuildContext context, WidgetRef ref, AppSettings settings) async {
-    final next = await _choice(context, 'Language', const ['English'], settings.language);
+  static Future<void> _pickLanguage(
+    BuildContext context,
+    WidgetRef ref,
+    AppSettings settings,
+  ) async {
+    final next = await _choice(context, 'Language', const [
+      'English',
+    ], settings.language);
     if (next != null) {
-      await ref.read(settingsControllerProvider.notifier).patch(settings.copyWith(language: next));
+      await ref
+          .read(settingsControllerProvider.notifier)
+          .patch(settings.copyWith(language: next));
     }
   }
 
-  static Future<void> _pickQuoteCurrency(BuildContext context, WidgetRef ref, AppSettings settings) async {
-    final next = await _choice(context, 'Quote Currency', const ['USDT', 'USDC', 'BTC'], settings.quoteCurrency);
+  static Future<void> _pickQuoteCurrency(
+    BuildContext context,
+    WidgetRef ref,
+    AppSettings settings,
+  ) async {
+    final next = await _choice(context, 'Quote Currency', const [
+      'USDT',
+      'USDC',
+      'BTC',
+    ], settings.quoteCurrency);
     if (next != null) {
-      await ref.read(settingsControllerProvider.notifier).patch(settings.copyWith(quoteCurrency: next));
+      await ref
+          .read(settingsControllerProvider.notifier)
+          .patch(settings.copyWith(quoteCurrency: next));
     }
   }
 
-  static Future<void> _pickLeverageView(BuildContext context, WidgetRef ref, AppSettings settings) async {
-    final next = await _choice(context, 'Leverage View', const ['Isolated', 'Cross'], settings.defaultLeverageView);
+  static Future<void> _pickLeverageView(
+    BuildContext context,
+    WidgetRef ref,
+    AppSettings settings,
+  ) async {
+    final next = await _choice(context, 'Leverage View', const [
+      'Isolated',
+      'Cross',
+    ], settings.defaultLeverageView);
     if (next != null) {
-      await ref.read(settingsControllerProvider.notifier).patch(settings.copyWith(defaultLeverageView: next));
+      await ref
+          .read(settingsControllerProvider.notifier)
+          .patch(settings.copyWith(defaultLeverageView: next));
     }
   }
 
-  static Future<void> _pickRiskProfile(BuildContext context, WidgetRef ref, AppSettings settings) async {
+  static Future<void> _pickRiskProfile(
+    BuildContext context,
+    WidgetRef ref,
+    AppSettings settings,
+  ) async {
     final next = await showDialog<RiskProfile>(
       context: context,
       builder: (context) => AlertDialog(
@@ -331,7 +409,9 @@ class SettingsScreen extends ConsumerWidget {
             for (final risk in RiskProfile.values)
               ListTile(
                 title: Text(risk.label),
-                trailing: risk == settings.riskProfile ? const Icon(Icons.check, color: AppColors.accent) : null,
+                trailing: risk == settings.riskProfile
+                    ? const Icon(Icons.check, color: AppColors.accent)
+                    : null,
                 onTap: () => Navigator.pop(context, risk),
               ),
           ],
@@ -341,10 +421,17 @@ class SettingsScreen extends ConsumerWidget {
     if (next == null) {
       return;
     }
-    await ref.read(settingsControllerProvider.notifier).patch(settings.copyWith(riskProfile: next));
+    await ref
+        .read(settingsControllerProvider.notifier)
+        .patch(settings.copyWith(riskProfile: next));
   }
 
-  static Future<String?> _choice(BuildContext context, String title, List<String> options, String current) {
+  static Future<String?> _choice(
+    BuildContext context,
+    String title,
+    List<String> options,
+    String current,
+  ) {
     return showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
@@ -356,7 +443,9 @@ class SettingsScreen extends ConsumerWidget {
             for (final option in options)
               ListTile(
                 title: Text(option),
-                trailing: option == current ? const Icon(Icons.check, color: AppColors.accent) : null,
+                trailing: option == current
+                    ? const Icon(Icons.check, color: AppColors.accent)
+                    : null,
                 onTap: () => Navigator.of(context).pop(option),
               ),
           ],
@@ -373,10 +462,16 @@ class SettingsScreen extends ConsumerWidget {
         title: const Text('Log out?'),
         content: const Text('You will need to sign in again.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('LOGOUT', style: TextStyle(color: AppColors.loss)),
+            child: const Text(
+              'LOGOUT',
+              style: TextStyle(color: AppColors.loss),
+            ),
           ),
         ],
       ),
@@ -405,7 +500,11 @@ class _ProfileSummaryCard extends StatelessWidget {
             CircleAvatar(
               radius: 26,
               backgroundColor: AppColors.accent.withValues(alpha: 0.18),
-              child: const Icon(Icons.person, color: AppColors.accent, size: 28),
+              child: const Icon(
+                Icons.person,
+                color: AppColors.accent,
+                size: 28,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -416,7 +515,9 @@ class _ProfileSummaryCard extends StatelessWidget {
                     children: [
                       Flexible(
                         child: Text(
-                          settings.fullName.isEmpty ? 'My Account' : settings.fullName,
+                          settings.fullName.isEmpty
+                              ? 'My Account'
+                              : settings.fullName,
                           style: const TextStyle(
                             color: AppColors.onBackground,
                             fontWeight: FontWeight.w800,
@@ -425,11 +526,20 @@ class _ProfileSummaryCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      PremiumBadge(compact: true, label: settings.membershipTier),
+                      PremiumBadge(
+                        compact: true,
+                        label: settings.membershipTier,
+                      ),
                     ],
                   ),
                   const SizedBox(height: 4),
-                  Text(settings.email, style: const TextStyle(color: AppColors.muted, fontSize: 13)),
+                  Text(
+                    settings.email,
+                    style: const TextStyle(
+                      color: AppColors.muted,
+                      fontSize: 13,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -442,7 +552,11 @@ class _ProfileSummaryCard extends StatelessWidget {
 }
 
 class _AccountTile extends StatelessWidget {
-  const _AccountTile({required this.account, required this.selected, required this.onTap});
+  const _AccountTile({
+    required this.account,
+    required this.selected,
+    required this.onTap,
+  });
 
   final TradingAccount account;
   final bool selected;
@@ -457,7 +571,9 @@ class _AccountTile extends StatelessWidget {
         child: Row(
           children: [
             Icon(
-              account == TradingAccount.paper ? Icons.science_outlined : Icons.account_balance,
+              account == TradingAccount.paper
+                  ? Icons.science_outlined
+                  : Icons.account_balance,
               color: selected ? AppColors.accent : AppColors.muted,
             ),
             const SizedBox(width: 12),
@@ -467,10 +583,20 @@ class _AccountTile extends StatelessWidget {
                 children: [
                   Text(
                     account.label,
-                    style: const TextStyle(color: AppColors.onCard, fontWeight: FontWeight.w700, fontSize: 14),
+                    style: const TextStyle(
+                      color: AppColors.onCard,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                    ),
                   ),
                   const SizedBox(height: 2),
-                  Text(account.subtitle, style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+                  Text(
+                    account.subtitle,
+                    style: const TextStyle(
+                      color: AppColors.muted,
+                      fontSize: 12,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -484,7 +610,11 @@ class _AccountTile extends StatelessWidget {
                 ),
                 child: const Text(
                   'Active',
-                  style: TextStyle(color: AppColors.accent, fontSize: 11, fontWeight: FontWeight.w800),
+                  style: TextStyle(
+                    color: AppColors.accent,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
             Icon(

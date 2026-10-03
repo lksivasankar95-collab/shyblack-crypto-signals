@@ -18,7 +18,12 @@ class MarketPreferencesScreen extends ConsumerWidget {
       appBar: AppBar(title: const Text('Market Preferences')),
       body: asyncSettings.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => const Center(child: Text('Could not load settings', style: TextStyle(color: AppColors.muted))),
+        error: (e, _) => const Center(
+          child: Text(
+            'Could not load settings',
+            style: TextStyle(color: AppColors.muted),
+          ),
+        ),
         data: (settings) => SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -35,7 +40,10 @@ class MarketPreferencesScreen extends ConsumerWidget {
                       subtitle: 'Default quote asset for market data',
                       trailing: Text(
                         settings.quoteCurrency,
-                        style: const TextStyle(color: AppColors.muted, fontSize: 12),
+                        style: const TextStyle(
+                          color: AppColors.muted,
+                          fontSize: 12,
+                        ),
                       ),
                       onTap: () => _pickQuote(context, ref, settings),
                     ),
@@ -45,7 +53,10 @@ class MarketPreferencesScreen extends ConsumerWidget {
                       subtitle: 'Futures position leverage display',
                       trailing: Text(
                         settings.defaultLeverageView,
-                        style: const TextStyle(color: AppColors.muted, fontSize: 12),
+                        style: const TextStyle(
+                          color: AppColors.muted,
+                          fontSize: 12,
+                        ),
                       ),
                       onTap: () => _pickLeverage(context, ref, settings),
                     ),
@@ -60,7 +71,10 @@ class MarketPreferencesScreen extends ConsumerWidget {
                     SizedBox(height: 10),
                     _InfoRow(label: 'Spot Stream', value: 'WebSocket (live)'),
                     SizedBox(height: 10),
-                    _InfoRow(label: 'Futures Stream', value: 'WebSocket (live)'),
+                    _InfoRow(
+                      label: 'Futures Stream',
+                      value: 'WebSocket (live)',
+                    ),
                     SizedBox(height: 10),
                     _InfoRow(label: 'REST Fallback', value: 'Enabled'),
                   ],
@@ -82,7 +96,11 @@ class MarketPreferencesScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _pickQuote(BuildContext context, WidgetRef ref, AppSettings settings) async {
+  Future<void> _pickQuote(
+    BuildContext context,
+    WidgetRef ref,
+    AppSettings settings,
+  ) async {
     final next = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
@@ -90,19 +108,31 @@ class MarketPreferencesScreen extends ConsumerWidget {
         title: const Text('Quote Currency'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
-          children: ['USDT', 'USDC', 'BTC', 'ETH'].map((q) => ListTile(
-            title: Text(q),
-            trailing: q == settings.quoteCurrency ? const Icon(Icons.check, color: AppColors.accent) : null,
-            onTap: () => Navigator.pop(context, q),
-          )).toList(),
+          children: ['USDT', 'USDC', 'BTC', 'ETH']
+              .map(
+                (q) => ListTile(
+                  title: Text(q),
+                  trailing: q == settings.quoteCurrency
+                      ? const Icon(Icons.check, color: AppColors.accent)
+                      : null,
+                  onTap: () => Navigator.pop(context, q),
+                ),
+              )
+              .toList(),
         ),
       ),
     );
     if (next == null) return;
-    await ref.read(settingsControllerProvider.notifier).patch(settings.copyWith(quoteCurrency: next));
+    await ref
+        .read(settingsControllerProvider.notifier)
+        .patch(settings.copyWith(quoteCurrency: next));
   }
 
-  Future<void> _pickLeverage(BuildContext context, WidgetRef ref, AppSettings settings) async {
+  Future<void> _pickLeverage(
+    BuildContext context,
+    WidgetRef ref,
+    AppSettings settings,
+  ) async {
     final next = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
@@ -110,16 +140,24 @@ class MarketPreferencesScreen extends ConsumerWidget {
         title: const Text('Default Leverage View'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
-          children: ['1x', '2x', '3x', '5x', '10x', '20x', 'Isolated', 'Cross'].map((v) => ListTile(
-            title: Text(v),
-            trailing: v == settings.defaultLeverageView ? const Icon(Icons.check, color: AppColors.accent) : null,
-            onTap: () => Navigator.pop(context, v),
-          )).toList(),
+          children: ['1x', '2x', '3x', '5x', '10x', '20x', 'Isolated', 'Cross']
+              .map(
+                (v) => ListTile(
+                  title: Text(v),
+                  trailing: v == settings.defaultLeverageView
+                      ? const Icon(Icons.check, color: AppColors.accent)
+                      : null,
+                  onTap: () => Navigator.pop(context, v),
+                ),
+              )
+              .toList(),
         ),
       ),
     );
     if (next == null) return;
-    await ref.read(settingsControllerProvider.notifier).patch(settings.copyWith(defaultLeverageView: next));
+    await ref
+        .read(settingsControllerProvider.notifier)
+        .patch(settings.copyWith(defaultLeverageView: next));
   }
 }
 
@@ -132,9 +170,19 @@ class _InfoRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Text(label, style: const TextStyle(color: AppColors.muted, fontSize: 13)),
+        Text(
+          label,
+          style: const TextStyle(color: AppColors.muted, fontSize: 13),
+        ),
         const Spacer(),
-        Text(value, style: const TextStyle(color: AppColors.onBackground, fontWeight: FontWeight.w600, fontSize: 13)),
+        Text(
+          value,
+          style: const TextStyle(
+            color: AppColors.onBackground,
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
+          ),
+        ),
       ],
     );
   }

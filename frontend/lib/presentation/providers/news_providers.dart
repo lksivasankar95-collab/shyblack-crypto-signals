@@ -14,10 +14,7 @@ class NewsFeedData {
   final bool hasNext;
   final DateTime? lastUpdated;
 
-  static const NewsFeedData empty = NewsFeedData(
-    articles: [],
-    hasNext: false,
-  );
+  static const NewsFeedData empty = NewsFeedData(articles: [], hasNext: false);
 }
 
 class NewsFeedController extends AsyncNotifier<NewsFeedData> {
@@ -155,17 +152,19 @@ class NewsFeedController extends AsyncNotifier<NewsFeedData> {
   }
 
   Future<NewsPage> _fetch(int page) {
-    return ref.read(getNewsProvider).call(
-      category: _category,
-      sentiment: _sentiment,
-      impact: _impact,
-      source: _source,
-      query: _query,
-      page: page,
-      size: _pageSize,
-      sort: 'publishedAt',
-      direction: 'desc',
-    );
+    return ref
+        .read(getNewsProvider)
+        .call(
+          category: _category,
+          sentiment: _sentiment,
+          impact: _impact,
+          source: _source,
+          query: _query,
+          page: page,
+          size: _pageSize,
+          sort: 'publishedAt',
+          direction: 'desc',
+        );
   }
 }
 

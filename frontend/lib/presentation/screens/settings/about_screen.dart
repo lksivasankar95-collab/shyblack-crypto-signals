@@ -30,7 +30,11 @@ class AboutScreen extends StatelessWidget {
                       color: AppColors.accent.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(18),
                     ),
-                    child: const Icon(Icons.currency_bitcoin, color: AppColors.accent, size: 40),
+                    child: const Icon(
+                      Icons.currency_bitcoin,
+                      color: AppColors.accent,
+                      size: 40,
+                    ),
                   ),
                   const SizedBox(height: 14),
                   const Text(
@@ -45,7 +49,10 @@ class AboutScreen extends StatelessWidget {
                   const SizedBox(height: 6),
                   Text(
                     'Version $_appVersion (Build $_buildNumber)',
-                    style: const TextStyle(color: AppColors.muted, fontSize: 13),
+                    style: const TextStyle(
+                      color: AppColors.muted,
+                      fontSize: 13,
+                    ),
                   ),
                 ],
               ),
@@ -55,7 +62,10 @@ class AboutScreen extends StatelessWidget {
               padding: EdgeInsets.zero,
               child: Column(
                 children: [
-                  _InfoTile(label: 'App Name', value: 'ShyBlack Crypto Signals'),
+                  _InfoTile(
+                    label: 'App Name',
+                    value: 'ShyBlack Crypto Signals',
+                  ),
                   _InfoTile(label: 'Version', value: _appVersion),
                   _InfoTile(label: 'Build', value: _buildNumber),
                   _InfoTile(label: 'Platform', value: 'Flutter'),
@@ -72,12 +82,14 @@ class AboutScreen extends StatelessWidget {
                   SettingsNavTile(
                     icon: Icons.description_outlined,
                     title: 'Terms of Service',
-                    onTap: () => _showLegal(context, 'Terms of Service', _terms),
+                    onTap: () =>
+                        _showLegal(context, 'Terms of Service', _terms),
                   ),
                   SettingsNavTile(
                     icon: Icons.privacy_tip_outlined,
                     title: 'Privacy Policy',
-                    onTap: () => _showLegal(context, 'Privacy Policy', _privacy),
+                    onTap: () =>
+                        _showLegal(context, 'Privacy Policy', _privacy),
                   ),
                   SettingsNavTile(
                     icon: Icons.code,
@@ -98,7 +110,11 @@ class AboutScreen extends StatelessWidget {
                 'informational purposes only. This application does not constitute financial '
                 'advice. Cryptocurrency trading involves significant risk of loss. '
                 'Past performance does not guarantee future results.',
-                style: TextStyle(color: AppColors.muted, fontSize: 13, height: 1.5),
+                style: TextStyle(
+                  color: AppColors.muted,
+                  fontSize: 13,
+                  height: 1.5,
+                ),
               ),
             ),
           ],
@@ -108,16 +124,25 @@ class AboutScreen extends StatelessWidget {
   }
 
   void _showLegal(BuildContext context, String title, String content) {
-    Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (_) => Scaffold(
-        backgroundColor: AppColors.background,
-        appBar: AppBar(title: Text(title)),
-        body: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Text(content, style: const TextStyle(color: AppColors.muted, fontSize: 13, height: 1.6)),
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => Scaffold(
+          backgroundColor: AppColors.background,
+          appBar: AppBar(title: Text(title)),
+          body: SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: Text(
+              content,
+              style: const TextStyle(
+                color: AppColors.muted,
+                fontSize: 13,
+                height: 1.6,
+              ),
+            ),
+          ),
         ),
       ),
-    ));
+    );
   }
 
   static const _terms = '''
@@ -191,9 +216,19 @@ class _InfoTile extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       child: Row(
         children: [
-          Text(label, style: const TextStyle(color: AppColors.muted, fontSize: 13)),
+          Text(
+            label,
+            style: const TextStyle(color: AppColors.muted, fontSize: 13),
+          ),
           const Spacer(),
-          Text(value, style: const TextStyle(color: AppColors.onBackground, fontWeight: FontWeight.w600, fontSize: 13)),
+          Text(
+            value,
+            style: const TextStyle(
+              color: AppColors.onBackground,
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
+            ),
+          ),
         ],
       ),
     );

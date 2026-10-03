@@ -72,7 +72,9 @@ class NewsRepositoryImpl implements NewsRepository {
 
   @override
   Future<NewsContext> getAssetContext(String symbol, {int? windowHours}) async {
-    return (await _remote.getAssetContext(symbol, windowHours: windowHours))
-        .toEntity();
+    return (await _remote.getAssetContext(
+      symbol,
+      windowHours: windowHours,
+    )).toEntity();
   }
 }
