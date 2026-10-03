@@ -6,8 +6,7 @@ class TradingStrategyRepositoryImpl implements TradingStrategyRepository {
   final StrategyRemoteDataSource _remote;
   TradingStrategyRepositoryImpl(this._remote);
 
-  String _modeStr(StrategyTradingMode mode) =>
-      mode == StrategyTradingMode.futures ? 'FUTURES' : 'SPOT';
+  String _modeStr(StrategyTradingMode mode) => mode == StrategyTradingMode.futures ? 'FUTURES' : 'SPOT';
 
   @override
   Future<List<TradingStrategy>> listStrategies(StrategyTradingMode mode) =>
@@ -15,18 +14,14 @@ class TradingStrategyRepositoryImpl implements TradingStrategyRepository {
 
   @override
   Future<TradingStrategy> createStrategy({
-    required String name,
-    String? description,
-    required StrategyTradingMode tradingMode,
-    StrategyConfig? config,
-    String? engineKey,
+    required String name, String? description, required StrategyTradingMode tradingMode,
+    StrategyConfig? config, String? engineKey,
   }) => _remote.createStrategy(
-    name: name,
-    description: description,
-    tradingMode: _modeStr(tradingMode),
-    config: _configMap(config),
-    engineKey: engineKey,
-  );
+      name: name,
+      description: description,
+      tradingMode: _modeStr(tradingMode),
+      config: _configMap(config),
+      engineKey: engineKey);
 
   /// Serializes whichever strategy-engine sub-config is present.
   static Map<String, dynamic>? _configMap(StrategyConfig? config) {
@@ -47,8 +42,6 @@ class TradingStrategyRepositoryImpl implements TradingStrategyRepository {
       _remote.getActiveStrategy(_modeStr(mode));
 
   @override
-  Future<ActiveStrategyInfo> setActiveStrategy(
-    StrategyTradingMode mode,
-    String strategyId,
-  ) => _remote.setActiveStrategy(_modeStr(mode), strategyId);
+  Future<ActiveStrategyInfo> setActiveStrategy(StrategyTradingMode mode, String strategyId) =>
+      _remote.setActiveStrategy(_modeStr(mode), strategyId);
 }

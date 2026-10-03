@@ -30,9 +30,7 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('desktop: two-column branding panel + login card', (
-    tester,
-  ) async {
+  testWidgets('desktop: two-column branding panel + login card', (tester) async {
     await pumpAt(tester, const Size(1440, 900));
 
     // Login card (unchanged functional text).

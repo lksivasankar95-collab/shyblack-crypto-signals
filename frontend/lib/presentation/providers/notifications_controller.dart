@@ -37,32 +37,25 @@ class NotificationsController extends AsyncNotifier<List<NotificationItem>> {
       final uri = Uri.parse(ApiConstants.privateWsUrl);
       final session = connector.connect(uri);
       _session = session;
-      _sub = session.stream.listen(
-        (raw) {
-          try {
-            final Map<String, dynamic> payload =
-                jsonDecode(raw as String) as Map<String, dynamic>;
-            final type = (payload['type'] as String?)?.toLowerCase();
-            if (type == 'alert') {
-              // backend persists notification history; refresh list
-              unawaited(refresh());
-            } else if (type == 'news') {
-              // Real-time news: prepend the exact article without resetting state.
-              final newsId = payload['newsId'] as String?;
-              if (newsId != null && newsId.isNotEmpty) {
-                unawaited(
-                  ref
-                      .read(newsFeedControllerProvider.notifier)
-                      .prependById(newsId),
-                );
-              }
-              unawaited(refresh());
+      _sub = session.stream.listen((raw) {
+        try {
+          final Map<String, dynamic> payload = jsonDecode(raw as String) as Map<String, dynamic>;
+          final type = (payload['type'] as String?)?.toLowerCase();
+          if (type == 'alert') {
+            // backend persists notification history; refresh list
+            unawaited(refresh());
+          } else if (type == 'news') {
+            // Real-time news: prepend the exact article without resetting state.
+            final newsId = payload['newsId'] as String?;
+            if (newsId != null && newsId.isNotEmpty) {
+              unawaited(
+                ref.read(newsFeedControllerProvider.notifier).prependById(newsId),
+              );
             }
-          } catch (_) {}
-        },
-        onError: (_) {},
-        onDone: () {},
-      );
+            unawaited(refresh());
+          }
+        } catch (_) {}
+      }, onError: (_) {}, onDone: () {});
     } catch (_) {}
   }
 
@@ -75,7 +68,6 @@ class NotificationsController extends AsyncNotifier<List<NotificationItem>> {
   }
 }
 
-final notificationsControllerProvider =
-    AsyncNotifierProvider<NotificationsController, List<NotificationItem>>(
-      NotificationsController.new,
-    );
+final notificationsControllerProvider = AsyncNotifierProvider<NotificationsController, List<NotificationItem>>(
+  NotificationsController.new,
+);

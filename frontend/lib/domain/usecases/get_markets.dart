@@ -41,10 +41,6 @@ class GetKlines {
     required String interval,
     required TradingMode mode,
     int limit = 100,
-  }) => _repository.getKlines(
-    symbol: symbol,
-    interval: interval,
-    limit: limit,
-    mode: mode,
-  );
+  }) =>
+      _repository.getKlines(symbol: symbol, interval: interval, limit: limit, mode: mode);
 }

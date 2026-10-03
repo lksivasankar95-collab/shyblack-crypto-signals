@@ -21,12 +21,10 @@ class ContinueWithGoogleButton extends ConsumerStatefulWidget {
   final ValueChanged<String> onWebIdToken;
 
   @override
-  ConsumerState<ContinueWithGoogleButton> createState() =>
-      _ContinueWithGoogleButtonState();
+  ConsumerState<ContinueWithGoogleButton> createState() => _ContinueWithGoogleButtonState();
 }
 
-class _ContinueWithGoogleButtonState
-    extends ConsumerState<ContinueWithGoogleButton> {
+class _ContinueWithGoogleButtonState extends ConsumerState<ContinueWithGoogleButton> {
   StreamSubscription<String>? _webTokens;
 
   @override
@@ -118,10 +116,7 @@ class GoogleGPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = size.width * 0.18
       ..strokeCap = StrokeCap.round;
-    final rect = Rect.fromCircle(
-      center: Offset(size.width / 2, size.height / 2),
-      radius: size.width * 0.36,
-    );
+    final rect = Rect.fromCircle(center: Offset(size.width / 2, size.height / 2), radius: size.width * 0.36);
     stroke.color = const Color(0xFF4285F4);
     canvas.drawArc(rect, -0.2, 1.6, false, stroke);
     stroke.color = const Color(0xFF34A853);

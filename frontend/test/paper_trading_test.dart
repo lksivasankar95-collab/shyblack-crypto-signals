@@ -21,26 +21,20 @@ import 'package:cryptosignals/presentation/providers/market_prices_controller.da
 import 'package:cryptosignals/presentation/providers/markets_controller.dart';
 import 'package:cryptosignals/presentation/screens/paper_trading/paper_trading_screen.dart';
 
-MarketTicker _ticker(
-  String symbol,
-  double price, [
-  TradingMode market = TradingMode.spot,
-]) => MarketTicker(
-  symbol: symbol,
-  name: symbol,
-  price: price,
-  change24h: 0,
-  changePercent24h: 0,
-  volume24h: 0,
-  high24h: price,
-  low24h: price,
-  marketType: market,
-  exchangeSymbol: symbol,
-  baseAsset: symbol.length > 4
-      ? symbol.substring(0, symbol.length - 4)
-      : symbol,
-  quoteAsset: 'USDT',
-);
+MarketTicker _ticker(String symbol, double price, [TradingMode market = TradingMode.spot]) => MarketTicker(
+      symbol: symbol,
+      name: symbol,
+      price: price,
+      change24h: 0,
+      changePercent24h: 0,
+      volume24h: 0,
+      high24h: price,
+      low24h: price,
+      marketType: market,
+      exchangeSymbol: symbol,
+      baseAsset: symbol.length > 4 ? symbol.substring(0, symbol.length - 4) : symbol,
+      quoteAsset: 'USDT',
+    );
 
 /// Fake shared market book so there is exactly ONE stream per market (no socket
 /// here) and each card reads its live price from its own market.
@@ -65,7 +59,7 @@ MarketPriceBook _book(
   bool connected = true,
 }) {
   final tickers = [
-    for (final e in prices.entries) _ticker(e.key, e.value, market),
+    for (final e in prices.entries) _ticker(e.key, e.value, market)
   ];
   return MarketPriceBook(
     byMarket: {
@@ -81,22 +75,23 @@ Widget _app(
   TradingMode market = TradingMode.futures,
   MarketPriceBook? book,
   bool connected = true,
-}) => ProviderScope(
-  overrides: [
-    paperTradingRepositoryProvider.overrideWith((ref) => repo),
-    marketPricesControllerProvider.overrideWith(
-      () => _FakeMarketPricesController(
-        book ?? _book(live, market: market, connected: connected),
+}) =>
+    ProviderScope(
+      overrides: [
+        paperTradingRepositoryProvider.overrideWith((ref) => repo),
+        marketPricesControllerProvider.overrideWith(
+          () => _FakeMarketPricesController(
+            book ?? _book(live, market: market, connected: connected),
+          ),
+        ),
+      ],
+      child: MaterialApp(
+        theme: AppTheme.dark(),
+        darkTheme: AppTheme.dark(),
+        themeMode: ThemeMode.dark,
+        home: const PaperTradingScreen(),
       ),
-    ),
-  ],
-  child: MaterialApp(
-    theme: AppTheme.dark(),
-    darkTheme: AppTheme.dark(),
-    themeMode: ThemeMode.dark,
-    home: const PaperTradingScreen(),
-  ),
-);
+    );
 
 Future<void> _load(
   WidgetTester tester,
@@ -106,36 +101,32 @@ Future<void> _load(
   MarketPriceBook? book,
   bool connected = true,
 }) async {
-  await tester.pumpWidget(
-    _app(repo, live: live, market: market, book: book, connected: connected),
-  );
+  await tester.pumpWidget(_app(repo, live: live, market: market, book: book, connected: connected));
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 50));
 }
 
 void main() {
-  testWidgets(
-    'position card shows market type, strategy, opened time and live price',
-    (WidgetTester tester) async {
-      final repo = _FakePaperTradingRepository();
-      await _load(tester, repo);
+  testWidgets('position card shows market type, strategy, opened time and live price',
+      (WidgetTester tester) async {
+    final repo = _FakePaperTradingRepository();
+    await _load(tester, repo);
 
-      expect(find.text('SIMULATION'), findsOneWidget);
-      expect(find.text('BTCUSDT'), findsWidgets);
-      // Market type from signal metadata (not inferred).
-      expect(find.text('FUTURES'), findsOneWidget);
-      expect(find.text('LONG'), findsWidgets);
-      // Strategy name resolved from persisted strategy metadata.
-      expect(find.text('Strategy: EMA Trend Following'), findsOneWidget);
-      // Opened timestamp from the persisted OPENED time.
-      expect(find.textContaining('30 Sep 2026'), findsOneWidget);
-      // Live price comes from the shared markets stream (40500), not the backend 40000.
-      expect(find.text('40500.0000'), findsOneWidget);
-      // LONG unrealized PnL = (40500 - 40000) * 0.05 = +25.00.
-      expect(find.textContaining('+25.00'), findsOneWidget);
-      expect(find.text('● LIVE'), findsOneWidget);
-    },
-  );
+    expect(find.text('SIMULATION'), findsOneWidget);
+    expect(find.text('BTCUSDT'), findsWidgets);
+    // Market type from signal metadata (not inferred).
+    expect(find.text('FUTURES'), findsOneWidget);
+    expect(find.text('LONG'), findsWidgets);
+    // Strategy name resolved from persisted strategy metadata.
+    expect(find.text('Strategy: EMA Trend Following'), findsOneWidget);
+    // Opened timestamp from the persisted OPENED time.
+    expect(find.textContaining('30 Sep 2026'), findsOneWidget);
+    // Live price comes from the shared markets stream (40500), not the backend 40000.
+    expect(find.text('40500.0000'), findsOneWidget);
+    // LONG unrealized PnL = (40500 - 40000) * 0.05 = +25.00.
+    expect(find.textContaining('+25.00'), findsOneWidget);
+    expect(find.text('● LIVE'), findsOneWidget);
+  });
 
   testWidgets('SPOT position displays SPOT', (WidgetTester tester) async {
     final repo = _FakePaperTradingRepository(marketType: 'SPOT');
@@ -144,9 +135,7 @@ void main() {
     expect(find.text('FUTURES'), findsNothing);
   });
 
-  testWidgets('SHORT position computes live PnL correctly', (
-    WidgetTester tester,
-  ) async {
+  testWidgets('SHORT position computes live PnL correctly', (WidgetTester tester) async {
     final repo = _FakePaperTradingRepository(side: PaperPositionSide.short);
     await _load(tester, repo, live: const {'BTCUSDT': 39500});
     // SHORT unrealized = (entry - current) * qty = (40000 - 39500) * 0.05 = +25.00.
@@ -154,9 +143,7 @@ void main() {
     expect(find.textContaining('+25.00'), findsOneWidget);
   });
 
-  testWidgets('multiple positions update independently', (
-    WidgetTester tester,
-  ) async {
+  testWidgets('multiple positions update independently', (WidgetTester tester) async {
     tester.view.physicalSize = const Size(1200, 2000);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -168,12 +155,10 @@ void main() {
       ],
     );
     // Both markets are live at once: a mixed portfolio needs each position priced on its own market.
-    final twoMarkets =
-        _book(const {
-          'BTCUSDT': 40500,
-        }, market: TradingMode.futures).withSnapshot(TradingMode.spot, [
-          _ticker('ETHUSDT', 2200, TradingMode.spot),
-        ]);
+    final twoMarkets = _book(
+      const {'BTCUSDT': 40500},
+      market: TradingMode.futures,
+    ).withSnapshot(TradingMode.spot, [_ticker('ETHUSDT', 2200, TradingMode.spot)]);
     await _load(tester, repo, book: twoMarkets);
     expect(find.text('FUTURES'), findsOneWidget);
     expect(find.text('SPOT'), findsOneWidget);
@@ -182,41 +167,36 @@ void main() {
   });
 
   /// The same symbol open on both markets must show two different live prices.
-  testWidgets(
-    'same symbol on two markets is priced from each market separately',
-    (WidgetTester tester) async {
-      tester.view.physicalSize = const Size(1200, 2000);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+  testWidgets('same symbol on two markets is priced from each market separately',
+      (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(1200, 2000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
 
-      final repo = _FakePaperTradingRepository(
-        openPositions: [
-          _position(symbol: 'BTCUSDT', marketType: 'SPOT', price: 100000),
-          _position(symbol: 'BTCUSDT', marketType: 'FUTURES', price: 100500),
-        ],
-      );
+    final repo = _FakePaperTradingRepository(
+      openPositions: [
+        _position(symbol: 'BTCUSDT', marketType: 'SPOT', price: 100000),
+        _position(symbol: 'BTCUSDT', marketType: 'FUTURES', price: 100500),
+      ],
+    );
 
-      // Distinct synthetic prices so a cross-market read is detectable, not coincidental.
-      final twoMarkets =
-          _book(const {
-            'BTCUSDT': 100000,
-          }, market: TradingMode.spot).withSnapshot(TradingMode.futures, [
-            _ticker('BTCUSDT', 100500, TradingMode.futures),
-          ]);
+    // Distinct synthetic prices so a cross-market read is detectable, not coincidental.
+    final twoMarkets = _book(
+      const {'BTCUSDT': 100000},
+      market: TradingMode.spot,
+    ).withSnapshot(TradingMode.futures, [_ticker('BTCUSDT', 100500, TradingMode.futures)]);
 
-      await _load(tester, repo, book: twoMarkets);
+    await _load(tester, repo, book: twoMarkets);
 
-      // Each card shows its own market's price, not one shared number.
-      expect(find.text('100000.0000'), findsOneWidget);
-      expect(find.text('100500.0000'), findsOneWidget);
-    },
-  );
+    // Each card shows its own market's price, not one shared number.
+    expect(find.text('100000.0000'), findsOneWidget);
+    expect(find.text('100500.0000'), findsOneWidget);
+  });
 
   /// A quote arriving for the wrong market must not be applied to a position.
-  testWidgets('a tick for the other market never moves this position', (
-    WidgetTester tester,
-  ) async {
+  testWidgets('a tick for the other market never moves this position',
+      (WidgetTester tester) async {
     final repo = _FakePaperTradingRepository(); // FUTURES, entry 40000
     await _load(tester, repo, live: const {'BTCUSDT': 40500});
     expect(find.text('40500.0000'), findsOneWidget);
@@ -224,9 +204,8 @@ void main() {
     final container = ProviderScope.containerOf(
       tester.element(find.byType(PaperTradingScreen)),
     );
-    final prices =
-        container.read(marketPricesControllerProvider.notifier)
-            as _FakeMarketPricesController;
+    final prices = container.read(marketPricesControllerProvider.notifier)
+        as _FakeMarketPricesController;
     // A large spot move on the same symbol must leave the futures position untouched.
     final futuresStill = _book(
       const {'BTCUSDT': 40500},
@@ -239,9 +218,8 @@ void main() {
     expect(find.text('1.0000'), findsNothing);
   });
 
-  testWidgets('current price and PnL update when a live tick arrives', (
-    WidgetTester tester,
-  ) async {
+  testWidgets('current price and PnL update when a live tick arrives',
+      (WidgetTester tester) async {
     final repo = _FakePaperTradingRepository();
     await _load(tester, repo); // shared stream starts at 40500.
     expect(find.text('40500.0000'), findsOneWidget);
@@ -249,9 +227,8 @@ void main() {
     final container = ProviderScope.containerOf(
       tester.element(find.byType(PaperTradingScreen)),
     );
-    final prices =
-        container.read(marketPricesControllerProvider.notifier)
-            as _FakeMarketPricesController;
+    final prices = container.read(marketPricesControllerProvider.notifier)
+        as _FakeMarketPricesController;
     prices.emit(_book(const {'BTCUSDT': 40600}, market: TradingMode.futures));
     await tester.pump();
 
@@ -263,9 +240,7 @@ void main() {
     expect(find.textContaining('+25.00'), findsNothing);
   });
 
-  testWidgets('closed positions do not show a live price', (
-    WidgetTester tester,
-  ) async {
+  testWidgets('closed positions do not show a live price', (WidgetTester tester) async {
     final repo = _FakePaperTradingRepository(openPositions: const []);
     await _load(tester, repo);
     // History only: shows the persisted EXIT price, never a live price.
@@ -275,9 +250,8 @@ void main() {
     expect(find.text('40500.0000'), findsNothing);
   });
 
-  testWidgets('closed positions keep their exit price when live ticks arrive', (
-    WidgetTester tester,
-  ) async {
+  testWidgets('closed positions keep their exit price when live ticks arrive',
+      (WidgetTester tester) async {
     final repo = _FakePaperTradingRepository(openPositions: const []);
     await _load(tester, repo);
     await tester.tap(find.text('History'));
@@ -286,9 +260,8 @@ void main() {
     final container = ProviderScope.containerOf(
       tester.element(find.byType(PaperTradingScreen)),
     );
-    final prices =
-        container.read(marketPricesControllerProvider.notifier)
-            as _FakeMarketPricesController;
+    final prices = container.read(marketPricesControllerProvider.notifier)
+        as _FakeMarketPricesController;
     // A live tick for the closed symbol must NOT overwrite the exit price.
     prices.emit(_book(const {'ETHUSDT': 9999}, market: TradingMode.futures));
     await tester.pump();
@@ -297,9 +270,8 @@ void main() {
     expect(find.text('9999.0000'), findsNothing);
   });
 
-  testWidgets('capital update succeeds when account has no trading activity', (
-    WidgetTester tester,
-  ) async {
+  testWidgets('capital update succeeds when account has no trading activity',
+      (WidgetTester tester) async {
     final repo = _FakePaperTradingRepository(
       trades: 0,
       openPositions: const [],
@@ -319,9 +291,8 @@ void main() {
     expect(find.textContaining('250.00'), findsWidgets);
   });
 
-  testWidgets('capital update is proactively blocked when trades exist', (
-    WidgetTester tester,
-  ) async {
+  testWidgets('capital update is proactively blocked when trades exist',
+      (WidgetTester tester) async {
     final repo = _FakePaperTradingRepository(trades: 3);
     await _load(tester, repo);
 
@@ -329,40 +300,33 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text("Can't change initial capital"), findsOneWidget);
-    expect(
-      find.textContaining('Reset the paper account first'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('Reset the paper account first'), findsOneWidget);
     expect(repo.capitalSet, isNull);
     expect(find.textContaining('DioException'), findsNothing);
   });
 
-  testWidgets(
-    'backend 400 is mapped to a friendly message (no raw DioException)',
-    (WidgetTester tester) async {
-      final repo = _FakePaperTradingRepository(
-        trades: 0,
-        openPositions: const [],
-        realizedPnl: 0,
-        invested: 0,
-        updateStatus: 400,
-      );
-      await _load(tester, repo);
+  testWidgets('backend 400 is mapped to a friendly message (no raw DioException)',
+      (WidgetTester tester) async {
+    final repo = _FakePaperTradingRepository(
+      trades: 0,
+      openPositions: const [],
+      realizedPnl: 0,
+      invested: 0,
+      updateStatus: 400,
+    );
+    await _load(tester, repo);
 
-      await tester.tap(find.byKey(const Key('paper_capital_edit')));
-      await tester.pumpAndSettle();
-      await tester.enterText(find.byType(TextField), '500');
-      await tester.tap(find.text('Save'));
-      await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('paper_capital_edit')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '500');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
 
-      expect(find.text("Can't change initial capital"), findsOneWidget);
-      expect(find.textContaining('DioException'), findsNothing);
-    },
-  );
+    expect(find.text("Can't change initial capital"), findsOneWidget);
+    expect(find.textContaining('DioException'), findsNothing);
+  });
 
-  testWidgets('reset then capital update flow works', (
-    WidgetTester tester,
-  ) async {
+  testWidgets('reset then capital update flow works', (WidgetTester tester) async {
     final repo = _FakePaperTradingRepository(trades: 3);
     await _load(tester, repo);
 
@@ -381,43 +345,39 @@ void main() {
     expect(repo.capitalSet, 500);
   });
 
-  test(
-    'many positions share exactly one market socket, disposed on teardown',
-    () async {
-      final connector = _CountingSocketConnector();
-      addTearDown(connector.dispose);
-      final container = ProviderContainer(
-        overrides: [
-          authSessionProvider.overrideWith(() => _AuthedSessionController()),
-          marketRepositoryProvider.overrideWith(
-            (ref) => _StubMarketRepository(),
-          ),
-          marketsSocketConnectorProvider.overrideWith((ref) => connector),
-        ],
-      );
+  test('many positions share exactly one market socket, disposed on teardown',
+      () async {
+    final connector = _CountingSocketConnector();
+    addTearDown(connector.dispose);
+    final container = ProviderContainer(
+      overrides: [
+        authSessionProvider.overrideWith(() => _AuthedSessionController()),
+        marketRepositoryProvider.overrideWith((ref) => _StubMarketRepository()),
+        marketsSocketConnectorProvider.overrideWith((ref) => connector),
+      ],
+    );
 
-      // Resolve the auth session first so the markets controller does not do its
-      // one-time loading→authenticated reconnect during the assertion.
-      await container.read(authSessionProvider.future);
+    // Resolve the auth session first so the markets controller does not do its
+    // one-time loading→authenticated reconnect during the assertion.
+    await container.read(authSessionProvider.future);
 
-      // Two independent listeners (as many position cards would create) must still
-      // resolve to ONE shared controller instance and ONE socket connection.
-      final subA = container.listen(marketsControllerProvider, (_, _) {});
-      final subB = container.listen(marketsControllerProvider, (_, _) {});
-      await container.read(marketsControllerProvider.future);
-      await Future<void>.delayed(Duration.zero);
+    // Two independent listeners (as many position cards would create) must still
+    // resolve to ONE shared controller instance and ONE socket connection.
+    final subA = container.listen(marketsControllerProvider, (_, _) {});
+    final subB = container.listen(marketsControllerProvider, (_, _) {});
+    await container.read(marketsControllerProvider.future);
+    await Future<void>.delayed(Duration.zero);
 
-      expect(connector.connectCalls, 1);
+    expect(connector.connectCalls, 1);
 
-      subA.close();
-      subB.close();
-      container.dispose();
-      await Future<void>.delayed(Duration.zero);
+    subA.close();
+    subB.close();
+    container.dispose();
+    await Future<void>.delayed(Duration.zero);
 
-      expect(connector.closeCalls, greaterThanOrEqualTo(1));
-      expect(connector.connectCalls, 1);
-    },
-  );
+    expect(connector.closeCalls, greaterThanOrEqualTo(1));
+    expect(connector.connectCalls, 1);
+  });
 }
 
 class _AuthedSessionController extends AuthSessionController {
@@ -468,7 +428,8 @@ class _StubMarketRepository implements MarketRepository {
     required String interval,
     required int limit,
     required TradingMode mode,
-  }) async => const [];
+  }) async =>
+      const [];
 }
 
 PaperPosition _position({
@@ -477,28 +438,29 @@ PaperPosition _position({
   double price = 40500,
   double qty = 0.05,
   PaperPositionSide side = PaperPositionSide.long,
-}) => PaperPosition(
-  id: 'p_$symbol',
-  signalId: 's_$symbol',
-  symbol: symbol,
-  side: side,
-  quantity: qty,
-  entryPrice: 40000,
-  currentPrice: 40000,
-  stopLoss: 39500,
-  takeProfit1: 41000,
-  takeProfit2: 42000,
-  takeProfit3: 43000,
-  notional: 40000 * qty,
-  entryFee: 2,
-  realizedPnl: 0,
-  unrealizedPnl: 0,
-  unrealizedPnlPct: 0,
-  status: PaperPositionStatus.open,
-  openedAt: DateTime.utc(2026, 9, 30, 6, 42, 18),
-  strategyName: 'EMA Trend Following',
-  marketType: marketType,
-);
+}) =>
+    PaperPosition(
+      id: 'p_$symbol',
+      signalId: 's_$symbol',
+      symbol: symbol,
+      side: side,
+      quantity: qty,
+      entryPrice: 40000,
+      currentPrice: 40000,
+      stopLoss: 39500,
+      takeProfit1: 41000,
+      takeProfit2: 42000,
+      takeProfit3: 43000,
+      notional: 40000 * qty,
+      entryFee: 2,
+      realizedPnl: 0,
+      unrealizedPnl: 0,
+      unrealizedPnlPct: 0,
+      status: PaperPositionStatus.open,
+      openedAt: DateTime.utc(2026, 9, 30, 6, 42, 18),
+      strategyName: 'EMA Trend Following',
+      marketType: marketType,
+    );
 
 class _FakePaperTradingRepository implements PaperTradingRepository {
   _FakePaperTradingRepository({
@@ -530,21 +492,21 @@ class _FakePaperTradingRepository implements PaperTradingRepository {
 
   @override
   Future<PaperAccount> getAccount() async => PaperAccount(
-    id: 'acc1',
-    quoteCurrency: 'USDT',
-    initialBalance: initial,
-    availableBalance: invested == 0 ? initial : 8000,
-    invested: invested,
-    totalBalance: initial,
-    equity: initial + realizedPnl,
-    realizedPnl: realizedPnl,
-    unrealizedPnl: 25,
-    totalFees: 4,
-    totalTrades: trades,
-    winningTrades: trades > 0 ? 1 : 0,
-    losingTrades: 0,
-    winRatePct: trades > 0 ? 100 : 0,
-  );
+        id: 'acc1',
+        quoteCurrency: 'USDT',
+        initialBalance: initial,
+        availableBalance: invested == 0 ? initial : 8000,
+        invested: invested,
+        totalBalance: initial,
+        equity: initial + realizedPnl,
+        realizedPnl: realizedPnl,
+        unrealizedPnl: 25,
+        totalFees: 4,
+        totalTrades: trades,
+        winningTrades: trades > 0 ? 1 : 0,
+        losingTrades: 0,
+        winRatePct: trades > 0 ? 100 : 0,
+      );
 
   @override
   Future<List<PaperPosition>> listOpenPositions() async =>
@@ -571,34 +533,34 @@ class _FakePaperTradingRepository implements PaperTradingRepository {
 
   @override
   Future<PaperPerformance> getPerformance() async => PaperPerformance(
-    totalTrades: trades,
-    winningTrades: trades > 0 ? 1 : 0,
-    losingTrades: 0,
-    winRatePct: trades > 0 ? 100 : 0,
-    totalNetPnl: realizedPnl,
-    averageWin: 100,
-    averageLoss: 0,
-    profitFactor: 999.99,
-    bestTradePnl: 100,
-    worstTradePnl: 0,
-    totalFees: 4,
-    returnPct: 1,
-  );
+        totalTrades: trades,
+        winningTrades: trades > 0 ? 1 : 0,
+        losingTrades: 0,
+        winRatePct: trades > 0 ? 100 : 0,
+        totalNetPnl: realizedPnl,
+        averageWin: 100,
+        averageLoss: 0,
+        profitFactor: 999.99,
+        bestTradePnl: 100,
+        worstTradePnl: 0,
+        totalFees: 4,
+        returnPct: 1,
+      );
 
   @override
   Future<PaperPosition> closePosition(String id) async => const PaperPosition(
-    id: 'p0',
-    symbol: 'BTCUSDT',
-    side: PaperPositionSide.long,
-    quantity: 0.05,
-    entryPrice: 40000,
-    exitPrice: 40500,
-    realizedPnl: 23,
-    unrealizedPnl: 0,
-    unrealizedPnlPct: 0,
-    status: PaperPositionStatus.closed,
-    closeReason: PaperCloseReason.manual,
-  );
+        id: 'p0',
+        symbol: 'BTCUSDT',
+        side: PaperPositionSide.long,
+        quantity: 0.05,
+        entryPrice: 40000,
+        exitPrice: 40500,
+        realizedPnl: 23,
+        unrealizedPnl: 0,
+        unrealizedPnlPct: 0,
+        status: PaperPositionStatus.closed,
+        closeReason: PaperCloseReason.manual,
+      );
 
   @override
   Future<PaperAccount> resetAccount() async {

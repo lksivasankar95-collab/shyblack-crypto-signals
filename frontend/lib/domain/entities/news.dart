@@ -59,10 +59,7 @@ extension NewsCategoryLabel on NewsCategory {
 
   static NewsCategory parse(String? value) {
     if (value == null) return NewsCategory.other;
-    return switch (value
-        .toUpperCase()
-        .replaceAll('-', '_')
-        .replaceAll(' ', '_')) {
+    return switch (value.toUpperCase().replaceAll('-', '_').replaceAll(' ', '_')) {
       'REGULATION' => NewsCategory.regulation,
       'ETF' => NewsCategory.etf,
       'EXCHANGE' => NewsCategory.exchange,

@@ -73,21 +73,21 @@ class MarketTickerModel {
   }
 
   MarketTicker toEntity() => MarketTicker(
-    symbol: symbol,
-    name: name,
-    price: price,
-    change24h: change24h,
-    changePercent24h: changePercent24h,
-    volume24h: volume24h,
-    high24h: high24h,
-    low24h: low24h,
-    marketType: marketType,
-    exchangeSymbol: exchangeSymbol,
-    displaySymbol: displaySymbol,
-    baseAsset: baseAsset,
-    quoteAsset: quoteAsset,
-    contractType: contractType,
-  );
+        symbol: symbol,
+        name: name,
+        price: price,
+        change24h: change24h,
+        changePercent24h: changePercent24h,
+        volume24h: volume24h,
+        high24h: high24h,
+        low24h: low24h,
+        marketType: marketType,
+        exchangeSymbol: exchangeSymbol,
+        displaySymbol: displaySymbol,
+        baseAsset: baseAsset,
+        quoteAsset: quoteAsset,
+        contractType: contractType,
+      );
 
   static double _num(dynamic value) {
     if (value == null) {
@@ -132,14 +132,14 @@ class KlineCandleModel {
   }
 
   KlineCandle toEntity() => KlineCandle(
-    openTime: openTime,
-    open: open,
-    high: high,
-    low: low,
-    close: close,
-    volume: volume,
-    closeTime: closeTime,
-  );
+        openTime: openTime,
+        open: open,
+        high: high,
+        low: low,
+        close: close,
+        volume: volume,
+        closeTime: closeTime,
+      );
 
   static int _int(dynamic value) {
     if (value is int) {
@@ -163,21 +163,16 @@ class MarketSnapshotModel {
   final String? message;
   final List<MarketTickerModel> tickers;
 
-  factory MarketSnapshotModel.fromJson(
-    dynamic data, {
-    required TradingMode fallbackMode,
-  }) {
+  factory MarketSnapshotModel.fromJson(dynamic data, {required TradingMode fallbackMode}) {
     if (data is List) {
       return MarketSnapshotModel(
         mode: fallbackMode.apiParam,
         tickers: data
             .whereType<Map>()
-            .map(
-              (item) => MarketTickerModel.fromJson(
-                Map<String, dynamic>.from(item),
-                fallbackMode: fallbackMode,
-              ),
-            )
+            .map((item) => MarketTickerModel.fromJson(
+                  Map<String, dynamic>.from(item),
+                  fallbackMode: fallbackMode,
+                ))
             .toList(),
       );
     }
@@ -188,21 +183,19 @@ class MarketSnapshotModel {
       message: json['message']?.toString(),
       tickers: rawTickers is List
           ? rawTickers
-                .whereType<Map>()
-                .map(
-                  (item) => MarketTickerModel.fromJson(
+              .whereType<Map>()
+              .map((item) => MarketTickerModel.fromJson(
                     Map<String, dynamic>.from(item),
                     fallbackMode: fallbackMode,
-                  ),
-                )
-                .toList()
+                  ))
+              .toList()
           : const [],
     );
   }
 
   MarketSnapshot toEntity() => MarketSnapshot(
-    mode: mode,
-    message: message,
-    tickers: tickers.map((model) => model.toEntity()).toList(),
-  );
+        mode: mode,
+        message: message,
+        tickers: tickers.map((model) => model.toEntity()).toList(),
+      );
 }

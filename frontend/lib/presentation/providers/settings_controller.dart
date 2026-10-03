@@ -23,7 +23,6 @@ class SettingsController extends AsyncNotifier<AppSettings> {
   Future<void> logout() => ref.read(logoutUserProvider).call();
 }
 
-final settingsControllerProvider =
-    AsyncNotifierProvider<SettingsController, AppSettings>(
-      SettingsController.new,
-    );
+final settingsControllerProvider = AsyncNotifierProvider<SettingsController, AppSettings>(
+  SettingsController.new,
+);

@@ -10,9 +10,7 @@ class FuturesTradingRemoteDataSource {
 
   Future<Map<String, dynamic>?> getAccount() async {
     try {
-      final r = await _api.dio.get<Map<String, dynamic>>(
-        ApiConstants.futuresAccount,
-      );
+      final r = await _api.dio.get<Map<String, dynamic>>(ApiConstants.futuresAccount);
       return r.data;
     } on DioException catch (e) {
       if (e.response?.statusCode == 404) return null;
@@ -29,53 +27,39 @@ class FuturesTradingRemoteDataSource {
   }
 
   Future<Map<String, dynamic>> validate() async {
-    final r = await _api.dio.post<Map<String, dynamic>>(
-      ApiConstants.futuresConnectionValidate,
-    );
+    final r = await _api.dio.post<Map<String, dynamic>>(ApiConstants.futuresConnectionValidate);
     return r.data ?? const {};
   }
 
   Future<Map<String, dynamic>> disconnect() async {
-    final r = await _api.dio.delete<Map<String, dynamic>>(
-      ApiConstants.futuresConnection,
-    );
+    final r = await _api.dio.delete<Map<String, dynamic>>(ApiConstants.futuresConnection);
     return r.data ?? const {};
   }
 
   Future<Map<String, dynamic>> acknowledge(bool flag) async {
     final r = await _api.dio.post<Map<String, dynamic>>(
-      ApiConstants.futuresAcknowledge,
-      data: {'acknowledged': flag},
-    );
+      ApiConstants.futuresAcknowledge, data: {'acknowledged': flag});
     return r.data ?? const {};
   }
 
   Future<Map<String, dynamic>> activate(bool ack) async {
     final r = await _api.dio.post<Map<String, dynamic>>(
-      ApiConstants.futuresActivate,
-      data: {'acknowledged': ack},
-    );
+      ApiConstants.futuresActivate, data: {'acknowledged': ack});
     return r.data ?? const {};
   }
 
   Future<Map<String, dynamic>> deactivate() async {
-    final r = await _api.dio.post<Map<String, dynamic>>(
-      ApiConstants.futuresDeactivate,
-    );
+    final r = await _api.dio.post<Map<String, dynamic>>(ApiConstants.futuresDeactivate);
     return r.data ?? const {};
   }
 
   Future<Map<String, dynamic>> triggerKillSwitch() async {
-    final r = await _api.dio.post<Map<String, dynamic>>(
-      ApiConstants.futuresKillSwitch,
-    );
+    final r = await _api.dio.post<Map<String, dynamic>>(ApiConstants.futuresKillSwitch);
     return r.data ?? const {};
   }
 
   Future<Map<String, dynamic>> releaseKillSwitch() async {
-    final r = await _api.dio.delete<Map<String, dynamic>>(
-      ApiConstants.futuresKillSwitch,
-    );
+    final r = await _api.dio.delete<Map<String, dynamic>>(ApiConstants.futuresKillSwitch);
     return r.data ?? const {};
   }
 
@@ -90,9 +74,7 @@ class FuturesTradingRemoteDataSource {
   }
 
   Future<Map<String, dynamic>> cancelOrder(String id) async {
-    final r = await _api.dio.post<Map<String, dynamic>>(
-      ApiConstants.futuresCancel(id),
-    );
+    final r = await _api.dio.post<Map<String, dynamic>>(ApiConstants.futuresCancel(id));
     return r.data ?? const {};
   }
 
@@ -102,16 +84,12 @@ class FuturesTradingRemoteDataSource {
   }
 
   Future<List<Map<String, dynamic>>> listClosedPositions() async {
-    final r = await _api.dio.get<List<dynamic>>(
-      ApiConstants.futuresPositionsHistory,
-    );
+    final r = await _api.dio.get<List<dynamic>>(ApiConstants.futuresPositionsHistory);
     return (r.data ?? const []).whereType<Map<String, dynamic>>().toList();
   }
 
   Future<Map<String, dynamic>> closePosition(String id) async {
-    final r = await _api.dio.post<Map<String, dynamic>>(
-      ApiConstants.futuresClosePosition(id),
-    );
+    final r = await _api.dio.post<Map<String, dynamic>>(ApiConstants.futuresClosePosition(id));
     return r.data ?? const {};
   }
 }

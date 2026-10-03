@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -20,8 +20,7 @@ class ProfileScreen extends ConsumerWidget {
       appBar: AppBar(title: const Text('Profile')),
       body: asyncSettings.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stackTrace) =>
-            const Center(child: Text('Could not load profile')),
+        error: (error, stackTrace) => const Center(child: Text('Could not load profile')),
         data: (settings) => SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
           child: Column(
@@ -32,20 +31,9 @@ class ProfileScreen extends ConsumerWidget {
               SettingsCard(
                 child: Row(
                   children: [
-                    _StatCell(
-                      label: 'Member Since',
-                      value: settings.memberSince.isEmpty
-                          ? '—'
-                          : settings.memberSince,
-                    ),
-                    _StatCell(
-                      label: 'Membership',
-                      value: settings.membershipTier,
-                    ),
-                    _StatCell(
-                      label: 'Plan',
-                      value: settings.liveTradingAllowed ? 'Live' : 'Paper',
-                    ),
+                    _StatCell(label: 'Member Since', value: settings.memberSince.isEmpty ? '—' : settings.memberSince),
+                    _StatCell(label: 'Membership', value: settings.membershipTier),
+                    _StatCell(label: 'Plan', value: settings.liveTradingAllowed ? 'Live' : 'Paper'),
                   ],
                 ),
               ),
@@ -163,9 +151,7 @@ class ProfileScreen extends ConsumerWidget {
   }
 
   static void _soon(BuildContext context, String title) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => ComingSoonScreen(title: title)),
-    );
+    Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => ComingSoonScreen(title: title)));
   }
 
   static Future<void> _editText(
@@ -188,10 +174,7 @@ class ProfileScreen extends ConsumerWidget {
           decoration: const InputDecoration(hintText: 'Enter value'),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
           TextButton(
             onPressed: () => Navigator.pop(context, controller.text.trim()),
             child: const Text('Save'),
@@ -221,21 +204,14 @@ class _Header extends StatelessWidget {
             CircleAvatar(
               radius: 40,
               backgroundColor: AppColors.accent.withValues(alpha: 0.18),
-              child: const Icon(
-                Icons.person,
-                color: AppColors.accent,
-                size: 42,
-              ),
+              child: const Icon(Icons.person, color: AppColors.accent, size: 42),
             ),
             Positioned(
               right: 0,
               bottom: 0,
               child: Container(
                 padding: const EdgeInsets.all(4),
-                decoration: const BoxDecoration(
-                  color: AppColors.accent,
-                  shape: BoxShape.circle,
-                ),
+                decoration: const BoxDecoration(color: AppColors.accent, shape: BoxShape.circle),
                 child: const Icon(Icons.edit, size: 14, color: Colors.black),
               ),
             ),
@@ -247,11 +223,7 @@ class _Header extends StatelessWidget {
           children: [
             Text(
               settings.fullName,
-              style: const TextStyle(
-                color: AppColors.onBackground,
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-              ),
+              style: const TextStyle(color: AppColors.onBackground, fontSize: 20, fontWeight: FontWeight.w800),
             ),
             const SizedBox(width: 8),
             PremiumBadge(label: settings.membershipTier),
@@ -261,10 +233,7 @@ class _Header extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
-              'ID ${settings.memberId}',
-              style: const TextStyle(color: AppColors.muted, fontSize: 13),
-            ),
+            Text('ID ${settings.memberId}', style: const TextStyle(color: AppColors.muted, fontSize: 13)),
             IconButton(
               visualDensity: VisualDensity.compact,
               onPressed: () async {
@@ -295,19 +264,12 @@ class _StatCell extends StatelessWidget {
     return Expanded(
       child: Column(
         children: [
-          Text(
-            label,
-            style: const TextStyle(color: AppColors.muted, fontSize: 11),
-          ),
+          Text(label, style: const TextStyle(color: AppColors.muted, fontSize: 11)),
           const SizedBox(height: 6),
           Text(
             value,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: AppColors.onBackground,
-              fontWeight: FontWeight.w700,
-              fontSize: 13,
-            ),
+            style: const TextStyle(color: AppColors.onBackground, fontWeight: FontWeight.w700, fontSize: 13),
           ),
         ],
       ),
@@ -347,11 +309,7 @@ class _ActionButton extends StatelessWidget {
               Text(
                 label,
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: danger ? AppColors.loss : AppColors.onCard,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 12,
-                ),
+                style: TextStyle(color: danger ? AppColors.loss : AppColors.onCard, fontWeight: FontWeight.w700, fontSize: 12),
               ),
             ],
           ),

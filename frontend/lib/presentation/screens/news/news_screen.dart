@@ -46,21 +46,21 @@ class _NewsScreenState extends ConsumerState<NewsScreen> {
   }
 
   void _applyFilters() {
-    ref
-        .read(newsFeedControllerProvider.notifier)
-        .applyFilters(
-          category: _category,
-          sentiment: _sentiment,
-          impact: _impact,
-          query: _query.isEmpty ? null : _query,
-        );
+    ref.read(newsFeedControllerProvider.notifier).applyFilters(
+      category: _category,
+      sentiment: _sentiment,
+      impact: _impact,
+      query: _query.isEmpty ? null : _query,
+    );
   }
 
   void _openArticle(NewsArticle article) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) =>
-            NewsDetailScreen(articleId: article.id, initial: article),
+        builder: (_) => NewsDetailScreen(
+          articleId: article.id,
+          initial: article,
+        ),
       ),
     );
   }
@@ -138,19 +138,11 @@ class _SearchField extends StatelessWidget {
         decoration: InputDecoration(
           hintText: 'Search news',
           hintStyle: const TextStyle(color: AppColors.muted),
-          prefixIcon: const Icon(
-            Icons.search,
-            color: AppColors.muted,
-            size: 20,
-          ),
+          prefixIcon: const Icon(Icons.search, color: AppColors.muted, size: 20),
           suffixIcon: controller.text.isEmpty
               ? null
               : IconButton(
-                  icon: const Icon(
-                    Icons.close,
-                    color: AppColors.muted,
-                    size: 18,
-                  ),
+                  icon: const Icon(Icons.close, color: AppColors.muted, size: 18),
                   onPressed: onClear,
                 ),
           filled: true,
@@ -190,16 +182,17 @@ class _FilterRow extends StatelessWidget {
         runSpacing: 8,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          _chipAll(selected: sentiment == null, onTap: () => onSentiment(null)),
+          _chipAll(
+            selected: sentiment == null,
+            onTap: () => onSentiment(null),
+          ),
           for (final value in NewsSentiment.values)
             ChoiceChip(
               label: Text(value.label),
               selected: sentiment == value,
               onSelected: (_) => onSentiment(value),
               labelStyle: TextStyle(
-                color: sentiment == value
-                    ? AppColors.background
-                    : AppColors.muted,
+                color: sentiment == value ? AppColors.background : AppColors.muted,
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
               ),
@@ -233,7 +226,10 @@ class _FilterRow extends StatelessWidget {
             color: AppColors.card,
             onSelected: onCategory,
             itemBuilder: (_) => [
-              const PopupMenuItem(value: null, child: Text('All categories')),
+              const PopupMenuItem(
+                value: null,
+                child: Text('All categories'),
+              ),
               for (final value in NewsCategory.values)
                 PopupMenuItem(value: value, child: Text(value.label)),
             ],

@@ -1,10 +1,4 @@
-enum LiveConnectionStatus {
-  notConnected,
-  connecting,
-  connected,
-  failed,
-  revoked,
-}
+enum LiveConnectionStatus { notConnected, connecting, connected, failed, revoked }
 
 enum LiveExchange { binance, bybit, okx, coinbase }
 
@@ -39,8 +33,6 @@ class LiveAccount {
   final DateTime? lastValidatedAt;
   final String? lastValidationMessage;
 
-  bool get isTradingReady =>
-      enabled &&
-      !killSwitchActive &&
-      connectionStatus == LiveConnectionStatus.connected;
+  bool get isTradingReady => enabled && !killSwitchActive
+      && connectionStatus == LiveConnectionStatus.connected;
 }

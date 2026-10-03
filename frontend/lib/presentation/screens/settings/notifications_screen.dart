@@ -13,8 +13,7 @@ class NotificationsScreen extends ConsumerStatefulWidget {
   const NotificationsScreen({super.key});
 
   @override
-  ConsumerState<NotificationsScreen> createState() =>
-      _NotificationsScreenState();
+  ConsumerState<NotificationsScreen> createState() => _NotificationsScreenState();
 }
 
 class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
@@ -48,10 +47,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to save: $e'),
-            backgroundColor: AppColors.loss,
-          ),
+          SnackBar(content: Text('Failed to save: $e'), backgroundColor: AppColors.loss),
         );
       }
     } finally {
@@ -71,19 +67,12 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
           if (_saving)
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 16),
-              child: SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
+              child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
             )
           else
             TextButton(
               onPressed: _save,
-              child: const Text(
-                'Save',
-                style: TextStyle(color: AppColors.accent),
-              ),
+              child: const Text('Save', style: TextStyle(color: AppColors.accent)),
             ),
         ],
       ),
@@ -93,15 +82,9 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
-                'Could not load preferences',
-                style: TextStyle(color: AppColors.muted),
-              ),
+              const Text('Could not load preferences', style: TextStyle(color: AppColors.muted)),
               const SizedBox(height: 12),
-              TextButton(
-                onPressed: () => ref.invalidate(_notifPrefsProvider),
-                child: const Text('Retry'),
-              ),
+              TextButton(onPressed: () => ref.invalidate(_notifPrefsProvider), child: const Text('Retry')),
             ],
           ),
         ),
@@ -122,24 +105,21 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                         title: 'Signal Alerts',
                         subtitle: 'Receive all trading signal notifications',
                         value: _prefs['signalsEnabled'] ?? true,
-                        onChanged: (v) =>
-                            setState(() => _prefs['signalsEnabled'] = v),
+                        onChanged: (v) => setState(() => _prefs['signalsEnabled'] = v),
                       ),
                       _PrefTile(
                         icon: Icons.trending_up,
                         title: 'BUY Alerts',
                         subtitle: 'Notify on BUY signals',
                         value: _prefs['buyAlertsEnabled'] ?? true,
-                        onChanged: (v) =>
-                            setState(() => _prefs['buyAlertsEnabled'] = v),
+                        onChanged: (v) => setState(() => _prefs['buyAlertsEnabled'] = v),
                       ),
                       _PrefTile(
                         icon: Icons.trending_down,
                         title: 'SELL Alerts',
                         subtitle: 'Notify on SELL signals',
                         value: _prefs['sellAlertsEnabled'] ?? true,
-                        onChanged: (v) =>
-                            setState(() => _prefs['sellAlertsEnabled'] = v),
+                        onChanged: (v) => setState(() => _prefs['sellAlertsEnabled'] = v),
                       ),
                     ],
                   ),
@@ -154,16 +134,14 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                         title: 'News Alerts',
                         subtitle: 'High-impact news notifications',
                         value: _prefs['newsAlertsEnabled'] ?? true,
-                        onChanged: (v) =>
-                            setState(() => _prefs['newsAlertsEnabled'] = v),
+                        onChanged: (v) => setState(() => _prefs['newsAlertsEnabled'] = v),
                       ),
                       _PrefTile(
                         icon: Icons.info_outline,
                         title: 'System Alerts',
                         subtitle: 'App updates and system messages',
                         value: _prefs['systemAlertsEnabled'] ?? true,
-                        onChanged: (v) =>
-                            setState(() => _prefs['systemAlertsEnabled'] = v),
+                        onChanged: (v) => setState(() => _prefs['systemAlertsEnabled'] = v),
                       ),
                     ],
                   ),
@@ -206,18 +184,8 @@ class _PrefTile extends StatelessWidget {
       dense: true,
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       leading: Icon(icon, color: AppColors.accent, size: 22),
-      title: Text(
-        title,
-        style: const TextStyle(
-          color: AppColors.onCard,
-          fontWeight: FontWeight.w600,
-          fontSize: 14,
-        ),
-      ),
-      subtitle: Text(
-        subtitle,
-        style: const TextStyle(color: AppColors.muted, fontSize: 12),
-      ),
+      title: Text(title, style: const TextStyle(color: AppColors.onCard, fontWeight: FontWeight.w600, fontSize: 14)),
+      subtitle: Text(subtitle, style: const TextStyle(color: AppColors.muted, fontSize: 12)),
       trailing: Switch(
         value: value,
         onChanged: onChanged,

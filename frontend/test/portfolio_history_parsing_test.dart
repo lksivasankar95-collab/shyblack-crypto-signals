@@ -62,19 +62,16 @@ void main() {
       );
     });
 
-    test(
-      'a genuinely empty but supported wallet is not flagged unsupported',
-      () {
-        final holdings = PortfolioAccountModel.holdingsFromJson({
-          'accountMode': 'LIVE',
-          'accountCategory': 'SPOT',
-          'availability': 'AVAILABLE',
-          'holdings': <dynamic>[],
-        });
+    test('a genuinely empty but supported wallet is not flagged unsupported', () {
+      final holdings = PortfolioAccountModel.holdingsFromJson({
+        'accountMode': 'LIVE',
+        'accountCategory': 'SPOT',
+        'availability': 'AVAILABLE',
+        'holdings': <dynamic>[],
+      });
 
-        expect(holdings.isEmptyBecauseUnsupported, isFalse);
-      },
-    );
+      expect(holdings.isEmptyBecauseUnsupported, isFalse);
+    });
   });
 
   group('history parsing', () {
@@ -203,28 +200,25 @@ void main() {
       expect(history.entries.single.realizedPnl, 55.25);
     });
 
-    test(
-      'a non numeric numeric field stays null rather than becoming zero',
-      () {
-        final history = PortfolioAccountModel.historyFromJson({
-          'accountMode': 'LIVE',
-          'accountCategory': 'SPOT',
-          'availability': 'AVAILABLE',
-          'entries': [
-            {
-              'entryType': 'ORDER',
-              'price': 'not-a-number',
-              'quantity': null,
-              'orderId': '7',
-            },
-          ],
-        });
+    test('a non numeric numeric field stays null rather than becoming zero', () {
+      final history = PortfolioAccountModel.historyFromJson({
+        'accountMode': 'LIVE',
+        'accountCategory': 'SPOT',
+        'availability': 'AVAILABLE',
+        'entries': [
+          {
+            'entryType': 'ORDER',
+            'price': 'not-a-number',
+            'quantity': null,
+            'orderId': '7',
+          },
+        ],
+      });
 
-        expect(history.entries.single.price, isNull);
-        expect(history.entries.single.quantity, isNull);
-        expect(history.entries.single.orderId, 7);
-      },
-    );
+      expect(history.entries.single.price, isNull);
+      expect(history.entries.single.quantity, isNull);
+      expect(history.entries.single.orderId, 7);
+    });
 
     test('an unavailable scope is not an account with no activity', () {
       final history = PortfolioAccountModel.historyFromJson({
@@ -293,10 +287,7 @@ void main() {
     });
 
     test('an unknown type falls back to orders rather than throwing', () {
-      expect(
-        PortfolioHistoryType.parse('NONSENSE'),
-        PortfolioHistoryType.order,
-      );
+      expect(PortfolioHistoryType.parse('NONSENSE'), PortfolioHistoryType.order);
       expect(PortfolioHistoryType.parse(null), PortfolioHistoryType.order);
     });
   });

@@ -18,12 +18,7 @@ class SignalPreferencesScreen extends ConsumerWidget {
       appBar: AppBar(title: const Text('Signal Preferences')),
       body: asyncSettings.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => const Center(
-          child: Text(
-            'Could not load settings',
-            style: TextStyle(color: AppColors.muted),
-          ),
-        ),
+        error: (e, _) => const Center(child: Text('Could not load settings', style: TextStyle(color: AppColors.muted))),
         data: (settings) => SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -40,10 +35,7 @@ class SignalPreferencesScreen extends ConsumerWidget {
                       subtitle: _riskDescription(settings.riskProfile),
                       trailing: Text(
                         settings.riskProfile.label,
-                        style: const TextStyle(
-                          color: AppColors.muted,
-                          fontSize: 12,
-                        ),
+                        style: const TextStyle(color: AppColors.muted, fontSize: 12),
                       ),
                       onTap: () => _pickRisk(context, ref, settings),
                     ),
@@ -53,10 +45,7 @@ class SignalPreferencesScreen extends ConsumerWidget {
                       subtitle: 'How position size is calculated',
                       trailing: Text(
                         settings.positionSizingMode.label,
-                        style: const TextStyle(
-                          color: AppColors.muted,
-                          fontSize: 12,
-                        ),
+                        style: const TextStyle(color: AppColors.muted, fontSize: 12),
                       ),
                       onTap: () => _pickSizing(context, ref, settings),
                     ),
@@ -101,16 +90,12 @@ class SignalPreferencesScreen extends ConsumerWidget {
   }
 
   String _riskDescription(RiskProfile risk) => switch (risk) {
-    RiskProfile.conservative => '~1% risk per trade',
-    RiskProfile.moderate => '~2% risk per trade',
-    RiskProfile.aggressive => '~3% risk per trade',
-  };
+        RiskProfile.conservative => '~1% risk per trade',
+        RiskProfile.moderate => '~2% risk per trade',
+        RiskProfile.aggressive => '~3% risk per trade',
+      };
 
-  Future<void> _pickRisk(
-    BuildContext context,
-    WidgetRef ref,
-    AppSettings settings,
-  ) async {
+  Future<void> _pickRisk(BuildContext context, WidgetRef ref, AppSettings settings) async {
     final next = await showDialog<RiskProfile>(
       context: context,
       builder: (context) => AlertDialog(
@@ -118,38 +103,20 @@ class SignalPreferencesScreen extends ConsumerWidget {
         title: const Text('Risk Profile'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
-          children: RiskProfile.values
-              .map(
-                (r) => ListTile(
-                  title: Text(r.label),
-                  subtitle: Text(
-                    _riskDescription(r),
-                    style: const TextStyle(
-                      color: AppColors.muted,
-                      fontSize: 12,
-                    ),
-                  ),
-                  trailing: r == settings.riskProfile
-                      ? const Icon(Icons.check, color: AppColors.accent)
-                      : null,
-                  onTap: () => Navigator.pop(context, r),
-                ),
-              )
-              .toList(),
+          children: RiskProfile.values.map((r) => ListTile(
+            title: Text(r.label),
+            subtitle: Text(_riskDescription(r), style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+            trailing: r == settings.riskProfile ? const Icon(Icons.check, color: AppColors.accent) : null,
+            onTap: () => Navigator.pop(context, r),
+          )).toList(),
         ),
       ),
     );
     if (next == null) return;
-    await ref
-        .read(settingsControllerProvider.notifier)
-        .patch(settings.copyWith(riskProfile: next));
+    await ref.read(settingsControllerProvider.notifier).patch(settings.copyWith(riskProfile: next));
   }
 
-  Future<void> _pickSizing(
-    BuildContext context,
-    WidgetRef ref,
-    AppSettings settings,
-  ) async {
+  Future<void> _pickSizing(BuildContext context, WidgetRef ref, AppSettings settings) async {
     final next = await showDialog<PositionSizingMode>(
       context: context,
       builder: (context) => AlertDialog(
@@ -157,24 +124,16 @@ class SignalPreferencesScreen extends ConsumerWidget {
         title: const Text('Position Sizing'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
-          children: PositionSizingMode.values
-              .map(
-                (m) => ListTile(
-                  title: Text(m.label),
-                  trailing: m == settings.positionSizingMode
-                      ? const Icon(Icons.check, color: AppColors.accent)
-                      : null,
-                  onTap: () => Navigator.pop(context, m),
-                ),
-              )
-              .toList(),
+          children: PositionSizingMode.values.map((m) => ListTile(
+            title: Text(m.label),
+            trailing: m == settings.positionSizingMode ? const Icon(Icons.check, color: AppColors.accent) : null,
+            onTap: () => Navigator.pop(context, m),
+          )).toList(),
         ),
       ),
     );
     if (next == null) return;
-    await ref
-        .read(settingsControllerProvider.notifier)
-        .patch(settings.copyWith(positionSizingMode: next));
+    await ref.read(settingsControllerProvider.notifier).patch(settings.copyWith(positionSizingMode: next));
   }
 }
 
@@ -187,19 +146,9 @@ class _InfoRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Text(
-          label,
-          style: const TextStyle(color: AppColors.muted, fontSize: 13),
-        ),
+        Text(label, style: const TextStyle(color: AppColors.muted, fontSize: 13)),
         const Spacer(),
-        Text(
-          value,
-          style: const TextStyle(
-            color: AppColors.onBackground,
-            fontWeight: FontWeight.w600,
-            fontSize: 13,
-          ),
-        ),
+        Text(value, style: const TextStyle(color: AppColors.onBackground, fontWeight: FontWeight.w600, fontSize: 13)),
       ],
     );
   }

@@ -37,9 +37,7 @@ class FuturesTradingRepositoryImpl implements FuturesTradingRepository {
 
   @override
   Future<FuturesAccount> activate({required bool acknowledged}) async =>
-      FuturesAccountModel.fromJson(
-        await _remote.activate(acknowledged),
-      ).account;
+      FuturesAccountModel.fromJson(await _remote.activate(acknowledged)).account;
 
   @override
   Future<FuturesAccount> deactivate() async =>
@@ -55,15 +53,11 @@ class FuturesTradingRepositoryImpl implements FuturesTradingRepository {
 
   @override
   Future<List<FuturesOrder>> listOpenOrders() async =>
-      (await _remote.listOpenOrders())
-          .map((r) => FuturesOrderModel.fromJson(r).order)
-          .toList();
+      (await _remote.listOpenOrders()).map((r) => FuturesOrderModel.fromJson(r).order).toList();
 
   @override
   Future<List<FuturesOrder>> listHistory() async =>
-      (await _remote.listHistory())
-          .map((r) => FuturesOrderModel.fromJson(r).order)
-          .toList();
+      (await _remote.listHistory()).map((r) => FuturesOrderModel.fromJson(r).order).toList();
 
   @override
   Future<FuturesOrder> cancelOrder(String id) async =>
@@ -71,15 +65,11 @@ class FuturesTradingRepositoryImpl implements FuturesTradingRepository {
 
   @override
   Future<List<FuturesPosition>> listOpenPositions() async =>
-      (await _remote.listOpenPositions())
-          .map((r) => FuturesPositionModel.fromJson(r).position)
-          .toList();
+      (await _remote.listOpenPositions()).map((r) => FuturesPositionModel.fromJson(r).position).toList();
 
   @override
   Future<List<FuturesPosition>> listClosedPositions() async =>
-      (await _remote.listClosedPositions())
-          .map((r) => FuturesPositionModel.fromJson(r).position)
-          .toList();
+      (await _remote.listClosedPositions()).map((r) => FuturesPositionModel.fromJson(r).position).toList();
 
   @override
   Future<FuturesOrder> closePosition(String id) async =>

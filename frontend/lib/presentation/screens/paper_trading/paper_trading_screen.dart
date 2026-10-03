@@ -26,9 +26,8 @@ class PaperTradingScreen extends ConsumerWidget {
             onRetry: () => ref.invalidate(paperTradingControllerProvider),
           ),
           data: (view) => RefreshIndicator(
-            onRefresh: () => ref
-                .read(paperTradingControllerProvider.notifier)
-                .refresh(silent: false),
+            onRefresh: () =>
+                ref.read(paperTradingControllerProvider.notifier).refresh(silent: false),
             child: DefaultTabController(
               length: 3,
               child: Column(
@@ -100,16 +99,11 @@ class _AccountHeader extends ConsumerWidget {
                 ),
                 const Spacer(),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
                     color: AppColors.accent.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(6),
-                    border: Border.all(
-                      color: AppColors.accent.withValues(alpha: 0.4),
-                    ),
+                    border: Border.all(color: AppColors.accent.withValues(alpha: 0.4)),
                   ),
                   child: const Text(
                     'SIMULATION',
@@ -143,37 +137,22 @@ class _AccountHeader extends ConsumerWidget {
               children: [
                 Text(
                   '${pnl >= 0 ? '+' : ''}${pnl.toStringAsFixed(2)} P&L',
-                  style: TextStyle(
-                    color: pnlColor,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: TextStyle(color: pnlColor, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(width: 12),
                 Text(
                   '${account.returnPct >= 0 ? '+' : ''}${account.returnPct.toStringAsFixed(2)}%',
-                  style: TextStyle(
-                    color: pnlColor,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: TextStyle(color: pnlColor, fontWeight: FontWeight.w700),
                 ),
               ],
             ),
             const SizedBox(height: 12),
             Row(
               children: [
-                _Kpi(
-                  label: 'Available',
-                  value: account.availableBalance.toStringAsFixed(2),
-                ),
-                _Kpi(
-                  label: 'Invested',
-                  value: account.invested.toStringAsFixed(2),
-                ),
+                _Kpi(label: 'Available', value: account.availableBalance.toStringAsFixed(2)),
+                _Kpi(label: 'Invested', value: account.invested.toStringAsFixed(2)),
                 _Kpi(label: 'Trades', value: '${account.totalTrades}'),
-                _Kpi(
-                  label: 'Win %',
-                  value: account.winRatePct.toStringAsFixed(1),
-                ),
+                _Kpi(label: 'Win %', value: account.winRatePct.toStringAsFixed(1)),
               ],
             ),
             const SizedBox(height: 10),
@@ -181,18 +160,15 @@ class _AccountHeader extends ConsumerWidget {
             const SizedBox(height: 4),
             Row(
               children: [
-                const Text(
-                  'Initial Capital',
-                  style: TextStyle(color: AppColors.muted, fontSize: 11),
-                ),
+                const Text('Initial Capital',
+                    style: TextStyle(color: AppColors.muted, fontSize: 11)),
                 const SizedBox(width: 8),
                 Text(
                   '${account.initialBalance.toStringAsFixed(2)} ${account.quoteCurrency}',
                   style: const TextStyle(
-                    color: AppColors.onBackground,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
-                  ),
+                      color: AppColors.onBackground,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13),
                 ),
                 const Spacer(),
                 TextButton.icon(
@@ -224,10 +200,7 @@ class _AccountHeader extends ConsumerWidget {
           'Trade history is preserved.',
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogCtx, false),
-            child: const Text('Cancel'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(dialogCtx, false), child: const Text('Cancel')),
           TextButton(
             onPressed: () => Navigator.pop(dialogCtx, true),
             child: const Text('RESET', style: TextStyle(color: AppColors.loss)),
@@ -239,9 +212,9 @@ class _AccountHeader extends ConsumerWidget {
     try {
       await ref.read(paperTradingControllerProvider.notifier).resetAccount();
       if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Paper account reset')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Paper account reset')),
+      );
     } catch (e) {
       debugPrint('paper account reset failed: $e');
       if (!context.mounted) return;
@@ -289,21 +262,16 @@ class _AccountHeader extends ConsumerWidget {
     if (value == null || !value.isFinite || value <= 0) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Enter a positive amount'),
-          backgroundColor: AppColors.loss,
-        ),
+        const SnackBar(content: Text('Enter a positive amount'), backgroundColor: AppColors.loss),
       );
       return;
     }
     try {
-      await ref
-          .read(paperTradingControllerProvider.notifier)
-          .updateInitialCapital(value);
+      await ref.read(paperTradingControllerProvider.notifier).updateInitialCapital(value);
       if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Initial capital updated')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Initial capital updated')),
+      );
     } catch (e) {
       // Keep the raw cause in debug logs only — never render it to the user.
       debugPrint('paper capital update failed: $e');
@@ -314,9 +282,7 @@ class _AccountHeader extends ConsumerWidget {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text(
-              'Unable to update initial capital. Please try again.',
-            ),
+            content: Text('Unable to update initial capital. Please try again.'),
             backgroundColor: AppColors.loss,
           ),
         );
@@ -324,10 +290,7 @@ class _AccountHeader extends ConsumerWidget {
     }
   }
 
-  Future<void> _showCapitalLockedDialog(
-    BuildContext context,
-    WidgetRef ref,
-  ) async {
+  Future<void> _showCapitalLockedDialog(BuildContext context, WidgetRef ref) async {
     final reset = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -335,10 +298,7 @@ class _AccountHeader extends ConsumerWidget {
         title: const Text("Can't change initial capital"),
         content: const Text(_capitalLockedMessage),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Reset Account'),
@@ -351,9 +311,7 @@ class _AccountHeader extends ConsumerWidget {
       await ref.read(paperTradingControllerProvider.notifier).resetAccount();
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Paper account reset — set your new initial capital'),
-        ),
+        const SnackBar(content: Text('Paper account reset — set your new initial capital')),
       );
     } catch (e) {
       debugPrint('paper account reset failed: $e');
@@ -381,9 +339,8 @@ class _CapitalDialog extends StatefulWidget {
 }
 
 class _CapitalDialogState extends State<_CapitalDialog> {
-  late final TextEditingController _controller = TextEditingController(
-    text: widget.initial.toStringAsFixed(2),
-  );
+  late final TextEditingController _controller =
+      TextEditingController(text: widget.initial.toStringAsFixed(2));
 
   @override
   void dispose() {
@@ -406,10 +363,7 @@ class _CapitalDialogState extends State<_CapitalDialog> {
         ),
       ),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
         TextButton(
           onPressed: () => Navigator.pop(context, _controller.text.trim()),
           child: const Text('Save'),
@@ -430,19 +384,13 @@ class _Kpi extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: const TextStyle(color: AppColors.muted, fontSize: 11),
-          ),
+          Text(label, style: const TextStyle(color: AppColors.muted, fontSize: 11)),
           const SizedBox(height: 2),
-          Text(
-            value,
-            style: const TextStyle(
-              color: AppColors.onBackground,
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
+          Text(value,
+              style: const TextStyle(
+                  color: AppColors.onBackground,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700)),
         ],
       ),
     );
@@ -458,8 +406,7 @@ class _OpenPositionsTab extends ConsumerWidget {
     if (view.openPositions.isEmpty) {
       return const _EmptyState(
         icon: Icons.hourglass_empty,
-        message:
-            'No open paper positions.\nA new signal will open one automatically.',
+        message: 'No open paper positions.\nA new signal will open one automatically.',
       );
     }
     return ListView.separated(
@@ -473,24 +420,15 @@ class _OpenPositionsTab extends ConsumerWidget {
     );
   }
 
-  Future<void> _confirmClose(
-    BuildContext context,
-    WidgetRef ref,
-    PaperPosition p,
-  ) async {
+  Future<void> _confirmClose(BuildContext context, WidgetRef ref, PaperPosition p) async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (dialogCtx) => AlertDialog(
         backgroundColor: AppColors.card,
         title: Text('Close ${p.symbol}?'),
-        content: const Text(
-          'The position will close at the current market price.',
-        ),
+        content: const Text('The position will close at the current market price.'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogCtx, false),
-            child: const Text('Cancel'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(dialogCtx, false), child: const Text('Cancel')),
           TextButton(
             onPressed: () => Navigator.pop(dialogCtx, true),
             child: const Text('CLOSE', style: TextStyle(color: AppColors.loss)),
@@ -500,13 +438,11 @@ class _OpenPositionsTab extends ConsumerWidget {
     );
     if (ok != true) return;
     try {
-      await ref
-          .read(paperTradingControllerProvider.notifier)
-          .closePosition(p.id);
+      await ref.read(paperTradingControllerProvider.notifier).closePosition(p.id);
       if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('${p.symbol} closed')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${p.symbol} closed')),
+      );
     } catch (e) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -548,63 +484,29 @@ class _StatsTab extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
       children: [
-        _StatCard(
-          rows: [
-            _StatRow(
-              label: 'Total trades',
-              value: '${performance.totalTrades}',
-            ),
-            _StatRow(label: 'Winning', value: '${performance.winningTrades}'),
-            _StatRow(label: 'Losing', value: '${performance.losingTrades}'),
-            _StatRow(
-              label: 'Win rate',
-              value: '${performance.winRatePct.toStringAsFixed(1)}%',
-            ),
-          ],
-        ),
+        _StatCard(rows: [
+          _StatRow(label: 'Total trades', value: '${performance.totalTrades}'),
+          _StatRow(label: 'Winning', value: '${performance.winningTrades}'),
+          _StatRow(label: 'Losing', value: '${performance.losingTrades}'),
+          _StatRow(label: 'Win rate', value: '${performance.winRatePct.toStringAsFixed(1)}%'),
+        ]),
         const SizedBox(height: 10),
-        _StatCard(
-          rows: [
-            _StatRow(
+        _StatCard(rows: [
+          _StatRow(
               label: 'Net P&L',
               value: '${pnl >= 0 ? '+' : ''}${pnl.toStringAsFixed(2)}',
-              color: pnlColor,
-            ),
-            _StatRow(
-              label: 'Average win',
-              value: performance.averageWin.toStringAsFixed(2),
-            ),
-            _StatRow(
-              label: 'Average loss',
-              value: performance.averageLoss.toStringAsFixed(2),
-            ),
-            _StatRow(
-              label: 'Profit factor',
-              value: performance.profitFactor.toStringAsFixed(2),
-            ),
-          ],
-        ),
+              color: pnlColor),
+          _StatRow(label: 'Average win', value: performance.averageWin.toStringAsFixed(2)),
+          _StatRow(label: 'Average loss', value: performance.averageLoss.toStringAsFixed(2)),
+          _StatRow(label: 'Profit factor', value: performance.profitFactor.toStringAsFixed(2)),
+        ]),
         const SizedBox(height: 10),
-        _StatCard(
-          rows: [
-            _StatRow(
-              label: 'Best trade',
-              value: performance.bestTradePnl.toStringAsFixed(2),
-            ),
-            _StatRow(
-              label: 'Worst trade',
-              value: performance.worstTradePnl.toStringAsFixed(2),
-            ),
-            _StatRow(
-              label: 'Total fees',
-              value: performance.totalFees.toStringAsFixed(2),
-            ),
-            _StatRow(
-              label: 'Return',
-              value: '${performance.returnPct.toStringAsFixed(2)}%',
-            ),
-          ],
-        ),
+        _StatCard(rows: [
+          _StatRow(label: 'Best trade', value: performance.bestTradePnl.toStringAsFixed(2)),
+          _StatRow(label: 'Worst trade', value: performance.worstTradePnl.toStringAsFixed(2)),
+          _StatRow(label: 'Total fees', value: performance.totalFees.toStringAsFixed(2)),
+          _StatRow(label: 'Return', value: '${performance.returnPct.toStringAsFixed(2)}%'),
+        ]),
       ],
     );
   }
@@ -639,19 +541,14 @@ class _StatRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
-          Text(
-            label,
-            style: const TextStyle(color: AppColors.muted, fontSize: 13),
-          ),
+          Text(label, style: const TextStyle(color: AppColors.muted, fontSize: 13)),
           const Spacer(),
-          Text(
-            value,
-            style: TextStyle(
-              color: color ?? AppColors.onCard,
-              fontWeight: FontWeight.w700,
-              fontSize: 14,
-            ),
-          ),
+          Text(value,
+              style: TextStyle(
+                color: color ?? AppColors.onCard,
+                fontWeight: FontWeight.w700,
+                fontSize: 14,
+              )),
         ],
       ),
     );
@@ -675,16 +572,12 @@ class _PositionCard extends ConsumerWidget {
     // resolved on this position's own market server-side.
     final livePrice = ref.watch(
       marketPricesControllerProvider.select(
-        (async) => async.value?.priceFor(
-          position.effectiveTradingMode,
-          position.symbol,
-        ),
+        (async) => async.value?.priceFor(position.effectiveTradingMode, position.symbol),
       ),
     );
     final liveConnected = ref.watch(
       marketPricesControllerProvider.select(
-        (async) =>
-            async.value?.isConnected(position.effectiveTradingMode) ?? false,
+        (async) => async.value?.isConnected(position.effectiveTradingMode) ?? false,
       ),
     );
     final current = livePrice ?? position.currentPrice;
@@ -692,16 +585,13 @@ class _PositionCard extends ConsumerWidget {
     final qty = position.quantity;
     final double unrealized = (current == null)
         ? position.unrealizedPnl
-        : (position.side == PaperPositionSide.long
-                  ? current - entry
-                  : entry - current) *
-              qty;
+        : (position.side == PaperPositionSide.long ? current - entry : entry - current) * qty;
     final pnl = isOpen ? unrealized : position.realizedPnl;
     final pnlPct = !isOpen
         ? 0.0
         : (position.notional != null && position.notional != 0
-              ? (unrealized / position.notional!) * 100
-              : position.unrealizedPnlPct);
+            ? (unrealized / position.notional!) * 100
+            : position.unrealizedPnlPct);
     final pnlColor = pnl >= 0 ? AppColors.profit : AppColors.loss;
     final marketType = (position.marketType ?? '—').toUpperCase();
     final isFutures = marketType == 'FUTURES';
@@ -726,15 +616,10 @@ class _PositionCard extends ConsumerWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              _Badge(
-                text: marketType,
-                color: isFutures ? AppColors.loss : AppColors.accent,
-              ),
+              _Badge(text: marketType, color: isFutures ? AppColors.loss : AppColors.accent),
               const SizedBox(width: 6),
               _Badge(
-                text: position.side == PaperPositionSide.long
-                    ? 'LONG'
-                    : 'SHORT',
+                text: position.side == PaperPositionSide.long ? 'LONG' : 'SHORT',
                 color: AppColors.accent,
               ),
               const Spacer(),
@@ -757,9 +642,7 @@ class _PositionCard extends ConsumerWidget {
                 _Meta(
                   label: 'Price Feed',
                   value: liveConnected ? '● LIVE' : '○ OFFLINE',
-                  valueColor: liveConnected
-                      ? AppColors.profit
-                      : AppColors.muted,
+                  valueColor: liveConnected ? AppColors.profit : AppColors.muted,
                 ),
             ],
           ),
@@ -769,11 +652,7 @@ class _PositionCard extends ConsumerWidget {
               _Meta(label: 'Entry', value: entry.toStringAsFixed(4)),
               _Meta(
                 label: isOpen ? 'Current' : 'Exit',
-                value:
-                    (isOpen ? current : position.exitPrice)?.toStringAsFixed(
-                      4,
-                    ) ??
-                    '—',
+                value: (isOpen ? current : position.exitPrice)?.toStringAsFixed(4) ?? '—',
               ),
               _Meta(label: 'Qty', value: qty.toStringAsFixed(4)),
             ],
@@ -781,14 +660,8 @@ class _PositionCard extends ConsumerWidget {
           const SizedBox(height: 4),
           Row(
             children: [
-              _Meta(
-                label: 'SL',
-                value: position.stopLoss?.toStringAsFixed(4) ?? '—',
-              ),
-              _Meta(
-                label: 'TP1',
-                value: position.takeProfit1?.toStringAsFixed(4) ?? '—',
-              ),
+              _Meta(label: 'SL', value: position.stopLoss?.toStringAsFixed(4) ?? '—'),
+              _Meta(label: 'TP1', value: position.takeProfit1?.toStringAsFixed(4) ?? '—'),
               _Meta(
                 label: isOpen ? 'Notional' : 'Reason',
                 value: isOpen
@@ -801,18 +674,11 @@ class _PositionCard extends ConsumerWidget {
             const SizedBox(height: 4),
             Row(
               children: [
-                _Meta(
-                  label: 'TP2',
-                  value: position.takeProfit2?.toStringAsFixed(4) ?? '—',
-                ),
-                _Meta(
-                  label: 'TP3',
-                  value: position.takeProfit3?.toStringAsFixed(4) ?? '—',
-                ),
+                _Meta(label: 'TP2', value: position.takeProfit2?.toStringAsFixed(4) ?? '—'),
+                _Meta(label: 'TP3', value: position.takeProfit3?.toStringAsFixed(4) ?? '—'),
                 _Meta(
                   label: 'Unrealized PnL',
-                  value:
-                      '${pnl >= 0 ? '+' : ''}${pnl.toStringAsFixed(2)}'
+                  value: '${pnl >= 0 ? '+' : ''}${pnl.toStringAsFixed(2)}'
                       ' (${pnlPct >= 0 ? '+' : ''}${pnlPct.toStringAsFixed(2)}%)',
                   valueColor: pnlColor,
                 ),
@@ -830,13 +696,8 @@ class _PositionCard extends ConsumerWidget {
                   side: const BorderSide(color: AppColors.loss),
                   minimumSize: const Size(0, 32),
                 ),
-                child: const Text(
-                  'CLOSE',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.8,
-                  ),
-                ),
+                child: const Text('CLOSE',
+                    style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 0.8)),
               ),
             ),
           ],
@@ -848,20 +709,7 @@ class _PositionCard extends ConsumerWidget {
   static String _openedLabel(DateTime? d) {
     if (d == null) return '—';
     final local = d.toLocal();
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     final h24 = local.hour;
     final h12 = h24 % 12 == 0 ? 12 : h24 % 12;
     final ampm = h24 < 12 ? 'AM' : 'PM';
@@ -896,14 +744,8 @@ class _Badge extends StatelessWidget {
         color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(6),
       ),
-      child: Text(
-        text,
-        style: TextStyle(
-          color: color,
-          fontSize: 10,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
+      child: Text(text,
+          style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w800)),
     );
   }
 }
@@ -920,18 +762,12 @@ class _Meta extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: const TextStyle(color: AppColors.muted, fontSize: 10),
-          ),
-          Text(
-            value,
-            style: TextStyle(
-              color: valueColor ?? AppColors.onCard,
-              fontWeight: FontWeight.w600,
-              fontSize: 12,
-            ),
-          ),
+          Text(label, style: const TextStyle(color: AppColors.muted, fontSize: 10)),
+          Text(value,
+              style: TextStyle(
+                  color: valueColor ?? AppColors.onCard,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12)),
         ],
       ),
     );
@@ -951,11 +787,9 @@ class _EmptyState extends StatelessWidget {
         children: [
           Icon(icon, color: AppColors.muted, size: 48),
           const SizedBox(height: 12),
-          Text(
-            message,
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: AppColors.muted, height: 1.5),
-          ),
+          Text(message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: AppColors.muted, height: 1.5)),
         ],
       ),
     );

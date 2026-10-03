@@ -210,11 +210,9 @@ class _TopBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final unread = ref.watch(
-      notificationsControllerProvider.select(
-        (state) => state.value?.where((n) => !n.read).length ?? 0,
-      ),
-    );
+    final unread = ref.watch(notificationsControllerProvider.select(
+      (state) => state.value?.where((n) => !n.read).length ?? 0,
+    ));
 
     String badgeText() {
       if (unread <= 0) return '';
@@ -259,24 +257,15 @@ class _TopBar extends ConsumerWidget {
                     right: -8,
                     top: -8,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
                         color: AppColors.accent,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.fromBorderSide(
-                          const BorderSide(
-                            color: AppColors.background,
-                            width: 1.5,
-                          ),
+                          const BorderSide(color: AppColors.background, width: 1.5),
                         ),
                       ),
-                      constraints: const BoxConstraints(
-                        minWidth: 18,
-                        minHeight: 18,
-                      ),
+                      constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
                       child: Center(
                         child: Text(
                           badgeText(),

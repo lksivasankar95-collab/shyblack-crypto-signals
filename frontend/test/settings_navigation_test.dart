@@ -38,9 +38,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          settingsRepositoryProvider.overrideWith(
-            (ref) => _FakeSettingsRepository(),
-          ),
+          settingsRepositoryProvider.overrideWith((ref) => _FakeSettingsRepository()),
         ],
         child: MaterialApp(
           theme: theme,
@@ -64,9 +62,8 @@ void main() {
     await pumpTo(tester);
   }
 
-  testWidgets('settings root has no back button (root/tab destination)', (
-    tester,
-  ) async {
+  testWidgets('settings root has no back button (root/tab destination)',
+      (tester) async {
     await pumpSettings(tester);
     expect(find.text('App settings'), findsOneWidget);
     expect(find.byType(BackButton), findsNothing);
@@ -95,27 +92,26 @@ void main() {
   });
 
   testWidgets(
-    'nested Settings -> About -> policy back returns to About (not Settings)',
-    (tester) async {
-      await pumpSettings(tester);
-      await tapNav(tester, 'About Us');
-      expect(find.byType(AboutScreen), findsOneWidget);
+      'nested Settings -> About -> policy back returns to About (not Settings)',
+      (tester) async {
+    await pumpSettings(tester);
+    await tapNav(tester, 'About Us');
+    expect(find.byType(AboutScreen), findsOneWidget);
 
-      // Open the nested policy route.
-      await tester.tap(find.text('Terms of Service'));
-      await pumpTo(tester);
+    // Open the nested policy route.
+    await tester.tap(find.text('Terms of Service'));
+    await pumpTo(tester);
 
-      // Back returns to About (not straight to Settings).
-      await tapBack(tester);
-      expect(find.byType(AboutScreen), findsOneWidget);
-      expect(find.text('App settings'), findsNothing);
+    // Back returns to About (not straight to Settings).
+    await tapBack(tester);
+    expect(find.byType(AboutScreen), findsOneWidget);
+    expect(find.text('App settings'), findsNothing);
 
-      // Back again returns to Settings root.
-      await tapBack(tester);
-      expect(find.text('App settings'), findsOneWidget);
-      expect(find.byType(AboutScreen), findsNothing);
-    },
-  );
+    // Back again returns to Settings root.
+    await tapBack(tester);
+    expect(find.text('App settings'), findsOneWidget);
+    expect(find.byType(AboutScreen), findsNothing);
+  });
 }
 
 class _FakeSettingsRepository implements SettingsRepository {
@@ -131,14 +127,10 @@ class _FakeSettingsRepository implements SettingsRepository {
   Future<List<Map<String, dynamic>>> listExchanges() async => [];
 
   @override
-  Future<Map<String, dynamic>> connectExchange(
-    Map<String, dynamic> body,
-  ) async => {};
+  Future<Map<String, dynamic>> connectExchange(Map<String, dynamic> body) async => {};
 
   @override
-  Future<Map<String, dynamic>> testExchangeConnection(String id) async => {
-    'ok': true,
-  };
+  Future<Map<String, dynamic>> testExchangeConnection(String id) async => {'ok': true};
 
   @override
   Future<void> deleteExchange(String id) async {}
@@ -147,9 +139,7 @@ class _FakeSettingsRepository implements SettingsRepository {
   Future<Map<String, dynamic>> getNotificationPrefs() async => {};
 
   @override
-  Future<Map<String, dynamic>> updateNotificationPrefs(
-    Map<String, dynamic> body,
-  ) async => {};
+  Future<Map<String, dynamic>> updateNotificationPrefs(Map<String, dynamic> body) async => {};
 
   @override
   Future<List<Map<String, dynamic>>> listDeviceTokens() async => [];

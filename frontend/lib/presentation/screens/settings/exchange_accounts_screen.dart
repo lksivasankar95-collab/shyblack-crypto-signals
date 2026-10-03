@@ -5,10 +5,9 @@ import '../../../core/di/providers.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../widgets/settings_widgets.dart';
 
-final _exchangesProvider =
-    FutureProvider.autoDispose<List<Map<String, dynamic>>>(
-      (ref) => ref.read(listExchangesProvider)(),
-    );
+final _exchangesProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>(
+  (ref) => ref.read(listExchangesProvider)(),
+);
 
 class ExchangeAccountsScreen extends ConsumerWidget {
   const ExchangeAccountsScreen({super.key});
@@ -30,8 +29,7 @@ class ExchangeAccountsScreen extends ConsumerWidget {
       ),
       body: asyncExchanges.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) =>
-            _ErrorState(onRetry: () => ref.invalidate(_exchangesProvider)),
+        error: (e, _) => _ErrorState(onRetry: () => ref.invalidate(_exchangesProvider)),
         data: (exchanges) => exchanges.isEmpty
             ? _EmptyState(onConnect: () => _showConnectDialog(context, ref))
             : ListView(
@@ -42,22 +40,12 @@ class ExchangeAccountsScreen extends ConsumerWidget {
                     padding: EdgeInsets.zero,
                     child: Column(
                       children: exchanges
-                          .map(
-                            (e) => _ExchangeTile(
-                              data: e,
-                              onTest: () => _testConnection(
-                                context,
-                                ref,
-                                e['id'] as String,
-                              ),
-                              onDelete: () => _confirmDelete(
-                                context,
-                                ref,
-                                e['id'] as String,
-                                e['exchange'] as String? ?? 'Exchange',
-                              ),
-                            ),
-                          )
+                          .map((e) => _ExchangeTile(
+                                data: e,
+                                onTest: () => _testConnection(context, ref, e['id'] as String),
+                                onDelete: () => _confirmDelete(context, ref, e['id'] as String,
+                                    e['exchange'] as String? ?? 'Exchange'),
+                              ))
                           .toList(),
                     ),
                   ),
@@ -89,32 +77,22 @@ class ExchangeAccountsScreen extends ConsumerWidget {
       ref.invalidate(_exchangesProvider);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Exchange connected. Tap Test to verify.'),
-          ),
+          const SnackBar(content: Text('Exchange connected. Tap Test to verify.')),
         );
       }
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to connect: $e'),
-            backgroundColor: AppColors.loss,
-          ),
+          SnackBar(content: Text('Failed to connect: $e'), backgroundColor: AppColors.loss),
         );
       }
     }
   }
 
-  Future<void> _testConnection(
-    BuildContext context,
-    WidgetRef ref,
-    String id,
-  ) async {
+  Future<void> _testConnection(BuildContext context, WidgetRef ref, String id) async {
     try {
-      final result = await ref
-          .read(settingsRepositoryProvider)
-          .testExchangeConnection(id);
+      final result =
+          await ref.read(settingsRepositoryProvider).testExchangeConnection(id);
       ref.invalidate(_exchangesProvider);
       // The backend field is `ok`, not `success`. Reading `success` returned null on
       // every response, so a successful validation was always shown as a failure.
@@ -132,9 +110,8 @@ class ExchangeAccountsScreen extends ConsumerWidget {
       } else if (success) {
         message = result['message'] as String? ?? 'Connection verified';
       } else {
-        message =
-            '${_friendlyStatus(status)} ${result['message'] as String? ?? ''}'
-                .trim();
+        message = '${_friendlyStatus(status)} ${result['message'] as String? ?? ''}'
+            .trim();
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -146,10 +123,7 @@ class ExchangeAccountsScreen extends ConsumerWidget {
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Test failed: $e'),
-            backgroundColor: AppColors.loss,
-          ),
+          SnackBar(content: Text('Test failed: $e'), backgroundColor: AppColors.loss),
         );
       }
     }
@@ -180,11 +154,7 @@ class ExchangeAccountsScreen extends ConsumerWidget {
   }
 
   Future<void> _confirmDelete(
-    BuildContext context,
-    WidgetRef ref,
-    String id,
-    String name,
-  ) async {
+      BuildContext context, WidgetRef ref, String id, String name) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -192,16 +162,10 @@ class ExchangeAccountsScreen extends ConsumerWidget {
         title: const Text('Disconnect Exchange?'),
         content: Text('Remove $name credentials? This cannot be undone.'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text(
-              'DISCONNECT',
-              style: TextStyle(color: AppColors.loss),
-            ),
+            child: const Text('DISCONNECT', style: TextStyle(color: AppColors.loss)),
           ),
         ],
       ),
@@ -211,17 +175,14 @@ class ExchangeAccountsScreen extends ConsumerWidget {
       await ref.read(settingsRepositoryProvider).deleteExchange(id);
       ref.invalidate(_exchangesProvider);
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Exchange disconnected')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Exchange disconnected')),
+        );
       }
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed: $e'),
-            backgroundColor: AppColors.loss,
-          ),
+          SnackBar(content: Text('Failed: $e'), backgroundColor: AppColors.loss),
         );
       }
     }
@@ -229,11 +190,7 @@ class ExchangeAccountsScreen extends ConsumerWidget {
 }
 
 class _ExchangeTile extends StatelessWidget {
-  const _ExchangeTile({
-    required this.data,
-    required this.onTest,
-    required this.onDelete,
-  });
+  const _ExchangeTile({required this.data, required this.onTest, required this.onDelete});
 
   final Map<String, dynamic> data;
   final VoidCallback onTest;
@@ -258,11 +215,7 @@ class _ExchangeTile extends StatelessWidget {
               color: AppColors.accent.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(
-              Icons.account_balance_wallet,
-              color: AppColors.accent,
-              size: 22,
-            ),
+            child: const Icon(Icons.account_balance_wallet, color: AppColors.accent, size: 22),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -271,20 +224,12 @@ class _ExchangeTile extends StatelessWidget {
               children: [
                 Text(
                   label ?? exchange,
-                  style: const TextStyle(
-                    color: AppColors.onCard,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 14,
-                  ),
+                  style: const TextStyle(color: AppColors.onCard, fontWeight: FontWeight.w700, fontSize: 14),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   maskedKey,
-                  style: const TextStyle(
-                    color: AppColors.muted,
-                    fontSize: 12,
-                    fontFamily: 'monospace',
-                  ),
+                  style: const TextStyle(color: AppColors.muted, fontSize: 12, fontFamily: 'monospace'),
                 ),
               ],
             ),
@@ -319,9 +264,7 @@ class _StatusChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: (connected ? AppColors.profit : AppColors.muted).withValues(
-          alpha: 0.15,
-        ),
+        color: (connected ? AppColors.profit : AppColors.muted).withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
@@ -337,11 +280,7 @@ class _StatusChip extends StatelessWidget {
 }
 
 class _SmallButton extends StatelessWidget {
-  const _SmallButton({
-    required this.label,
-    required this.onTap,
-    this.danger = false,
-  });
+  const _SmallButton({required this.label, required this.onTap, this.danger = false});
   final String label;
   final VoidCallback onTap;
   final bool danger;
@@ -357,14 +296,7 @@ class _SmallButton extends StatelessWidget {
           border: Border.all(color: color.withValues(alpha: 0.5)),
           borderRadius: BorderRadius.circular(6),
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: color,
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
+        child: Text(label, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w700)),
       ),
     );
   }
@@ -382,19 +314,11 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
-              Icons.account_balance_wallet_outlined,
-              color: AppColors.accent,
-              size: 48,
-            ),
+            const Icon(Icons.account_balance_wallet_outlined, color: AppColors.accent, size: 48),
             const SizedBox(height: 16),
             const Text(
               'No Exchanges Connected',
-              style: TextStyle(
-                color: AppColors.onBackground,
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-              ),
+              style: TextStyle(color: AppColors.onBackground, fontSize: 18, fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
             const Text(
@@ -406,10 +330,7 @@ class _EmptyState extends StatelessWidget {
             FilledButton.icon(
               icon: const Icon(Icons.add),
               label: const Text('Connect Exchange'),
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.accent,
-                foregroundColor: Colors.black,
-              ),
+              style: FilledButton.styleFrom(backgroundColor: AppColors.accent, foregroundColor: Colors.black),
               onPressed: onConnect,
             ),
           ],
@@ -431,10 +352,7 @@ class _ErrorState extends StatelessWidget {
         children: [
           const Icon(Icons.cloud_off, color: AppColors.muted, size: 40),
           const SizedBox(height: 12),
-          const Text(
-            'Could not load exchanges',
-            style: TextStyle(color: AppColors.muted),
-          ),
+          const Text('Could not load exchanges', style: TextStyle(color: AppColors.muted)),
           const SizedBox(height: 12),
           TextButton(onPressed: onRetry, child: const Text('Retry')),
         ],
@@ -478,10 +396,9 @@ class _ConnectExchangeDialogState extends State<_ConnectExchangeDialog> {
               value: _exchange,
               dropdownColor: AppColors.card,
               decoration: const InputDecoration(labelText: 'Exchange'),
-              items: [
-                'BINANCE',
-                'BINANCE_FUTURES',
-              ].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+              items: ['BINANCE', 'BINANCE_FUTURES']
+                  .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                  .toList(),
               onChanged: (v) => setState(() => _exchange = v ?? 'BINANCE'),
             ),
             const SizedBox(height: 12),
@@ -501,9 +418,7 @@ class _ConnectExchangeDialogState extends State<_ConnectExchangeDialog> {
               decoration: InputDecoration(
                 labelText: 'API Secret',
                 suffixIcon: IconButton(
-                  icon: Icon(
-                    _showSecret ? Icons.visibility_off : Icons.visibility,
-                  ),
+                  icon: Icon(_showSecret ? Icons.visibility_off : Icons.visibility),
                   onPressed: () => setState(() => _showSecret = !_showSecret),
                 ),
               ),
@@ -517,26 +432,16 @@ class _ConnectExchangeDialogState extends State<_ConnectExchangeDialog> {
         ),
       ),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
         FilledButton(
-          style: FilledButton.styleFrom(
-            backgroundColor: AppColors.accent,
-            foregroundColor: Colors.black,
-          ),
+          style: FilledButton.styleFrom(backgroundColor: AppColors.accent, foregroundColor: Colors.black),
           onPressed: () {
-            if (_apiKeyCtrl.text.trim().isEmpty ||
-                _apiSecretCtrl.text.trim().isEmpty)
-              return;
+            if (_apiKeyCtrl.text.trim().isEmpty || _apiSecretCtrl.text.trim().isEmpty) return;
             Navigator.pop(context, {
               'exchange': _exchange,
               'apiKey': _apiKeyCtrl.text.trim(),
               'apiSecret': _apiSecretCtrl.text.trim(),
-              'label': _labelCtrl.text.trim().isEmpty
-                  ? null
-                  : _labelCtrl.text.trim(),
+              'label': _labelCtrl.text.trim().isEmpty ? null : _labelCtrl.text.trim(),
               'displayName': _exchange,
             });
           },

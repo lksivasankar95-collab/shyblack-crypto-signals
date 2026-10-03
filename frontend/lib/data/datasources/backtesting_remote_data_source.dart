@@ -12,9 +12,7 @@ class BacktestingRemoteDataSource {
   }
 
   Future<Map<String, dynamic>> getRun(String id) async {
-    final r = await _api.dio.get<Map<String, dynamic>>(
-      ApiConstants.backtest(id),
-    );
+    final r = await _api.dio.get<Map<String, dynamic>>(ApiConstants.backtest(id));
     return r.data ?? const {};
   }
 
@@ -27,23 +25,17 @@ class BacktestingRemoteDataSource {
   }
 
   Future<List<Map<String, dynamic>>> getTrades(String id) async {
-    final r = await _api.dio.get<List<dynamic>>(
-      ApiConstants.backtestTrades(id),
-    );
+    final r = await _api.dio.get<List<dynamic>>(ApiConstants.backtestTrades(id));
     return (r.data ?? const []).whereType<Map<String, dynamic>>().toList();
   }
 
   Future<List<Map<String, dynamic>>> getEquity(String id) async {
-    final r = await _api.dio.get<List<dynamic>>(
-      ApiConstants.backtestEquity(id),
-    );
+    final r = await _api.dio.get<List<dynamic>>(ApiConstants.backtestEquity(id));
     return (r.data ?? const []).whereType<Map<String, dynamic>>().toList();
   }
 
   Future<Map<String, dynamic>> cancelRun(String id) async {
-    final r = await _api.dio.post<Map<String, dynamic>>(
-      ApiConstants.backtestCancel(id),
-    );
+    final r = await _api.dio.post<Map<String, dynamic>>(ApiConstants.backtestCancel(id));
     return r.data ?? const {};
   }
 
@@ -52,9 +44,7 @@ class BacktestingRemoteDataSource {
   }
 
   Future<List<Map<String, dynamic>>> listStrategies() async {
-    final r = await _api.dio.get<List<dynamic>>(
-      ApiConstants.backtestStrategies,
-    );
+    final r = await _api.dio.get<List<dynamic>>(ApiConstants.backtestStrategies);
     return (r.data ?? const []).whereType<Map<String, dynamic>>().toList();
   }
 }

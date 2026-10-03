@@ -9,7 +9,7 @@ import 'package:cryptosignals/domain/repositories/settings_repository.dart';
 /// including the controller that resolves the mode.
 class FakeSettingsRepository implements SettingsRepository {
   FakeSettingsRepository({TradingAccount account = TradingAccount.paper})
-    : _settings = AppSettings.defaults.copyWith(tradingAccount: account);
+      : _settings = AppSettings.defaults.copyWith(tradingAccount: account);
 
   AppSettings _settings;
 
@@ -39,14 +39,10 @@ class FakeSettingsRepository implements SettingsRepository {
   Future<List<Map<String, dynamic>>> listExchanges() async => [];
 
   @override
-  Future<Map<String, dynamic>> connectExchange(
-    Map<String, dynamic> body,
-  ) async => {};
+  Future<Map<String, dynamic>> connectExchange(Map<String, dynamic> body) async => {};
 
   @override
-  Future<Map<String, dynamic>> testExchangeConnection(String id) async => {
-    'ok': true,
-  };
+  Future<Map<String, dynamic>> testExchangeConnection(String id) async => {'ok': true};
 
   @override
   Future<void> deleteExchange(String id) async {}
@@ -55,9 +51,7 @@ class FakeSettingsRepository implements SettingsRepository {
   Future<Map<String, dynamic>> getNotificationPrefs() async => {};
 
   @override
-  Future<Map<String, dynamic>> updateNotificationPrefs(
-    Map<String, dynamic> body,
-  ) async => {};
+  Future<Map<String, dynamic>> updateNotificationPrefs(Map<String, dynamic> body) async => {};
 
   @override
   Future<List<Map<String, dynamic>>> listDeviceTokens() async => [];

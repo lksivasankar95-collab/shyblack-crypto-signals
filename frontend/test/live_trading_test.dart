@@ -11,13 +11,14 @@ import 'package:cryptosignals/domain/repositories/live_trading_repository.dart';
 import 'package:cryptosignals/presentation/screens/live_trading/live_trading_screen.dart';
 
 void main() {
-  testWidgets('live trading — no account shows connect CTA', (
-    WidgetTester tester,
-  ) async {
+  testWidgets('live trading — no account shows connect CTA',
+      (WidgetTester tester) async {
     final repo = _FakeRepo(account: null);
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [liveTradingRepositoryProvider.overrideWith((ref) => repo)],
+        overrides: [
+          liveTradingRepositoryProvider.overrideWith((ref) => repo),
+        ],
         child: MaterialApp(
           theme: AppTheme.dark(),
           darkTheme: AppTheme.dark(),
@@ -33,139 +34,134 @@ void main() {
     expect(find.text('Connect Binance'), findsOneWidget);
   });
 
-  testWidgets(
-    'live trading — connected account renders account, orders, kill switch',
-    (WidgetTester tester) async {
-      final repo = _FakeRepo(
-        account: const LiveAccount(
-          id: 'a1',
-          exchange: LiveExchange.binance,
-          connectionStatus: LiveConnectionStatus.connected,
-          enabled: false,
-          killSwitchActive: false,
-          quoteCurrency: 'USDT',
-          cachedAvailableBalance: 800,
-          cachedTotalBalance: 1000,
-          maxNotionalPerTrade: 200,
-          maxActivePositions: 3,
-          dailyLossLimitPct: 5,
+  testWidgets('live trading — connected account renders account, orders, kill switch',
+      (WidgetTester tester) async {
+    final repo = _FakeRepo(
+      account: const LiveAccount(
+        id: 'a1',
+        exchange: LiveExchange.binance,
+        connectionStatus: LiveConnectionStatus.connected,
+        enabled: false,
+        killSwitchActive: false,
+        quoteCurrency: 'USDT',
+        cachedAvailableBalance: 800,
+        cachedTotalBalance: 1000,
+        maxNotionalPerTrade: 200,
+        maxActivePositions: 3,
+        dailyLossLimitPct: 5,
+      ),
+      openOrders: [
+        LiveOrder(
+          id: 'o1',
+          clientOrderId: 'SB-o1',
+          symbol: 'BTCUSDT',
+          side: LiveSide.long,
+          type: LiveOrderType.market,
+          purpose: LiveOrderPurpose.entry,
+          status: LiveOrderStatus.acknowledged,
+          requestedQuantity: 0.01,
+          executedQuantity: 0,
+          remainingQuantity: 0.01,
         ),
-        openOrders: [
-          LiveOrder(
-            id: 'o1',
-            clientOrderId: 'SB-o1',
-            symbol: 'BTCUSDT',
-            side: LiveSide.long,
-            type: LiveOrderType.market,
-            purpose: LiveOrderPurpose.entry,
-            status: LiveOrderStatus.acknowledged,
-            requestedQuantity: 0.01,
-            executedQuantity: 0,
-            remainingQuantity: 0.01,
-          ),
+      ],
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          liveTradingRepositoryProvider.overrideWith((ref) => repo),
         ],
-      );
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            liveTradingRepositoryProvider.overrideWith((ref) => repo),
-          ],
-          child: MaterialApp(
-            theme: AppTheme.dark(),
-            darkTheme: AppTheme.dark(),
-            themeMode: ThemeMode.dark,
-            home: const LiveTradingScreen(),
-          ),
+        child: MaterialApp(
+          theme: AppTheme.dark(),
+          darkTheme: AppTheme.dark(),
+          themeMode: ThemeMode.dark,
+          home: const LiveTradingScreen(),
         ),
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 50));
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
 
-      // LIVE • SPOT badge visible.
-      expect(find.text('LIVE • SPOT'), findsOneWidget);
-      // Balance visible.
-      expect(find.textContaining('USDT'), findsWidgets);
-      // Open order row.
-      expect(find.text('BTCUSDT'), findsOneWidget);
-      expect(find.text('ENTRY • MARKET'), findsOneWidget);
-      // Safety panel + kill switch labels.
-      expect(find.text('Live trading'), findsOneWidget);
-      expect(find.text('Kill switch'), findsOneWidget);
-      // Cancel button visible for non-terminal order.
-      expect(find.text('CANCEL'), findsOneWidget);
-    },
-  );
+    // LIVE • SPOT badge visible.
+    expect(find.text('LIVE • SPOT'), findsOneWidget);
+    // Balance visible.
+    expect(find.textContaining('USDT'), findsWidgets);
+    // Open order row.
+    expect(find.text('BTCUSDT'), findsOneWidget);
+    expect(find.text('ENTRY • MARKET'), findsOneWidget);
+    // Safety panel + kill switch labels.
+    expect(find.text('Live trading'), findsOneWidget);
+    expect(find.text('Kill switch'), findsOneWidget);
+    // Cancel button visible for non-terminal order.
+    expect(find.text('CANCEL'), findsOneWidget);
+  });
 
-  testWidgets(
-    'live trading — filled entry shows CLOSE POSITION and calls closePosition',
-    (WidgetTester tester) async {
-      final repo = _FakeRepo(
-        account: const LiveAccount(
-          id: 'a1',
-          exchange: LiveExchange.binance,
-          connectionStatus: LiveConnectionStatus.connected,
-          enabled: true,
-          killSwitchActive: false,
-          quoteCurrency: 'USDT',
-          cachedAvailableBalance: 800,
-          cachedTotalBalance: 1000,
-          maxNotionalPerTrade: 200,
-          maxActivePositions: 3,
+  testWidgets('live trading — filled entry shows CLOSE POSITION and calls closePosition',
+      (WidgetTester tester) async {
+    final repo = _FakeRepo(
+      account: const LiveAccount(
+        id: 'a1',
+        exchange: LiveExchange.binance,
+        connectionStatus: LiveConnectionStatus.connected,
+        enabled: true,
+        killSwitchActive: false,
+        quoteCurrency: 'USDT',
+        cachedAvailableBalance: 800,
+        cachedTotalBalance: 1000,
+        maxNotionalPerTrade: 200,
+        maxActivePositions: 3,
+      ),
+      openOrders: [
+        const LiveOrder(
+          id: 'entry-1',
+          clientOrderId: 'SB-entry',
+          symbol: 'BTCUSDT',
+          side: LiveSide.long,
+          type: LiveOrderType.market,
+          purpose: LiveOrderPurpose.entry,
+          status: LiveOrderStatus.filled,
+          protectionStatus: LiveProtectionStatus.protected_,
+          requestedQuantity: 0.01,
+          executedQuantity: 0.01,
+          remainingQuantity: 0,
+          avgFillPrice: 50000,
         ),
-        openOrders: [
-          const LiveOrder(
-            id: 'entry-1',
-            clientOrderId: 'SB-entry',
-            symbol: 'BTCUSDT',
-            side: LiveSide.long,
-            type: LiveOrderType.market,
-            purpose: LiveOrderPurpose.entry,
-            status: LiveOrderStatus.filled,
-            protectionStatus: LiveProtectionStatus.protected_,
-            requestedQuantity: 0.01,
-            executedQuantity: 0.01,
-            remainingQuantity: 0,
-            avgFillPrice: 50000,
-          ),
+      ],
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          liveTradingRepositoryProvider.overrideWith((ref) => repo),
         ],
-      );
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            liveTradingRepositoryProvider.overrideWith((ref) => repo),
-          ],
-          child: MaterialApp(
-            theme: AppTheme.dark(),
-            darkTheme: AppTheme.dark(),
-            themeMode: ThemeMode.dark,
-            home: const LiveTradingScreen(),
-          ),
+        child: MaterialApp(
+          theme: AppTheme.dark(),
+          darkTheme: AppTheme.dark(),
+          themeMode: ThemeMode.dark,
+          home: const LiveTradingScreen(),
         ),
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 50));
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
 
-      // Filled entry: CLOSE POSITION appears, CANCEL does not.
-      expect(find.text('CLOSE POSITION'), findsOneWidget);
-      expect(find.text('CANCEL'), findsNothing);
-      // Protection status visible.
-      expect(find.text('Protected by SL'), findsOneWidget);
+    // Filled entry: CLOSE POSITION appears, CANCEL does not.
+    expect(find.text('CLOSE POSITION'), findsOneWidget);
+    expect(find.text('CANCEL'), findsNothing);
+    // Protection status visible.
+    expect(find.text('Protected by SL'), findsOneWidget);
 
-      await tester.tap(find.text('CLOSE POSITION'));
-      await tester.pumpAndSettle();
-      // Dialog.
-      expect(find.text('Close BTCUSDT position?'), findsOneWidget);
-      await tester.tap(find.text('CLOSE POSITION').last);
-      await tester.pumpAndSettle();
+    await tester.tap(find.text('CLOSE POSITION'));
+    await tester.pumpAndSettle();
+    // Dialog.
+    expect(find.text('Close BTCUSDT position?'), findsOneWidget);
+    await tester.tap(find.text('CLOSE POSITION').last);
+    await tester.pumpAndSettle();
 
-      expect(repo.closedEntryId, 'entry-1');
-      expect(find.text('Close submitted for BTCUSDT'), findsOneWidget);
-    },
-  );
+    expect(repo.closedEntryId, 'entry-1');
+    expect(find.text('Close submitted for BTCUSDT'), findsOneWidget);
+  });
 
-  testWidgets('live trading — enabling live requires acknowledgement dialog', (
-    WidgetTester tester,
-  ) async {
+  testWidgets('live trading — enabling live requires acknowledgement dialog',
+      (WidgetTester tester) async {
     final repo = _FakeRepo(
       account: const LiveAccount(
         id: 'a1',
@@ -182,7 +178,9 @@ void main() {
     );
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [liveTradingRepositoryProvider.overrideWith((ref) => repo)],
+        overrides: [
+          liveTradingRepositoryProvider.overrideWith((ref) => repo),
+        ],
         child: MaterialApp(
           theme: AppTheme.dark(),
           darkTheme: AppTheme.dark(),
@@ -301,10 +299,10 @@ class _FakeRepo implements LiveTradingRepository {
 
   @override
   Future<LivePerformance> getPerformance() async => const LivePerformance(
-    totalOrders: 0,
-    filledEntries: 0,
-    rejections: 0,
-    totalFees: 0,
-    totalNotional: 0,
-  );
+        totalOrders: 0,
+        filledEntries: 0,
+        rejections: 0,
+        totalFees: 0,
+        totalNotional: 0,
+      );
 }

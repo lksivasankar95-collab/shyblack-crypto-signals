@@ -115,9 +115,7 @@ class MarketsViewData {
       mode: mode,
       message: message,
       all: nextAll,
-      symbols: orderChanged
-          ? [for (final ticker in nextAll) ticker.symbol]
-          : symbols,
+      symbols: orderChanged ? [for (final ticker in nextAll) ticker.symbol] : symbols,
       bySymbol: nextBySymbol,
       gainers: _leaderboard(nextAll, gainers: true),
       losers: _leaderboard(nextAll, gainers: false),
@@ -126,10 +124,7 @@ class MarketsViewData {
     );
   }
 
-  static List<MarketTicker> _leaderboard(
-    List<MarketTicker> source, {
-    required bool gainers,
-  }) {
+  static List<MarketTicker> _leaderboard(List<MarketTicker> source, {required bool gainers}) {
     final copy = List<MarketTicker>.of(source)
       ..sort(
         (a, b) => gainers
@@ -165,9 +160,7 @@ class MarketsModeController extends Notifier<TradingMode> {
 }
 
 final marketsModeProvider =
-    NotifierProvider<MarketsModeController, TradingMode>(
-      MarketsModeController.new,
-    );
+    NotifierProvider<MarketsModeController, TradingMode>(MarketsModeController.new);
 
 class MarketsController extends AsyncNotifier<MarketsViewData> {
   StreamSubscription<dynamic>? _subscription;
@@ -187,8 +180,7 @@ class MarketsController extends AsyncNotifier<MarketsViewData> {
     ref.listen<AsyncValue<AuthStatus>>(authSessionProvider, (previous, next) {
       if (next.value == AuthStatus.unauthenticated) {
         _tearDownSocket();
-      } else if (next.value == AuthStatus.authenticated &&
-          previous?.value != AuthStatus.authenticated) {
+      } else if (next.value == AuthStatus.authenticated && previous?.value != AuthStatus.authenticated) {
         _openSocket(mode, _generation);
       }
     });
@@ -252,23 +244,19 @@ class MarketsController extends AsyncNotifier<MarketsViewData> {
     try {
       final session = connector.connect(uri);
       _session = session;
-      session.ready
-          .then((_) {
-            if (generation != _generation) {
-              return;
-            }
-            _attempt = 0;
-            _bannerTimer?.cancel();
-            final current = state.value;
-            if (current != null) {
-              state = AsyncData(
-                current.copyWith(connected: true, reconnecting: false),
-              );
-            }
-          })
-          .catchError((_) {
-            _scheduleReconnect(mode, generation);
-          });
+      session.ready.then((_) {
+        if (generation != _generation) {
+          return;
+        }
+        _attempt = 0;
+        _bannerTimer?.cancel();
+        final current = state.value;
+        if (current != null) {
+          state = AsyncData(current.copyWith(connected: true, reconnecting: false));
+        }
+      }).catchError((_) {
+        _scheduleReconnect(mode, generation);
+      });
       _subscription = session.stream.listen(
         (raw) => _onSocketMessage(raw, mode, generation),
         onError: (_) => _scheduleReconnect(mode, generation),
@@ -288,8 +276,7 @@ class MarketsController extends AsyncNotifier<MarketsViewData> {
     if (payload == null) {
       return;
     }
-    if (payload.mode.isNotEmpty &&
-        payload.mode.toUpperCase() != expected.apiParam) {
+    if (payload.mode.isNotEmpty && payload.mode.toUpperCase() != expected.apiParam) {
       _openSocket(expected, generation);
       return;
     }
@@ -358,7 +345,6 @@ class MarketsController extends AsyncNotifier<MarketsViewData> {
   }
 }
 
-final marketsControllerProvider =
-    AsyncNotifierProvider<MarketsController, MarketsViewData>(
-      MarketsController.new,
-    );
+final marketsControllerProvider = AsyncNotifierProvider<MarketsController, MarketsViewData>(
+  MarketsController.new,
+);

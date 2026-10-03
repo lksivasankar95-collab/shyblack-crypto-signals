@@ -16,8 +16,10 @@ class AuthTokensModel {
     );
   }
 
-  AuthTokens toEntity() =>
-      AuthTokens(accessToken: accessToken, refreshToken: refreshToken);
+  AuthTokens toEntity() => AuthTokens(
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+      );
 }
 
 class AccessTokenModel {

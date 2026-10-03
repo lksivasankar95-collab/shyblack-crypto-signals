@@ -23,36 +23,24 @@ class BacktestingScreen extends ConsumerWidget {
         child: asyncView.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (error, _) => Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'Could not load backtests',
-                  style: TextStyle(color: AppColors.muted),
-                ),
-                TextButton(
-                  onPressed: () =>
-                      ref.invalidate(backtestingControllerProvider),
-                  child: const Text('Retry'),
-                ),
-              ],
-            ),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              const Text('Could not load backtests',
+                  style: TextStyle(color: AppColors.muted)),
+              TextButton(
+                  onPressed: () => ref.invalidate(backtestingControllerProvider),
+                  child: const Text('Retry')),
+            ]),
           ),
           data: (view) => RefreshIndicator(
             onRefresh: () => ref
-                .read(backtestingControllerProvider.notifier)
-                .refresh(silent: false),
+                .read(backtestingControllerProvider.notifier).refresh(silent: false),
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                const Text(
-                  'Backtesting',
-                  style: TextStyle(
-                    color: AppColors.onBackground,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
+                const Text('Backtesting',
+                    style: TextStyle(
+                        color: AppColors.onBackground,
+                        fontSize: 22, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 4),
                 const Text(
                   'Simulate a strategy against historical data. No look-ahead — '
@@ -63,15 +51,10 @@ class BacktestingScreen extends ConsumerWidget {
                 const SizedBox(height: 12),
                 _ConfigForm(strategies: view.strategies),
                 const SizedBox(height: 16),
-                const Text(
-                  'Runs',
-                  style: TextStyle(
-                    color: AppColors.muted,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.1,
-                  ),
-                ),
+                const Text('Runs',
+                    style: TextStyle(
+                        color: AppColors.muted, fontSize: 12,
+                        fontWeight: FontWeight.w800, letterSpacing: 1.1)),
                 const SizedBox(height: 6),
                 if (view.runs.isEmpty)
                   const _Empty('No runs yet.')
@@ -154,69 +137,49 @@ class _ConfigFormState extends ConsumerState<_ConfigForm> {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(12),
-      ),
+          color: AppColors.card, borderRadius: BorderRadius.circular(12)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
-            'New backtest',
-            style: TextStyle(
-              color: AppColors.onCard,
-              fontWeight: FontWeight.w800,
-              fontSize: 14,
-            ),
-          ),
+          const Text('New backtest',
+              style: TextStyle(color: AppColors.onCard,
+                  fontWeight: FontWeight.w800, fontSize: 14)),
           const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(child: _text(_symbolCtrl, 'Symbol')),
-              const SizedBox(width: 8),
-              Expanded(child: _text(_timeframeCtrl, 'Timeframe')),
-            ],
-          ),
+          Row(children: [
+            Expanded(child: _text(_symbolCtrl, 'Symbol')),
+            const SizedBox(width: 8),
+            Expanded(child: _text(_timeframeCtrl, 'Timeframe')),
+          ]),
           const SizedBox(height: 8),
           _strategyField(),
           const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(child: _text(_capitalCtrl, 'Initial capital')),
-              const SizedBox(width: 8),
-              Expanded(child: _text(_riskCtrl, 'Risk %/trade')),
-            ],
-          ),
+          Row(children: [
+            Expanded(child: _text(_capitalCtrl, 'Initial capital')),
+            const SizedBox(width: 8),
+            Expanded(child: _text(_riskCtrl, 'Risk %/trade')),
+          ]),
           const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(child: _text(_feeCtrl, 'Fee %')),
-              const SizedBox(width: 8),
-              Expanded(child: _text(_slipCtrl, 'Slippage %')),
-              const SizedBox(width: 8),
-              Expanded(child: _text(_leverageCtrl, 'Leverage')),
-            ],
-          ),
+          Row(children: [
+            Expanded(child: _text(_feeCtrl, 'Fee %')),
+            const SizedBox(width: 8),
+            Expanded(child: _text(_slipCtrl, 'Slippage %')),
+            const SizedBox(width: 8),
+            Expanded(child: _text(_leverageCtrl, 'Leverage')),
+          ]),
           const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(child: _modeButton(BacktestTradingMode.spot, 'SPOT')),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _modeButton(BacktestTradingMode.futures, 'FUTURES'),
-              ),
-            ],
-          ),
+          Row(children: [
+            Expanded(child: _modeButton(BacktestTradingMode.spot, 'SPOT')),
+            const SizedBox(width: 8),
+            Expanded(child: _modeButton(BacktestTradingMode.futures, 'FUTURES')),
+          ]),
           const SizedBox(height: 10),
           FilledButton(
             onPressed: (_submitting || _selected == null)
                 ? null
                 : () => _submit(_selected!.id),
             child: _submitting
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
+                ? const SizedBox(width: 18, height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2))
                 : const Text('RUN BACKTEST'),
           ),
         ],
@@ -237,10 +200,8 @@ class _ConfigFormState extends ConsumerState<_ConfigForm> {
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: AppColors.muted.withValues(alpha: 0.5)),
         ),
-        child: const Text(
-          'No strategies available',
-          style: TextStyle(color: AppColors.muted, fontSize: 13),
-        ),
+        child: const Text('No strategies available',
+            style: TextStyle(color: AppColors.muted, fontSize: 13)),
       );
     }
     final eligible = _eligible;
@@ -253,10 +214,8 @@ class _ConfigFormState extends ConsumerState<_ConfigForm> {
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: AppColors.muted.withValues(alpha: 0.5)),
         ),
-        child: Text(
-          'No $_marketType strategies available',
-          style: const TextStyle(color: AppColors.muted, fontSize: 13),
-        ),
+        child: Text('No $_marketType strategies available',
+            style: const TextStyle(color: AppColors.muted, fontSize: 13)),
       );
     }
     return DropdownButtonFormField<String>(
@@ -268,24 +227,17 @@ class _ConfigFormState extends ConsumerState<_ConfigForm> {
         labelStyle: label,
         filled: true,
         fillColor: AppColors.background,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 10,
-          vertical: 10,
-        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
       ),
       style: const TextStyle(color: AppColors.onCard, fontSize: 13),
-      hint: const Text(
-        'Select a strategy',
-        style: TextStyle(color: AppColors.muted, fontSize: 13),
-      ),
+      hint: const Text('Select a strategy',
+          style: TextStyle(color: AppColors.muted, fontSize: 13)),
       items: eligible
-          .map(
-            (s) => DropdownMenuItem<String>(
-              value: s.id,
-              child: Text(s.name, overflow: TextOverflow.ellipsis),
-            ),
-          )
+          .map((s) => DropdownMenuItem<String>(
+                value: s.id,
+                child: Text(s.name, overflow: TextOverflow.ellipsis),
+              ))
           .toList(),
       onChanged: (value) => setState(() => _strategyId = value),
     );
@@ -299,8 +251,7 @@ class _ConfigFormState extends ConsumerState<_ConfigForm> {
         foregroundColor: selected ? AppColors.accent : AppColors.muted,
         side: BorderSide(color: selected ? AppColors.accent : AppColors.muted),
         backgroundColor: selected
-            ? AppColors.accent.withValues(alpha: 0.15)
-            : Colors.transparent,
+            ? AppColors.accent.withValues(alpha: 0.15) : Colors.transparent,
       ),
       child: Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
     );
@@ -314,10 +265,7 @@ class _ConfigFormState extends ConsumerState<_ConfigForm> {
         labelStyle: const TextStyle(color: AppColors.muted, fontSize: 12),
         filled: true,
         fillColor: AppColors.background,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 10,
-          vertical: 10,
-        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
       ),
       style: const TextStyle(color: AppColors.onCard, fontSize: 13),
@@ -342,9 +290,9 @@ class _ConfigFormState extends ConsumerState<_ConfigForm> {
       );
       await ref.read(backtestingControllerProvider.notifier).startRun(config);
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Backtest queued')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Backtest queued')),
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -370,85 +318,60 @@ class _RunCard extends ConsumerWidget {
     final pnl = run.totalNetPnl ?? 0;
     final pnlColor = pnl >= 0 ? AppColors.profit : AppColors.loss;
     return InkWell(
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => BacktestDetailScreen(runId: run.id),
-        ),
-      ),
+      onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+          builder: (_) => BacktestDetailScreen(runId: run.id))),
       borderRadius: BorderRadius.circular(12),
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: AppColors.card,
-          borderRadius: BorderRadius.circular(12),
-        ),
+            color: AppColors.card, borderRadius: BorderRadius.circular(12)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    '${run.symbol} • ${run.timeframe} • '
-                    '${run.tradingMode == BacktestTradingMode.futures ? "FUT" : "SPOT"}',
-                    style: const TextStyle(
+            Row(children: [
+              Expanded(
+                child: Text(
+                  '${run.symbol} • ${run.timeframe} • '
+                  '${run.tradingMode == BacktestTradingMode.futures ? "FUT" : "SPOT"}',
+                  style: const TextStyle(
                       color: AppColors.onBackground,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 14,
-                    ),
-                  ),
+                      fontWeight: FontWeight.w800, fontSize: 14),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: statusColor.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    run.status.name.toUpperCase(),
-                    style: TextStyle(
-                      color: statusColor,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(6),
                 ),
-              ],
-            ),
+                child: Text(run.status.name.toUpperCase(),
+                    style: TextStyle(color: statusColor, fontSize: 10,
+                        fontWeight: FontWeight.w800)),
+              ),
+            ]),
             const SizedBox(height: 4),
-            Text(
-              '${run.strategyId} @ ${run.strategyVersion}',
-              style: const TextStyle(color: AppColors.muted, fontSize: 11),
+            Text('${run.strategyId} @ ${run.strategyVersion}',
+                style: const TextStyle(color: AppColors.muted, fontSize: 11)),
+            if (!run.isTerminal) Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: LinearProgressIndicator(value: run.progressPct),
             ),
-            if (!run.isTerminal)
-              Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: LinearProgressIndicator(value: run.progressPct),
-              ),
-            if (run.status == BacktestStatus.completed)
-              Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Row(
-                  children: [
-                    _kv('Net P&L', pnl.toStringAsFixed(2), pnlColor),
-                    _kv('Return', _pct(run.totalReturnPct)),
-                    _kv('Trades', run.totalTrades.toString()),
-                    _kv('Win %', _pct(run.winRatePct, 1)),
-                    _kv('MaxDD', _pct(run.maxDrawdownPct)),
-                  ],
-                ),
-              ),
+            if (run.status == BacktestStatus.completed) Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Row(children: [
+                _kv('Net P&L', pnl.toStringAsFixed(2), pnlColor),
+                _kv('Return', _pct(run.totalReturnPct)),
+                _kv('Trades', run.totalTrades.toString()),
+                _kv('Win %', _pct(run.winRatePct, 1)),
+                _kv('MaxDD', _pct(run.maxDrawdownPct)),
+              ]),
+            ),
             if (run.failureReason != null)
               Padding(
                 padding: const EdgeInsets.only(top: 4),
-                child: Text(
-                  run.failureReason!,
-                  style: const TextStyle(color: AppColors.loss, fontSize: 11),
-                ),
+                child: Text(run.failureReason!,
+                    style: const TextStyle(color: AppColors.loss, fontSize: 11)),
               ),
           ],
         ),
@@ -458,20 +381,12 @@ class _RunCard extends ConsumerWidget {
 
   Widget _kv(String k, String v, [Color? c]) {
     return Expanded(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(k, style: const TextStyle(color: AppColors.muted, fontSize: 10)),
-          Text(
-            v,
-            style: TextStyle(
-              color: c ?? AppColors.onCard,
-              fontWeight: FontWeight.w700,
-              fontSize: 12,
-            ),
-          ),
-        ],
-      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(k, style: const TextStyle(color: AppColors.muted, fontSize: 10)),
+        Text(v, style: TextStyle(
+            color: c ?? AppColors.onCard,
+            fontWeight: FontWeight.w700, fontSize: 12)),
+      ]),
     );
   }
 }
@@ -481,14 +396,12 @@ class _Empty extends StatelessWidget {
   final String text;
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(14),
-    alignment: Alignment.center,
-    decoration: BoxDecoration(
-      color: AppColors.card,
-      borderRadius: BorderRadius.circular(12),
-    ),
-    child: Text(text, style: const TextStyle(color: AppColors.muted)),
-  );
+        padding: const EdgeInsets.all(14),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+            color: AppColors.card, borderRadius: BorderRadius.circular(12)),
+        child: Text(text, style: const TextStyle(color: AppColors.muted)),
+      );
 }
 
 /// Detail view — equity curve + trades + summary metrics for one run.
@@ -508,38 +421,22 @@ class BacktestDetailScreen extends ConsumerWidget {
       ),
       body: asyncDetail.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(
-          child: Text(
-            'Error: $error',
-            style: const TextStyle(color: AppColors.muted),
-          ),
-        ),
+        error: (error, _) => Center(child: Text('Error: $error',
+            style: const TextStyle(color: AppColors.muted))),
         data: (detail) => ListView(
           padding: const EdgeInsets.all(16),
           children: [
             _SummaryCard(run: detail.run),
             const SizedBox(height: 12),
-            const Text(
-              'EQUITY CURVE',
-              style: TextStyle(
-                color: AppColors.muted,
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1.1,
-              ),
-            ),
+            const Text('EQUITY CURVE',
+                style: TextStyle(color: AppColors.muted, fontSize: 12,
+                    fontWeight: FontWeight.w800, letterSpacing: 1.1)),
             const SizedBox(height: 6),
             _EquityChart(points: detail.equity),
             const SizedBox(height: 12),
-            const Text(
-              'TRADES',
-              style: TextStyle(
-                color: AppColors.muted,
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1.1,
-              ),
-            ),
+            const Text('TRADES',
+                style: TextStyle(color: AppColors.muted, fontSize: 12,
+                    fontWeight: FontWeight.w800, letterSpacing: 1.1)),
             const SizedBox(height: 6),
             if (detail.trades.isEmpty)
               const _Empty('No trades')
@@ -557,53 +454,34 @@ class BacktestDetailScreen extends ConsumerWidget {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(
-              color: AppColors.accent.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Text(
-              t.side == BacktestSide.long ? 'LONG' : 'SHORT',
-              style: const TextStyle(
-                color: AppColors.accent,
-                fontSize: 10,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
+          color: AppColors.card, borderRadius: BorderRadius.circular(10)),
+      child: Row(children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: AppColors.accent.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(6),
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  t.symbol,
-                  style: const TextStyle(
-                    color: AppColors.onCard,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
-                  ),
-                ),
-                Text(
-                  '${t.entryPrice.toStringAsFixed(2)} → ${t.exitPrice.toStringAsFixed(2)} '
+          child: Text(t.side == BacktestSide.long ? 'LONG' : 'SHORT',
+              style: const TextStyle(color: AppColors.accent, fontSize: 10,
+                  fontWeight: FontWeight.w800)),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(t.symbol, style: const TextStyle(
+                  color: AppColors.onCard, fontWeight: FontWeight.w700, fontSize: 13)),
+              Text('${t.entryPrice.toStringAsFixed(2)} → ${t.exitPrice.toStringAsFixed(2)} '
                   '· ${t.exitReason.name}',
-                  style: const TextStyle(color: AppColors.muted, fontSize: 10),
-                ),
-              ],
-            ),
+                  style: const TextStyle(color: AppColors.muted, fontSize: 10)),
+            ],
           ),
-          Text(
-            '${t.netPnl >= 0 ? "+" : ""}${t.netPnl.toStringAsFixed(2)}',
-            style: TextStyle(color: pnlColor, fontWeight: FontWeight.w800),
-          ),
-        ],
-      ),
+        ),
+        Text('${t.netPnl >= 0 ? "+" : ""}${t.netPnl.toStringAsFixed(2)}',
+            style: TextStyle(color: pnlColor, fontWeight: FontWeight.w800)),
+      ]),
     );
   }
 }
@@ -619,69 +497,45 @@ class _SummaryCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(12),
-      ),
+          color: AppColors.card, borderRadius: BorderRadius.circular(12)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            '${run.symbol} • ${run.timeframe} • ${run.tradingMode.name.toUpperCase()}',
-            style: const TextStyle(
-              color: AppColors.onBackground,
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          Text(
-            '${run.strategyId} @ ${run.strategyVersion}',
-            style: const TextStyle(color: AppColors.muted, fontSize: 11),
-          ),
+          Text('${run.symbol} • ${run.timeframe} • ${run.tradingMode.name.toUpperCase()}',
+              style: const TextStyle(color: AppColors.onBackground,
+                  fontSize: 16, fontWeight: FontWeight.w800)),
+          Text('${run.strategyId} @ ${run.strategyVersion}',
+              style: const TextStyle(color: AppColors.muted, fontSize: 11)),
           const SizedBox(height: 10),
-          Row(
-            children: [
-              _kv('Net P&L', pnl.toStringAsFixed(2), pnlColor),
-              _kv('Return', _pct(run.totalReturnPct)),
-              _kv('Trades', run.totalTrades.toString()),
-            ],
-          ),
+          Row(children: [
+            _kv('Net P&L', pnl.toStringAsFixed(2), pnlColor),
+            _kv('Return', _pct(run.totalReturnPct)),
+            _kv('Trades', run.totalTrades.toString()),
+          ]),
           const SizedBox(height: 6),
-          Row(
-            children: [
-              _kv('Win %', _pct(run.winRatePct, 1)),
-              _kv('Profit factor', _num(run.profitFactor)),
-              _kv('Sharpe', _num(run.sharpeRatio)),
-            ],
-          ),
+          Row(children: [
+            _kv('Win %', _pct(run.winRatePct, 1)),
+            _kv('Profit factor', _num(run.profitFactor)),
+            _kv('Sharpe', _num(run.sharpeRatio)),
+          ]),
           const SizedBox(height: 6),
-          Row(
-            children: [
-              _kv('MaxDD', _pct(run.maxDrawdownPct)),
-              _kv('Fees', _num(run.totalFees)),
-              _kv('Expectancy', _num(run.expectancy, 3)),
-            ],
-          ),
+          Row(children: [
+            _kv('MaxDD', _pct(run.maxDrawdownPct)),
+            _kv('Fees', _num(run.totalFees)),
+            _kv('Expectancy', _num(run.expectancy, 3)),
+          ]),
         ],
       ),
     );
   }
 
   Widget _kv(String k, String v, [Color? c]) => Expanded(
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(k, style: const TextStyle(color: AppColors.muted, fontSize: 10)),
-        Text(
-          v,
-          style: TextStyle(
-            color: c ?? AppColors.onCard,
-            fontWeight: FontWeight.w700,
-            fontSize: 13,
-          ),
-        ),
-      ],
-    ),
-  );
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(k, style: const TextStyle(color: AppColors.muted, fontSize: 10)),
+          Text(v, style: TextStyle(color: c ?? AppColors.onCard,
+              fontWeight: FontWeight.w700, fontSize: 13)),
+        ]),
+      );
 }
 
 /// Formats a percentage metric, distinguishing "undefined" from zero.
@@ -706,16 +560,10 @@ class _EquityChart extends StatelessWidget {
       height: 200,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(12),
-      ),
+          color: AppColors.card, borderRadius: BorderRadius.circular(12)),
       child: points.isEmpty
-          ? const Center(
-              child: Text(
-                'No equity data',
-                style: TextStyle(color: AppColors.muted),
-              ),
-            )
+          ? const Center(child: Text('No equity data',
+              style: TextStyle(color: AppColors.muted)))
           : CustomPaint(painter: _EquityPainter(points), size: Size.infinite),
     );
   }

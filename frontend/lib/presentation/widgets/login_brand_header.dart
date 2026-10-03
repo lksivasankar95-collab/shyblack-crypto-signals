@@ -9,9 +9,15 @@ class LoginBrandHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        CustomPaint(size: const Size(18, 12), painter: _CrownPainter()),
+        CustomPaint(
+          size: const Size(18, 12),
+          painter: _CrownPainter(),
+        ),
         const SizedBox(height: 2),
-        CustomPaint(size: const Size(36, 40), painter: _ShieldLogoPainter()),
+        CustomPaint(
+          size: const Size(36, 40),
+          painter: _ShieldLogoPainter(),
+        ),
         const SizedBox(height: 4),
         RichText(
           text: const TextSpan(
@@ -22,23 +28,15 @@ class LoginBrandHeader extends StatelessWidget {
               height: 1.05,
             ),
             children: [
-              TextSpan(
-                text: 'SHY',
-                style: TextStyle(color: AppColors.onBackground),
-              ),
-              TextSpan(
-                text: 'BLACK',
-                style: TextStyle(color: AppColors.accent),
-              ),
+              TextSpan(text: 'SHY', style: TextStyle(color: AppColors.onBackground)),
+              TextSpan(text: 'BLACK', style: TextStyle(color: AppColors.accent)),
             ],
           ),
         ),
         const SizedBox(height: 4),
         Row(
           children: [
-            const Expanded(
-              child: Divider(color: AppColors.accent, thickness: 1),
-            ),
+            const Expanded(child: Divider(color: AppColors.accent, thickness: 1)),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 10),
               child: Text(
@@ -51,9 +49,7 @@ class LoginBrandHeader extends StatelessWidget {
                 ),
               ),
             ),
-            const Expanded(
-              child: Divider(color: AppColors.accent, thickness: 1),
-            ),
+            const Expanded(child: Divider(color: AppColors.accent, thickness: 1)),
           ],
         ),
       ],
@@ -68,12 +64,7 @@ class _ShieldLogoPainter extends CustomPainter {
       ..moveTo(size.width * 0.5, 0)
       ..lineTo(size.width * 0.94, size.height * 0.18)
       ..lineTo(size.width * 0.88, size.height * 0.62)
-      ..quadraticBezierTo(
-        size.width * 0.5,
-        size.height * 1.08,
-        size.width * 0.12,
-        size.height * 0.62,
-      )
+      ..quadraticBezierTo(size.width * 0.5, size.height * 1.08, size.width * 0.12, size.height * 0.62)
       ..lineTo(size.width * 0.06, size.height * 0.18)
       ..close();
 
@@ -128,13 +119,7 @@ class _CrownPainter extends CustomPainter {
       ..close();
     canvas.drawPath(path, fill);
     canvas.drawRRect(
-      RRect.fromLTRBR(
-        size.width * 0.06,
-        size.height * 0.78,
-        size.width * 0.94,
-        size.height * 0.96,
-        const Radius.circular(2),
-      ),
+      RRect.fromLTRBR(size.width * 0.06, size.height * 0.78, size.width * 0.94, size.height * 0.96, const Radius.circular(2)),
       fill,
     );
   }

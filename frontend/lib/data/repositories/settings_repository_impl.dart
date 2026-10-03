@@ -58,9 +58,8 @@ class SettingsRepositoryImpl implements SettingsRepository {
       _remote.fetchNotificationPrefs();
 
   @override
-  Future<Map<String, dynamic>> updateNotificationPrefs(
-    Map<String, dynamic> body,
-  ) => _remote.updateNotificationPrefs(body);
+  Future<Map<String, dynamic>> updateNotificationPrefs(Map<String, dynamic> body) =>
+      _remote.updateNotificationPrefs(body);
 
   @override
   Future<List<Map<String, dynamic>>> listDeviceTokens() =>

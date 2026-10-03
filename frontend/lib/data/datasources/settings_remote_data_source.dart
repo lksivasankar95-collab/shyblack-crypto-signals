@@ -7,9 +7,7 @@ class SettingsRemoteDataSource {
   final ApiClient _client;
 
   Future<Map<String, dynamic>> fetchSettings() async {
-    final response = await _client.dio.get<Map<String, dynamic>>(
-      ApiConstants.settings,
-    );
+    final response = await _client.dio.get<Map<String, dynamic>>(ApiConstants.settings);
     return response.data ?? {};
   }
 
@@ -22,9 +20,7 @@ class SettingsRemoteDataSource {
   }
 
   Future<Map<String, dynamic>> fetchProfile() async {
-    final response = await _client.dio.get<Map<String, dynamic>>(
-      ApiConstants.usersMe,
-    );
+    final response = await _client.dio.get<Map<String, dynamic>>(ApiConstants.usersMe);
     return response.data ?? {};
   }
 
@@ -37,9 +33,7 @@ class SettingsRemoteDataSource {
   }
 
   Future<List<Map<String, dynamic>>> fetchExchanges() async {
-    final response = await _client.dio.get<List<dynamic>>(
-      ApiConstants.settingsExchanges,
-    );
+    final response = await _client.dio.get<List<dynamic>>(ApiConstants.settingsExchanges);
     final list = response.data ?? [];
     return list.cast<Map<String, dynamic>>();
   }
@@ -64,15 +58,11 @@ class SettingsRemoteDataSource {
   }
 
   Future<Map<String, dynamic>> fetchNotificationPrefs() async {
-    final response = await _client.dio.get<Map<String, dynamic>>(
-      ApiConstants.settingsNotifications,
-    );
+    final response = await _client.dio.get<Map<String, dynamic>>(ApiConstants.settingsNotifications);
     return response.data ?? {};
   }
 
-  Future<Map<String, dynamic>> updateNotificationPrefs(
-    Map<String, dynamic> body,
-  ) async {
+  Future<Map<String, dynamic>> updateNotificationPrefs(Map<String, dynamic> body) async {
     final response = await _client.dio.put<Map<String, dynamic>>(
       ApiConstants.settingsNotifications,
       data: body,
@@ -81,9 +71,7 @@ class SettingsRemoteDataSource {
   }
 
   Future<List<Map<String, dynamic>>> fetchDeviceTokens() async {
-    final response = await _client.dio.get<List<dynamic>>(
-      ApiConstants.deviceTokens,
-    );
+    final response = await _client.dio.get<List<dynamic>>(ApiConstants.deviceTokens);
     final list = response.data ?? [];
     return list.cast<Map<String, dynamic>>();
   }

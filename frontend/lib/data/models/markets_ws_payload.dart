@@ -35,13 +35,9 @@ class MarketsWsPayload {
       message: json['message']?.toString(),
       tickers: rawTickers is List
           ? rawTickers
-                .whereType<Map>()
-                .map(
-                  (item) => MarketTickerModel.fromJson(
-                    Map<String, dynamic>.from(item),
-                  ).toEntity(),
-                )
-                .toList()
+              .whereType<Map>()
+              .map((item) => MarketTickerModel.fromJson(Map<String, dynamic>.from(item)).toEntity())
+              .toList()
           : const [],
     );
   }

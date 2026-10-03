@@ -81,8 +81,7 @@ class NewsArticleModel {
       imageUrl: json['imageUrl'] as String?,
       author: json['author'] as String?,
       publishedAt:
-          _parseDate(json['publishedAt']) ??
-          DateTime.fromMillisecondsSinceEpoch(0),
+          _parseDate(json['publishedAt']) ?? DateTime.fromMillisecondsSinceEpoch(0),
       category: NewsCategoryLabel.parse(json['category'] as String?),
       sentiment: NewsSentimentLabel.parse(json['sentiment'] as String?),
       sentimentScore: (json['sentimentScore'] as num?)?.toDouble(),

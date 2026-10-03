@@ -66,63 +66,44 @@ class FuturesTradingController extends AsyncNotifier<FuturesTradingViewData> {
   }
 
   Future<void> refresh({bool silent = true}) async {
-    try {
-      state = AsyncData(await _fetch());
-    } catch (error, stack) {
-      if (!silent) state = AsyncError(error, stack);
-    }
+    try { state = AsyncData(await _fetch()); }
+    catch (error, stack) { if (!silent) state = AsyncError(error, stack); }
   }
 
   Future<FuturesAccount> connect(String exchange) async {
-    final acc = await ref
-        .read(futuresTradingRepositoryProvider)
-        .connect(exchange);
-    unawaited(refresh());
-    return acc;
+    final acc = await ref.read(futuresTradingRepositoryProvider).connect(exchange);
+    unawaited(refresh()); return acc;
   }
 
   Future<FuturesAccount> activate({required bool acknowledged}) async {
-    final acc = await ref
-        .read(futuresTradingRepositoryProvider)
+    final acc = await ref.read(futuresTradingRepositoryProvider)
         .activate(acknowledged: acknowledged);
-    unawaited(refresh());
-    return acc;
+    unawaited(refresh()); return acc;
   }
 
   Future<FuturesAccount> deactivate() async {
     final acc = await ref.read(futuresTradingRepositoryProvider).deactivate();
-    unawaited(refresh());
-    return acc;
+    unawaited(refresh()); return acc;
   }
 
   Future<FuturesAccount> triggerKillSwitch() async {
-    final acc = await ref
-        .read(futuresTradingRepositoryProvider)
-        .triggerKillSwitch();
-    unawaited(refresh());
-    return acc;
+    final acc = await ref.read(futuresTradingRepositoryProvider).triggerKillSwitch();
+    unawaited(refresh()); return acc;
   }
 
   Future<FuturesAccount> releaseKillSwitch() async {
-    final acc = await ref
-        .read(futuresTradingRepositoryProvider)
-        .releaseKillSwitch();
-    unawaited(refresh());
-    return acc;
+    final acc = await ref.read(futuresTradingRepositoryProvider).releaseKillSwitch();
+    unawaited(refresh()); return acc;
   }
 
   Future<FuturesOrder> cancelOrder(String id) async {
     final o = await ref.read(futuresTradingRepositoryProvider).cancelOrder(id);
-    unawaited(refresh());
-    return o;
+    unawaited(refresh()); return o;
   }
 
   Future<FuturesOrder> closePosition(String positionId) async {
-    final o = await ref
-        .read(futuresTradingRepositoryProvider)
-        .closePosition(positionId);
-    unawaited(refresh());
-    return o;
+    final o = await ref.read(futuresTradingRepositoryProvider).closePosition(positionId);
+    unawaited(refresh()); return o;
   }
 
   void _startAutoRefresh() {
@@ -135,5 +116,5 @@ class FuturesTradingController extends AsyncNotifier<FuturesTradingViewData> {
 
 final futuresTradingControllerProvider =
     AsyncNotifierProvider<FuturesTradingController, FuturesTradingViewData>(
-      FuturesTradingController.new,
-    );
+  FuturesTradingController.new,
+);

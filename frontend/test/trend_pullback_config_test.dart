@@ -82,9 +82,7 @@ void main() {
       'status': 'ACTIVE',
       'deletable': false,
       'editable': false,
-      'config': {
-        'scoring': {'minRiskReward': 1.5},
-      },
+      'config': {'scoring': {'minRiskReward': 1.5}},
     };
 
     final strategy = TradingStrategyModel.fromJson(json);

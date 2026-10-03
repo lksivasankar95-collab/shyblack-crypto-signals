@@ -71,13 +71,7 @@ class _SecurityBody extends ConsumerWidget {
                           ),
                         ),
                         if (email != null)
-                          Text(
-                            email!,
-                            style: const TextStyle(
-                              color: AppColors.muted,
-                              fontSize: 13,
-                            ),
-                          ),
+                          Text(email!, style: const TextStyle(color: AppColors.muted, fontSize: 13)),
                       ],
                     ),
                   ],
@@ -92,19 +86,12 @@ class _SecurityBody extends ConsumerWidget {
                     ),
                     child: const Row(
                       children: [
-                        Icon(
-                          Icons.shield_outlined,
-                          color: AppColors.accent,
-                          size: 16,
-                        ),
+                        Icon(Icons.shield_outlined, color: AppColors.accent, size: 16),
                         SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             'Password and 2FA are managed through your Google Account settings.',
-                            style: TextStyle(
-                              color: AppColors.accent,
-                              fontSize: 12,
-                            ),
+                            style: TextStyle(color: AppColors.accent, fontSize: 12),
                           ),
                         ),
                       ],
@@ -173,16 +160,10 @@ class _SecurityBody extends ConsumerWidget {
         title: const Text('Sign Out?'),
         content: const Text('You will need to sign in again.'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text(
-              'SIGN OUT',
-              style: TextStyle(color: AppColors.loss),
-            ),
+            child: const Text('SIGN OUT', style: TextStyle(color: AppColors.loss)),
           ),
         ],
       ),
@@ -202,10 +183,7 @@ class _SecurityBody extends ConsumerWidget {
           'please contact support at support@shyblack.com with your registered email.',
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK')),
         ],
       ),
     );
@@ -228,19 +206,9 @@ class _DevicesPreviewScreen extends ConsumerWidget {
       appBar: AppBar(title: const Text('Registered Devices')),
       body: asyncTokens.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => const Center(
-          child: Text(
-            'Could not load devices',
-            style: TextStyle(color: AppColors.muted),
-          ),
-        ),
+        error: (e, _) => const Center(child: Text('Could not load devices', style: TextStyle(color: AppColors.muted))),
         data: (tokens) => tokens.isEmpty
-            ? const Center(
-                child: Text(
-                  'No registered devices',
-                  style: TextStyle(color: AppColors.muted),
-                ),
-              )
+            ? const Center(child: Text('No registered devices', style: TextStyle(color: AppColors.muted)))
             : ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
@@ -248,56 +216,31 @@ class _DevicesPreviewScreen extends ConsumerWidget {
                   SettingsCard(
                     padding: EdgeInsets.zero,
                     child: Column(
-                      children: tokens
-                          .map(
-                            (t) => ListTile(
-                              dense: true,
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 4,
-                              ),
-                              leading: const Icon(
-                                Icons.phone_android,
-                                color: AppColors.accent,
-                              ),
-                              title: Text(
-                                t['maskedToken'] as String? ?? '****',
-                                style: const TextStyle(
-                                  color: AppColors.onCard,
-                                  fontFamily: 'monospace',
-                                  fontSize: 13,
-                                ),
-                              ),
-                              subtitle: Text(
-                                t['createdAt'] as String? ?? '',
-                                style: const TextStyle(
-                                  color: AppColors.muted,
-                                  fontSize: 11,
-                                ),
-                              ),
-                              trailing: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 7,
-                                  vertical: 3,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: AppColors.profit.withValues(
-                                    alpha: 0.15,
-                                  ),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: const Text(
-                                  'Active',
-                                  style: TextStyle(
-                                    color: AppColors.profit,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          )
-                          .toList(),
+                      children: tokens.map((t) => ListTile(
+                        dense: true,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                        leading: const Icon(Icons.phone_android, color: AppColors.accent),
+                        title: Text(
+                          t['maskedToken'] as String? ?? '****',
+                          style: const TextStyle(
+                            color: AppColors.onCard,
+                            fontFamily: 'monospace',
+                            fontSize: 13,
+                          ),
+                        ),
+                        subtitle: Text(
+                          t['createdAt'] as String? ?? '',
+                          style: const TextStyle(color: AppColors.muted, fontSize: 11),
+                        ),
+                        trailing: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: AppColors.profit.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Text('Active', style: TextStyle(color: AppColors.profit, fontSize: 11, fontWeight: FontWeight.w700)),
+                        ),
+                      )).toList(),
                     ),
                   ),
                 ],

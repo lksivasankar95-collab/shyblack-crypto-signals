@@ -10,10 +10,6 @@ class SignupUser {
     required String email,
     required String password,
   }) {
-    return _repository.signup(
-      fullName: fullName,
-      email: email,
-      password: password,
-    );
+    return _repository.signup(fullName: fullName, email: email, password: password);
   }
 }

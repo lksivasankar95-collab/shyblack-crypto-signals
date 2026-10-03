@@ -2,28 +2,13 @@ enum FuturesSide { long, short }
 
 enum FuturesOrderType { market, limit, stopMarket, takeProfitMarket }
 
-enum FuturesOrderPurpose {
-  entry,
-  stopLoss,
-  takeProfit,
-  manualClose,
-  emergencyClose,
-}
+enum FuturesOrderPurpose { entry, stopLoss, takeProfit, manualClose, emergencyClose }
 
 enum FuturesOrderStatus {
-  created,
-  submitting,
-  submitted,
-  acknowledged,
-  partiallyFilled,
-  filled,
-  cancelRequested,
-  cancelled,
-  rejected,
-  expired,
-  failed,
-  unknown,
-  reconciling,
+  created, submitting, submitted, acknowledged,
+  partiallyFilled, filled,
+  cancelRequested, cancelled,
+  rejected, expired, failed, unknown, reconciling,
 }
 
 class FuturesOrder {
@@ -80,11 +65,12 @@ class FuturesOrder {
   final DateTime? createdAt;
 
   bool get isTerminal => switch (status) {
-    FuturesOrderStatus.filled ||
-    FuturesOrderStatus.cancelled ||
-    FuturesOrderStatus.rejected ||
-    FuturesOrderStatus.expired ||
-    FuturesOrderStatus.failed => true,
-    _ => false,
-  };
+        FuturesOrderStatus.filled ||
+        FuturesOrderStatus.cancelled ||
+        FuturesOrderStatus.rejected ||
+        FuturesOrderStatus.expired ||
+        FuturesOrderStatus.failed =>
+          true,
+        _ => false,
+      };
 }

@@ -107,8 +107,7 @@ class SignalModel {
       surpriseDirection: json['surpriseDirection'] as String?,
       priceReactionPct: (json['priceReactionPct'] as num?)?.toDouble(),
       volumeMultiplier: (json['volumeMultiplier'] as num?)?.toDouble(),
-      openInterestChangePct: (json['openInterestChangePct'] as num?)
-          ?.toDouble(),
+      openInterestChangePct: (json['openInterestChangePct'] as num?)?.toDouble(),
       fundingState: json['fundingState'] as String?,
       liquidationState: json['liquidationState'] as String?,
       eventConfluenceScore: (json['eventConfluenceScore'] as num?)?.toInt(),

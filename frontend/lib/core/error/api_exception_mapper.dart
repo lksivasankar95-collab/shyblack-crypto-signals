@@ -7,10 +7,7 @@ abstract final class ApiExceptionMapper {
     if (error.type == DioExceptionType.connectionTimeout ||
         error.type == DioExceptionType.receiveTimeout ||
         error.type == DioExceptionType.connectionError) {
-      return const AuthException(
-        'Unable to reach the server',
-        unreachable: true,
-      );
+      return const AuthException('Unable to reach the server', unreachable: true);
     }
 
     final status = error.response?.statusCode;

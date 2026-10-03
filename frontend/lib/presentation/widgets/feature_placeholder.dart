@@ -12,7 +12,10 @@ class FeaturePlaceholder extends StatelessWidget {
       child: Card(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-          child: Text(title, style: theme.textTheme.titleMedium),
+          child: Text(
+            title,
+            style: theme.textTheme.titleMedium,
+          ),
         ),
       ),
     );

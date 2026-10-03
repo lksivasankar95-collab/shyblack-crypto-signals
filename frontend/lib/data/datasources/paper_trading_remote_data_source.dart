@@ -14,13 +14,21 @@ class PaperTradingRemoteDataSource {
   }
 
   Future<List<Map<String, dynamic>>> listOpenPositions() async {
-    final res = await _api.dio.get<List<dynamic>>(ApiConstants.paperPositions);
-    return (res.data ?? const []).whereType<Map<String, dynamic>>().toList();
+    final res = await _api.dio.get<List<dynamic>>(
+      ApiConstants.paperPositions,
+    );
+    return (res.data ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .toList();
   }
 
   Future<List<Map<String, dynamic>>> listHistory() async {
-    final res = await _api.dio.get<List<dynamic>>(ApiConstants.paperHistory);
-    return (res.data ?? const []).whereType<Map<String, dynamic>>().toList();
+    final res = await _api.dio.get<List<dynamic>>(
+      ApiConstants.paperHistory,
+    );
+    return (res.data ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .toList();
   }
 
   Future<Map<String, dynamic>> getPerformance() async {
@@ -44,9 +52,7 @@ class PaperTradingRemoteDataSource {
     return res.data ?? const {};
   }
 
-  Future<Map<String, dynamic>> updateInitialCapital(
-    double initialCapital,
-  ) async {
+  Future<Map<String, dynamic>> updateInitialCapital(double initialCapital) async {
     final res = await _api.dio.patch<Map<String, dynamic>>(
       ApiConstants.paperAccountCapital,
       data: {'initialCapital': initialCapital},

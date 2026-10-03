@@ -17,10 +17,7 @@ class AuthRepositoryImpl implements AuthRepository {
   String? _lastGoogleIdToken;
 
   @override
-  Future<AuthTokens> login({
-    required String email,
-    required String password,
-  }) async {
+  Future<AuthTokens> login({required String email, required String password}) async {
     final model = await _remote.login(email: email, password: password);
     await _tokens.saveTokens(
       accessToken: model.accessToken,
@@ -36,9 +33,7 @@ class AuthRepositoryImpl implements AuthRepository {
       return inFlight;
     }
     final future = _loginWithGoogle(idToken: idToken);
-    _googleLoginInFlight = future.whenComplete(
-      () => _googleLoginInFlight = null,
-    );
+    _googleLoginInFlight = future.whenComplete(() => _googleLoginInFlight = null);
     return future;
   }
 

@@ -36,18 +36,14 @@ class MarketPriceBook {
   MarketTicker? tickerFor(TradingMode mode, String symbol) =>
       byMarket[mode]?[symbol.toUpperCase()];
 
-  double? priceFor(TradingMode mode, String symbol) =>
-      tickerFor(mode, symbol)?.price;
+  double? priceFor(TradingMode mode, String symbol) => tickerFor(mode, symbol)?.price;
 
   bool isEmpty(TradingMode mode) => (byMarket[mode]?.isEmpty ?? true);
 
   /// Applies a snapshot for one market, replacing that market's previous contents.
   MarketPriceBook withSnapshot(TradingMode mode, List<MarketTicker> tickers) {
     return _copy(
-      byMarket: {
-        ...byMarket,
-        mode: {for (final t in tickers) t.symbol.toUpperCase(): t},
-      },
+      byMarket: {...byMarket, mode: {for (final t in tickers) t.symbol.toUpperCase(): t}},
       connectedMarkets: {...connectedMarkets, mode},
     );
   }
@@ -139,21 +135,17 @@ class MarketPricesController extends AsyncNotifier<MarketPriceBook> {
     try {
       final session = ref.read(marketsSocketConnectorProvider).connect(uri);
       _sessions[mode] = session;
-      session.ready
-          .then((_) {
-            if (generation != _generation) return;
-            final current = state.value;
-            if (current != null) {
-              state = AsyncData(
-                current._copy(
-                  connectedMarkets: {...current.connectedMarkets, mode},
-                ),
-              );
-            }
-          })
-          .catchError((Object _) {
-            _scheduleReconnect(mode, generation);
-          });
+      session.ready.then((_) {
+        if (generation != _generation) return;
+        final current = state.value;
+        if (current != null) {
+          state = AsyncData(current._copy(
+            connectedMarkets: {...current.connectedMarkets, mode},
+          ));
+        }
+      }).catchError((Object _) {
+        _scheduleReconnect(mode, generation);
+      });
       _subscriptions[mode] = session.stream.listen(
         (raw) => _onMessage(mode, raw, generation),
         onError: (_) => _scheduleReconnect(mode, generation),
@@ -171,8 +163,7 @@ class MarketPricesController extends AsyncNotifier<MarketPriceBook> {
     if (payload == null) return;
     // A payload that declares a different market than the socket was opened for is not
     // trusted; it would place a quote in the wrong book.
-    if (payload.mode.isNotEmpty &&
-        payload.mode.toUpperCase() != mode.apiParam) {
+    if (payload.mode.isNotEmpty && payload.mode.toUpperCase() != mode.apiParam) {
       return;
     }
     final current = state.value ?? const MarketPriceBook();
@@ -186,10 +177,7 @@ class MarketPricesController extends AsyncNotifier<MarketPriceBook> {
   void _scheduleReconnect(TradingMode mode, int generation) {
     if (generation != _generation) return;
     _reconnects[mode]?.cancel();
-    _reconnects[mode] = Timer(
-      const Duration(seconds: 3),
-      () => _open(mode, generation),
-    );
+    _reconnects[mode] = Timer(const Duration(seconds: 3), () => _open(mode, generation));
   }
 
   void _tearDownAll() {
@@ -209,14 +197,9 @@ class MarketPricesController extends AsyncNotifier<MarketPriceBook> {
 }
 
 final marketPricesControllerProvider =
-    AsyncNotifierProvider<MarketPricesController, MarketPriceBook>(
-      MarketPricesController.new,
-    );
+    AsyncNotifierProvider<MarketPricesController, MarketPriceBook>(MarketPricesController.new);
 
 /// Convenience lookup for a single instrument.
 final marketPriceProvider = Provider.family<double?, MarketRef>((ref, target) {
-  return ref
-      .watch(marketPricesControllerProvider)
-      .value
-      ?.priceFor(target.market, target.symbol);
+  return ref.watch(marketPricesControllerProvider).value?.priceFor(target.market, target.symbol);
 });

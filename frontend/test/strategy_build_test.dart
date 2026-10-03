@@ -59,7 +59,8 @@ class _FakeStrategyRepository implements TradingStrategyRepository {
     required StrategyTradingMode tradingMode,
     StrategyConfig? config,
     String? engineKey,
-  }) async => throw UnimplementedError();
+  }) async =>
+      throw UnimplementedError();
 
   @override
   Future<void> deleteStrategy(String id) async {}
@@ -68,30 +69,28 @@ class _FakeStrategyRepository implements TradingStrategyRepository {
   Future<ActiveStrategyInfo> setActiveStrategy(
     StrategyTradingMode mode,
     String strategyId,
-  ) async => throw UnimplementedError();
+  ) async =>
+      throw UnimplementedError();
 }
 
 void main() {
-  test(
-    'strategy list loads even when the active-strategy lookup fails',
-    () async {
-      final container = ProviderContainer(
-        overrides: [
-          strategyRepositoryProvider.overrideWith(
-            (ref) => _FakeStrategyRepository(activeFails: true),
-          ),
-        ],
-      );
-      addTearDown(container.dispose);
+  test('strategy list loads even when the active-strategy lookup fails', () async {
+    final container = ProviderContainer(
+      overrides: [
+        strategyRepositoryProvider.overrideWith(
+          (ref) => _FakeStrategyRepository(activeFails: true),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
 
-      final state = await container.read(spotStrategyTabProvider.future);
+    final state = await container.read(spotStrategyTabProvider.future);
 
-      expect(state.strategies, isNotEmpty);
-      expect(state.strategies.first.name, 'Trend Pullback');
-      // Supplementary active info is simply absent, not fatal.
-      expect(state.activeInfo, isNull);
-    },
-  );
+    expect(state.strategies, isNotEmpty);
+    expect(state.strategies.first.name, 'Trend Pullback');
+    // Supplementary active info is simply absent, not fatal.
+    expect(state.activeInfo, isNull);
+  });
 
   test('active info is surfaced when the lookup succeeds', () async {
     final container = ProviderContainer(

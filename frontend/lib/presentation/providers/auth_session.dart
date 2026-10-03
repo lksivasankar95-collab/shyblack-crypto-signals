@@ -21,7 +21,6 @@ class AuthSessionController extends AsyncNotifier<AuthStatus> {
   }
 }
 
-final authSessionProvider =
-    AsyncNotifierProvider<AuthSessionController, AuthStatus>(
-      AuthSessionController.new,
-    );
+final authSessionProvider = AsyncNotifierProvider<AuthSessionController, AuthStatus>(
+  AuthSessionController.new,
+);

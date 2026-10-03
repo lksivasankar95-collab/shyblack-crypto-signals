@@ -2,14 +2,13 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class TokenLocalDataSource {
   TokenLocalDataSource({FlutterSecureStorage? storage})
-    : _storage =
-          storage ??
-          const FlutterSecureStorage(
-            webOptions: WebOptions(
-              dbName: 'shyblackSecureStorage',
-              publicKey: 'ShyBlackSecureStorage',
-            ),
-          );
+      : _storage = storage ??
+            const FlutterSecureStorage(
+              webOptions: WebOptions(
+                dbName: 'shyblackSecureStorage',
+                publicKey: 'ShyBlackSecureStorage',
+              ),
+            );
 
   static const _accessKey = 'accessToken';
   static const _refreshKey = 'refreshToken';

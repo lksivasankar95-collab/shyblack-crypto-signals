@@ -1,37 +1,17 @@
 enum LiveOrderStatus {
-  created,
-  submitting,
-  submitted,
-  acknowledged,
-  partiallyFilled,
-  filled,
-  cancelRequested,
-  cancelled,
-  rejected,
-  expired,
-  failed,
-  unknown,
-  reconciling,
+  created, submitting, submitted, acknowledged,
+  partiallyFilled, filled,
+  cancelRequested, cancelled,
+  rejected, expired, failed, unknown, reconciling,
 }
 
-enum LiveOrderPurpose {
-  entry,
-  stopLoss,
-  takeProfit,
-  manualClose,
-  emergencyClose,
-}
+enum LiveOrderPurpose { entry, stopLoss, takeProfit, manualClose, emergencyClose }
 
 enum LiveOrderType { market, limit, stopLossLimit, takeProfitLimit }
 
 enum LiveSide { long, short }
 
-enum LiveProtectionStatus {
-  notApplicable,
-  pending,
-  protected_,
-  protectionFailed,
-}
+enum LiveProtectionStatus { notApplicable, pending, protected_, protectionFailed }
 
 class LiveOrder {
   const LiveOrder({
@@ -89,11 +69,12 @@ class LiveOrder {
   final DateTime? createdAt;
 
   bool get isTerminal => switch (status) {
-    LiveOrderStatus.filled ||
-    LiveOrderStatus.cancelled ||
-    LiveOrderStatus.rejected ||
-    LiveOrderStatus.expired ||
-    LiveOrderStatus.failed => true,
-    _ => false,
-  };
+        LiveOrderStatus.filled ||
+        LiveOrderStatus.cancelled ||
+        LiveOrderStatus.rejected ||
+        LiveOrderStatus.expired ||
+        LiveOrderStatus.failed =>
+          true,
+        _ => false,
+      };
 }
