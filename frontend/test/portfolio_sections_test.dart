@@ -36,7 +36,9 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(ValueKey('portfolio-category-${tab.apiValue}')));
+    await tester.tap(
+      find.byKey(ValueKey('portfolio-category-${tab.apiValue}')),
+    );
     await tester.pumpAndSettle();
   }
 
@@ -51,6 +53,31 @@ void main() {
   /// It drags [ListView] explicitly rather than `Scrollable`, because the first
   /// `Scrollable` in the tree is one of the horizontal filter rows, which scroll on the
   /// wrong axis.
+  /// Selects a market section tab and settles.
+  ///
+  /// Exactly one section is mounted at a time, so a test that asserts on a
+  /// section must open it first. This is navigation, not a weakening of the
+  /// assertion: the same figures are still required once the tab is active.
+  Future<void> openSection(WidgetTester tester, String section) async {
+    final target = find.byKey(Key('section-tab-$section'));
+    // The strip scrolls horizontally and builds lazily, so on a narrow phone a
+    // later tab is neither measurable nor tappable until it is scrolled into
+    // reach. Drag until the tab exists and sits inside the strip.
+    final strip = find.byKey(const Key('portfolio-section-strip'));
+    for (var step = 0; step < 8; step++) {
+      if (target.evaluate().isNotEmpty) {
+        final bounds = tester.getRect(strip);
+        final wanted = tester.getRect(target);
+        if (wanted.center.dx >= bounds.left && wanted.center.dx <= bounds.right)
+          break;
+      }
+      await tester.drag(strip, const Offset(-120, 0));
+      await tester.pumpAndSettle();
+    }
+    await tester.tap(target, warnIfMissed: false);
+    await tester.pumpAndSettle();
+  }
+
   Future<void> scrollTo(WidgetTester tester, Finder target) async {
     for (var step = 0; step < 16; step++) {
       if (target.evaluate().isNotEmpty) {
@@ -65,14 +92,16 @@ void main() {
   /// Counts only the status chips on order cards, never the same words used as filter
   /// labels, so an assertion about a rendered order state is unambiguous.
   Finder statusChip(String label) => find.descendant(
-        of: find.byType(PortfolioOrderStatusChip),
-        matching: find.text(label),
-      );
+    of: find.byType(PortfolioOrderStatusChip),
+    matching: find.text(label),
+  );
 
   setUp(() {
     repository = FakePortfolioRepository();
-    repository.accounts[key(PortfolioMode.live, PortfolioCategory.spot)] =
-        PortfolioAccount(
+    repository.accounts[key(
+      PortfolioMode.live,
+      PortfolioCategory.spot,
+    )] = PortfolioAccount(
       accountMode: PortfolioMode.live,
       accountCategory: PortfolioCategory.spot,
       availability: PortfolioAvailability.available,
@@ -80,8 +109,10 @@ void main() {
       availableBalance: 900,
       exchange: 'BINANCE',
     );
-    repository.accounts[key(PortfolioMode.live, PortfolioCategory.futures)] =
-        PortfolioAccount(
+    repository.accounts[key(
+      PortfolioMode.live,
+      PortfolioCategory.futures,
+    )] = PortfolioAccount(
       accountMode: PortfolioMode.live,
       accountCategory: PortfolioCategory.futures,
       availability: PortfolioAvailability.available,
@@ -96,8 +127,10 @@ void main() {
   // ------------------------------------------------ A. open orders
 
   testWidgets('renders Binance-style open-order fields', (tester) async {
-    repository.openOrders[key(PortfolioMode.live, PortfolioCategory.spot)] =
-        PortfolioOrders(
+    repository.openOrders[key(
+      PortfolioMode.live,
+      PortfolioCategory.spot,
+    )] = PortfolioOrders(
       accountMode: PortfolioMode.live,
       accountCategory: PortfolioCategory.spot,
       availability: PortfolioAvailability.available,
@@ -123,6 +156,7 @@ void main() {
     );
 
     await pumpScreen(tester);
+    await openSection(tester, 'openOrders');
 
     expect(find.text('OPEN ORDERS'), findsOneWidget);
     expect(find.text('BTCUSDT'), findsOneWidget);
@@ -136,10 +170,13 @@ void main() {
     expect(find.text('0.30'), findsOneWidget);
   });
 
-  testWidgets('an undeterminable order state renders as UNKNOWN, never FILLED',
-      (tester) async {
-    repository.openOrders[key(PortfolioMode.live, PortfolioCategory.futures)] =
-        PortfolioOrders(
+  testWidgets('an undeterminable order state renders as UNKNOWN, never FILLED', (
+    tester,
+  ) async {
+    repository.openOrders[key(
+      PortfolioMode.live,
+      PortfolioCategory.futures,
+    )] = PortfolioOrders(
       accountMode: PortfolioMode.live,
       accountCategory: PortfolioCategory.futures,
       availability: PortfolioAvailability.available,
@@ -168,6 +205,7 @@ void main() {
     );
 
     await pumpScreen(tester, tab: PortfolioCategory.futures);
+    await openSection(tester, 'openOrders');
 
     expect(statusChip('UNKNOWN'), findsOneWidget);
     // Exactly one FILLED chip on an order card: the order the exchange confirmed. The
@@ -175,19 +213,26 @@ void main() {
     expect(statusChip('FILLED'), findsOneWidget);
   });
 
-  testWidgets('an unsupported open-order capability is not shown as "no open orders"',
-      (tester) async {
-    await pumpScreen(tester, account: TradingAccount.paper);
+  testWidgets(
+    'an unsupported open-order capability is not shown as "no open orders"',
+    (tester) async {
+      await pumpScreen(tester, account: TradingAccount.paper);
+      await openSection(tester, 'openOrders');
 
-    expect(find.text('No open-order book'), findsOneWidget);
-    expect(find.text('No open orders.'), findsNothing);
-  });
+      expect(find.text('No open-order book'), findsOneWidget);
+      expect(find.text('No open orders.'), findsNothing);
+    },
+  );
 
   // -------------------------------------------- B. closed positions
 
-  testWidgets('renders closed positions with proven fields only', (tester) async {
-    repository.closedPositions[key(PortfolioMode.live, PortfolioCategory.futures)] =
-        PortfolioClosedPositions(
+  testWidgets('renders closed positions with proven fields only', (
+    tester,
+  ) async {
+    repository.closedPositions[key(
+      PortfolioMode.live,
+      PortfolioCategory.futures,
+    )] = PortfolioClosedPositions(
       accountMode: PortfolioMode.live,
       accountCategory: PortfolioCategory.futures,
       availability: PortfolioAvailability.available,
@@ -226,40 +271,48 @@ void main() {
     expect(find.text('0.00'), findsNothing);
   });
 
-  testWidgets('a partial reconstruction is labelled rather than silently filled in',
-      (tester) async {
-    repository.closedPositions[key(PortfolioMode.live, PortfolioCategory.futures)] =
-        PortfolioClosedPositions(
-      accountMode: PortfolioMode.live,
-      accountCategory: PortfolioCategory.futures,
-      availability: PortfolioAvailability.available,
-      source: 'EXCHANGE',
-      partial: true,
-      statusMessage: 'Some round trips were only partly inside the requested window.',
-      positions: const [
-        PortfolioClosedPosition(
-          accountMode: PortfolioMode.live,
-          accountCategory: PortfolioCategory.futures,
-          symbol: 'BTCUSDT',
-          side: 'SHORT',
-          exitPrice: 58000,
-          realizedPnl: -250,
-        ),
-      ],
-    );
+  testWidgets(
+    'a partial reconstruction is labelled rather than silently filled in',
+    (tester) async {
+      repository.closedPositions[key(
+        PortfolioMode.live,
+        PortfolioCategory.futures,
+      )] = PortfolioClosedPositions(
+        accountMode: PortfolioMode.live,
+        accountCategory: PortfolioCategory.futures,
+        availability: PortfolioAvailability.available,
+        source: 'EXCHANGE',
+        partial: true,
+        statusMessage:
+            'Some round trips were only partly inside the requested window.',
+        positions: const [
+          PortfolioClosedPosition(
+            accountMode: PortfolioMode.live,
+            accountCategory: PortfolioCategory.futures,
+            symbol: 'BTCUSDT',
+            side: 'SHORT',
+            exitPrice: 58000,
+            realizedPnl: -250,
+          ),
+        ],
+      );
 
-    await pumpScreen(tester, tab: PortfolioCategory.futures);
+      await pumpScreen(tester, tab: PortfolioCategory.futures);
 
-    expect(find.text('Partial reconstruction'), findsOneWidget);
-    // Entry price is unobservable, so it shows as unavailable and never as 0.00.
-    expect(find.text('-250.00'), findsOneWidget);
-    expect(find.text('0.00'), findsNothing);
-  });
+      expect(find.text('Partial reconstruction'), findsOneWidget);
+      // Entry price is unobservable, so it shows as unavailable and never as 0.00.
+      expect(find.text('-250.00'), findsOneWidget);
+      expect(find.text('0.00'), findsNothing);
+    },
+  );
 
   // ------------------------------------- C. transactions and funding
 
-  testWidgets('spot transaction history reports it is not available', (tester) async {
+  testWidgets('spot transaction history reports it is not available', (
+    tester,
+  ) async {
     await pumpScreen(tester);
+    await openSection(tester, 'tradeHistory');
 
     await scrollTo(tester, find.text('TRANSACTION HISTORY'));
     expect(find.text('TRANSACTION HISTORY'), findsOneWidget);
@@ -270,10 +323,13 @@ void main() {
     expect(find.text('No transactions in this window.'), findsNothing);
   });
 
-  testWidgets('futures transaction history keeps the exchange income type',
-      (tester) async {
-    repository.transactions[key(PortfolioMode.live, PortfolioCategory.futures)] =
-        PortfolioHistory(
+  testWidgets('futures transaction history keeps the exchange income type', (
+    tester,
+  ) async {
+    repository.transactions[key(
+      PortfolioMode.live,
+      PortfolioCategory.futures,
+    )] = PortfolioHistory(
       accountMode: PortfolioMode.live,
       accountCategory: PortfolioCategory.futures,
       availability: PortfolioAvailability.available,
@@ -295,6 +351,7 @@ void main() {
     );
 
     await pumpScreen(tester, tab: PortfolioCategory.futures);
+    await openSection(tester, 'tradeHistory');
 
     await scrollTo(tester, find.text('REALIZED_PNL'));
     expect(find.text('REALIZED_PNL'), findsOneWidget);
@@ -303,8 +360,10 @@ void main() {
   });
 
   testWidgets('funding fees render as their own income rows', (tester) async {
-    repository.fundingFees[key(PortfolioMode.live, PortfolioCategory.futures)] =
-        PortfolioHistory(
+    repository.fundingFees[key(
+      PortfolioMode.live,
+      PortfolioCategory.futures,
+    )] = PortfolioHistory(
       accountMode: PortfolioMode.live,
       accountCategory: PortfolioCategory.futures,
       availability: PortfolioAvailability.available,
@@ -326,6 +385,7 @@ void main() {
     );
 
     await pumpScreen(tester, tab: PortfolioCategory.futures);
+    await openSection(tester, 'tradeHistory');
 
     await scrollTo(tester, find.text('FUNDING FEES'));
     expect(find.text('FUNDING FEES'), findsOneWidget);
@@ -341,11 +401,17 @@ void main() {
       PortfolioOrderStatus.parse('PARTIALLY_FILLED'),
       PortfolioOrderStatus.partiallyFilled,
     );
-    expect(PortfolioOrderStatus.parse('CANCELED'), PortfolioOrderStatus.canceled);
+    expect(
+      PortfolioOrderStatus.parse('CANCELED'),
+      PortfolioOrderStatus.canceled,
+    );
     expect(PortfolioOrderStatus.parse('EXPIRED'), PortfolioOrderStatus.expired);
     // Anything the build does not recognise, including an HTTP-200-with-no-status, stays
     // unknown rather than defaulting to a terminal outcome.
-    expect(PortfolioOrderStatus.parse('SOMETHING_NEW'), PortfolioOrderStatus.unknown);
+    expect(
+      PortfolioOrderStatus.parse('SOMETHING_NEW'),
+      PortfolioOrderStatus.unknown,
+    );
     expect(PortfolioOrderStatus.parse(null), PortfolioOrderStatus.unknown);
     expect(PortfolioOrderStatus.parse(''), PortfolioOrderStatus.unknown);
   });
@@ -361,9 +427,11 @@ void main() {
 
   // ------------------------------------------------------- E. filters
 
-  testWidgets('a bounded date range is offered, never an unbounded request',
-      (tester) async {
+  testWidgets('a bounded date range is offered, never an unbounded request', (
+    tester,
+  ) async {
     await pumpScreen(tester, tab: PortfolioCategory.futures);
+    await openSection(tester, 'tradeHistory');
 
     expect(find.text('Today'), findsOneWidget);
     expect(find.text('7 Days'), findsOneWidget);

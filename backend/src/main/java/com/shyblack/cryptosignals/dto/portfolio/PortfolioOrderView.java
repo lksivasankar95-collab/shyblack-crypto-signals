@@ -16,8 +16,26 @@ import java.time.Instant;
  *
  * <p>{@link #status()} is normalised through {@link PortfolioOrderStatus} so an undeterminable
  * state stays {@link PortfolioOrderStatus#UNKNOWN} and can never be read as FILLED.
+ *
+ * <p><b>Actionable cancellation.</b> {@link #orderId()} and {@link #clientOrderId()} are the
+ * exchange's own identifiers, which are what a detail view should display but are <em>not</em> what
+ * the cancel endpoint accepts: the existing cancel services address a locally persisted
+ * {@code LiveOrder} / {@code FuturesOrder} and then look the order up by client order id.
+ * {@link #cancelId()} therefore carries that local key, and is resolved per row from the caller's
+ * own account.
+ *
+ * <p>It is null — meaning "cannot be cancelled from here" — when no local record matches (an order
+ * placed outside this application), when the account is PAPER (which works no order book at all),
+ * or when the exchange state has already reached a terminal status. A cancel control is shown only
+ * when this is non-null, so the UI can never offer a button that cannot execute. PAPER orders never
+ * exist, so a paper account always reports null rather than a synthetic identifier.
  */
 public record PortfolioOrderView(
+		/**
+		 * Key of the caller's own persisted order record, or null when the order is not addressable
+		 * by the cancel endpoint. Never a list index and never synthesised.
+		 */
+		String cancelId,
 		AccountMode accountMode,
 		AccountCategory accountCategory,
 		String symbol,
@@ -43,4 +61,41 @@ public record PortfolioOrderView(
 		Long orderId,
 		String clientOrderId,
 		Instant createdAt,
-		Instant updatedAt) {}
+		Instant updatedAt) {
+
+	/** Back-compat constructor for scopes with no addressable local record. */
+	public PortfolioOrderView(
+			AccountMode accountMode,
+			AccountCategory accountCategory,
+			String symbol,
+			String side,
+			String positionSide,
+			String orderType,
+			PortfolioOrderStatus status,
+			String rawStatus,
+			BigDecimal price,
+			BigDecimal stopPrice,
+			BigDecimal averageFillPrice,
+			BigDecimal originalQuantity,
+			BigDecimal executedQuantity,
+			BigDecimal remainingQuantity,
+			Boolean reduceOnly,
+			Long orderId,
+			String clientOrderId,
+			Instant createdAt,
+			Instant updatedAt) {
+		this(null, accountMode, accountCategory, symbol, side, positionSide, orderType,
+				status, rawStatus, price, stopPrice, averageFillPrice, originalQuantity,
+				executedQuantity, remainingQuantity, reduceOnly, orderId, clientOrderId,
+				createdAt, updatedAt);
+	}
+
+	/**
+	 * True when this order can actually be cancelled through the existing execution
+	 * architecture: a local record must be addressable, and the exchange state must not
+	 * already be terminal.
+	 */
+	public boolean cancellable() {
+		return cancelId != null && status != null && status.isOpen();
+	}
+}

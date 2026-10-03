@@ -157,7 +157,7 @@ public class PortfolioController {
 			@RequestParam(name = "status", required = false) String status) {
 		User user = currentUser();
 		AccountMode effective = resolveMode(user, mode);
-		return historyService.openOrders(user, effective, category, symbol);
+		return historyService.openOrders(user, effective, category, symbol, side, status);
 	}
 
 	@Operation(summary = "Positions that have been closed in the window",

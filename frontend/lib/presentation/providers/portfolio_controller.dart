@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/di/providers.dart';
 import '../../domain/entities/app_settings.dart';
 import '../../domain/entities/portfolio_account.dart';
+import '../../domain/repositories/portfolio_repository.dart';
 import 'settings_controller.dart';
 
 /// Thrown when Settings has not yet resolved which account mode is selected.
@@ -49,6 +50,89 @@ class PortfolioCategorySelection extends Notifier<PortfolioCategory> {
 final portfolioCategoryProvider =
     NotifierProvider<PortfolioCategorySelection, PortfolioCategory>(
       PortfolioCategorySelection.new,
+    );
+
+/// The market section currently open below the account tabs.
+///
+/// Exactly three sections per market, and only one is rendered at a time: a spot
+/// wallet, an order book and a trade history stacked into a single scrolling list
+/// is unreadable on a phone and buries the section a user opened the screen for.
+///
+/// SPOT  → holdings / open orders / trade history
+/// FUTURES → positions / open orders / trade history
+///
+/// The selection is reset whenever the market account changes so a futures
+/// section can never stay selected on the spot tab (or the reverse).
+class PortfolioSectionSelection extends Notifier<PortfolioSection> {
+  @override
+  PortfolioSection build() {
+    // Rebuild on market change so the default section always matches the tab.
+    ref.watch(portfolioCategoryProvider);
+    return PortfolioSection.primaryFor(ref.watch(portfolioCategoryProvider));
+  }
+
+  void select(PortfolioSection section) {
+    state = section;
+  }
+}
+
+/// One of the three market sections rendered below the account tabs.
+enum PortfolioSection {
+  /// Spot: assets the user currently owns.
+  holdings,
+
+  /// Futures: currently open leveraged positions.
+  positions,
+
+  /// Orders the exchange still reports as resting.
+  openOrders,
+
+  /// Completed activity in the selected window.
+  tradeHistory;
+
+  /// Spot calls its first section "holdings" and futures "positions"; a spot
+  /// wallet holding is an owned asset, not an open position.
+  static PortfolioSection primaryFor(PortfolioCategory category) =>
+      category == PortfolioCategory.futures
+      ? PortfolioSection.positions
+      : PortfolioSection.holdings;
+
+  /// The sections offered for a market account, in display order.
+  static List<PortfolioSection> forCategory(
+    PortfolioCategory category,
+  ) => switch (category) {
+    PortfolioCategory.futures => const [
+      PortfolioSection.positions,
+      PortfolioSection.openOrders,
+      PortfolioSection.tradeHistory,
+    ],
+    // OPTIONS has no source, so it keeps its existing honest state and offers
+    // no sections rather than three permanently empty ones.
+    PortfolioCategory.options => const [],
+    _ => const [
+      PortfolioSection.holdings,
+      PortfolioSection.openOrders,
+      PortfolioSection.tradeHistory,
+    ],
+  };
+
+  String get label {
+    switch (this) {
+      case PortfolioSection.holdings:
+        return 'Current Holdings';
+      case PortfolioSection.positions:
+        return 'Open Positions';
+      case PortfolioSection.openOrders:
+        return 'Open Orders';
+      case PortfolioSection.tradeHistory:
+        return 'Trade History';
+    }
+  }
+}
+
+final portfolioSectionProvider =
+    NotifierProvider<PortfolioSectionSelection, PortfolioSection>(
+      PortfolioSectionSelection.new,
     );
 
 /// The account mode and market account currently on screen.
@@ -143,8 +227,8 @@ class PortfolioController extends AsyncNotifier<PortfolioViewData> {
 
 final portfolioControllerProvider =
     AsyncNotifierProvider<PortfolioController, PortfolioViewData>(
-  PortfolioController.new,
-);
+      PortfolioController.new,
+    );
 
 /// Wallet holdings for the selected mode's spot wallet.
 ///
@@ -163,7 +247,7 @@ class PortfolioHoldingsController extends AsyncNotifier<PortfolioHoldings> {
 
 final portfolioHoldingsProvider =
     AsyncNotifierProvider<PortfolioHoldingsController, PortfolioHoldings>(
-  PortfolioHoldingsController.new,
+      PortfolioHoldingsController.new,
     );
 
 /// Orders the exchange currently reports as resting for the selected scope.
@@ -204,8 +288,10 @@ class PortfolioClosedPositionsController
 }
 
 final portfolioClosedPositionsProvider =
-    AsyncNotifierProvider<PortfolioClosedPositionsController,
-        PortfolioClosedPositions>(PortfolioClosedPositionsController.new);
+    AsyncNotifierProvider<
+      PortfolioClosedPositionsController,
+      PortfolioClosedPositions
+    >(PortfolioClosedPositionsController.new);
 
 /// One history query as issued by the UI.
 class PortfolioHistoryQuery {
@@ -282,16 +368,16 @@ class PortfolioHistoryQuery {
 
   @override
   int get hashCode => Object.hash(
-        type,
-        symbol,
-        limit,
-        from,
-        to,
-        side,
-        orderType,
-        status,
-        positionSide,
-      );
+    type,
+    symbol,
+    limit,
+    from,
+    to,
+    side,
+    orderType,
+    status,
+    positionSide,
+  );
 }
 
 /// The history window and narrowing currently requested in the UI.
@@ -358,12 +444,11 @@ enum PortfolioHistoryRange {
 
 final portfolioHistorySelectionProvider =
     NotifierProvider<PortfolioHistorySelection, PortfolioHistoryQuery>(
-  PortfolioHistorySelection.new,
-);
+      PortfolioHistorySelection.new,
+    );
 
 /// History for the selected scope and window.
-class PortfolioHistoryController
-    extends AsyncNotifier<PortfolioHistory> {
+class PortfolioHistoryController extends AsyncNotifier<PortfolioHistory> {
   @override
   Future<PortfolioHistory> build() async {
     final scope = requireScope(ref);
@@ -388,12 +473,11 @@ class PortfolioHistoryController
 
 final portfolioHistoryControllerProvider =
     AsyncNotifierProvider<PortfolioHistoryController, PortfolioHistory>(
-  PortfolioHistoryController.new,
-);
+      PortfolioHistoryController.new,
+    );
 
 /// Account income records for the selected scope and window.
-class PortfolioTransactionController
-    extends AsyncNotifier<PortfolioHistory> {
+class PortfolioTransactionController extends AsyncNotifier<PortfolioHistory> {
   @override
   Future<PortfolioHistory> build() async {
     final scope = requireScope(ref);
@@ -413,8 +497,8 @@ class PortfolioTransactionController
 
 final portfolioTransactionControllerProvider =
     AsyncNotifierProvider<PortfolioTransactionController, PortfolioHistory>(
-  PortfolioTransactionController.new,
-);
+      PortfolioTransactionController.new,
+    );
 
 /// Funding fees for the selected scope and window.
 class PortfolioFundingController extends AsyncNotifier<PortfolioHistory> {
@@ -437,12 +521,11 @@ class PortfolioFundingController extends AsyncNotifier<PortfolioHistory> {
 
 final portfolioFundingControllerProvider =
     AsyncNotifierProvider<PortfolioFundingController, PortfolioHistory>(
-  PortfolioFundingController.new,
-);
+      PortfolioFundingController.new,
+    );
 
 /// Connection state and freshness for the selected scope.
-class PortfolioSyncStatusController
-    extends AsyncNotifier<PortfolioSyncStatus> {
+class PortfolioSyncStatusController extends AsyncNotifier<PortfolioSyncStatus> {
   @override
   Future<PortfolioSyncStatus> build() async {
     final scope = requireScope(ref);
@@ -453,5 +536,215 @@ class PortfolioSyncStatusController
 
 final portfolioSyncStatusControllerProvider =
     AsyncNotifierProvider<PortfolioSyncStatusController, PortfolioSyncStatus>(
-  PortfolioSyncStatusController.new,
-);
+      PortfolioSyncStatusController.new,
+    );
+
+// ── Paper account management ──────────────────────────────────────
+//
+// Every provider below is PAPER-only. They are unreachable while the resolved
+// account mode is LIVE or still unresolved: [requirePaperMode] throws rather than
+// quietly operating on the wrong account, and the UI hides its controls entirely
+// in LIVE mode, so there is no path from a live screen to a simulated-funds
+// mutation. An unresolved mode is rejected for the same reason: guessing PAPER
+// while Settings is still loading is how a live account gets touched by mistake.
+
+/// Raised when a simulated-funds action is attempted outside a resolved PAPER account.
+class PortfolioCapitalNotAvailable implements Exception {
+  const PortfolioCapitalNotAvailable();
+
+  @override
+  String toString() =>
+      'Capital management is only available on a resolved paper account';
+}
+
+/// Guard: returns the mode only when it is explicitly resolved and is PAPER.
+PortfolioMode requirePaperMode(Ref ref) {
+  final mode = ref.watch(portfolioAccountModeProvider);
+  // Split null from value: Dart will not promote `mode` past an enum equality
+  // check, so the null case is rejected first to make the return type sound.
+  if (mode == null || mode != PortfolioMode.paper) {
+    throw const PortfolioCapitalNotAvailable();
+  }
+  return mode;
+}
+
+/// The audited paper capital ledger, newest first.
+class PortfolioCapitalHistoryController
+    extends AsyncNotifier<List<PaperCapitalEvent>> {
+  @override
+  Future<List<PaperCapitalEvent>> build() async {
+    requirePaperMode(ref);
+    final repository = ref.watch(portfolioRepositoryProvider);
+    return repository.getPaperCapitalHistory();
+  }
+}
+
+final portfolioCapitalHistoryProvider =
+    AsyncNotifierProvider<
+      PortfolioCapitalHistoryController,
+      List<PaperCapitalEvent>
+    >(PortfolioCapitalHistoryController.new);
+
+/// Adds or withdraws simulated capital, then refreshes every affected figure.
+///
+/// The mutation is awaited before any invalidation, so the screen can never show a
+/// balance the backend has not yet accepted.
+class PortfolioCapitalController extends AsyncNotifier<void> {
+  @override
+  Future<void> build() async {}
+
+  /// Adds capital. [amount] must be greater than zero; the server rejects
+  /// anything else and the error is surfaced rather than swallowed.
+  Future<void> add(double amount, {String? reason}) async {
+    requirePaperMode(ref);
+    await _apply(
+      () => ref
+          .read(portfolioRepositoryProvider)
+          .addPaperCapital(amount: amount, reason: reason),
+    );
+  }
+
+  /// Withdraws capital. Bounded by free cash server side.
+  Future<void> reduce(double amount, {String? reason}) async {
+    requirePaperMode(ref);
+    await _apply(
+      () => ref
+          .read(portfolioRepositoryProvider)
+          .reducePaperCapital(amount: amount, reason: reason),
+    );
+  }
+
+  /// Resets the simulated account. Only reachable after an explicit confirmation
+  /// in the sheet — this method performs the reset but does not ask.
+  Future<void> reset() async {
+    requirePaperMode(ref);
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(
+      () => ref.read(portfolioRepositoryProvider).resetPaperAccount(),
+    );
+    ref.invalidate(portfolioCapitalHistoryProvider);
+    ref.invalidate(portfolioControllerProvider);
+    ref.invalidate(portfolioHoldingsProvider);
+    ref.invalidate(portfolioOpenOrdersProvider);
+    ref.invalidate(portfolioClosedPositionsProvider);
+    ref.invalidate(portfolioHistoryControllerProvider);
+    ref.invalidate(portfolioTransactionControllerProvider);
+    ref.invalidate(portfolioFundingControllerProvider);
+  }
+
+  Future<void> _apply(Future<Object?> Function() action) async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(action);
+    ref.invalidate(portfolioCapitalHistoryProvider);
+    ref.invalidate(portfolioControllerProvider);
+    ref.invalidate(portfolioHoldingsProvider);
+    ref.invalidate(portfolioPositionsRefreshProvider);
+  }
+}
+
+final portfolioCapitalControllerProvider =
+    AsyncNotifierProvider<PortfolioCapitalController, void>(
+      PortfolioCapitalController.new,
+    );
+
+/// Invalidates every position-derived provider.
+///
+/// Positions are shown by the read-model providers plus the paper position list,
+/// so a close or a risk change has to refresh all of them together.
+final portfolioPositionsRefreshProvider = Provider<void>((ref) {
+  ref
+    ..invalidate(portfolioControllerProvider)
+    ..invalidate(portfolioClosedPositionsProvider)
+    ..invalidate(portfolioHistoryControllerProvider);
+});
+
+/// Repositions the protective levels of an open paper position, or closes it.
+///
+/// Both actions go through the backend, never optimistically: the UI is only
+/// updated after the server confirms, so a position can never appear closed or
+/// re-protected locally while the engine still disagrees.
+class PortfolioPositionActionController extends AsyncNotifier<void> {
+  @override
+  Future<void> build() async {}
+
+  Future<void> updateRisk(
+    String positionId, {
+    double? stopLoss,
+    double? takeProfit,
+  }) async {
+    requirePaperMode(ref);
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(
+      () => ref
+          .read(portfolioRepositoryProvider)
+          .updatePaperPositionRisk(
+            positionId,
+            stopLoss: stopLoss,
+            takeProfit: takeProfit,
+          ),
+    );
+    ref.invalidate(portfolioPositionsRefreshProvider);
+    ref.invalidate(portfolioHistoryControllerProvider);
+  }
+
+  Future<void> close(String positionId) async {
+    requirePaperMode(ref);
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(
+      () =>
+          ref.read(portfolioRepositoryProvider).closePaperPosition(positionId),
+    );
+    ref.invalidate(portfolioCapitalHistoryProvider);
+    ref.invalidate(portfolioPositionsRefreshProvider);
+    ref.invalidate(portfolioHistoryControllerProvider);
+    ref.invalidate(portfolioHoldingsProvider);
+  }
+}
+
+final portfolioPositionActionControllerProvider =
+    AsyncNotifierProvider<PortfolioPositionActionController, void>(
+      PortfolioPositionActionController.new,
+    );
+
+/// Cancels a resting LIVE order through the existing execution architecture.
+///
+/// PAPER is refused before any request: it works no order book, so there is
+/// nothing to cancel and a simulated account must never reach a live exchange.
+///
+/// The order list is re-read afterwards rather than optimistically removing the
+/// row. A cancel that the exchange did not honour — or one whose outcome is
+/// uncertain — must leave the order visible, so the screen shows the actual final
+/// state instead of a local assumption.
+class PortfolioOrderActionController extends AsyncNotifier<void> {
+  @override
+  Future<void> build() async {}
+
+  Future<void> cancel({
+    required PortfolioMode mode,
+    required PortfolioCategory category,
+    required String cancelId,
+  }) async {
+    if (mode != PortfolioMode.live) {
+      state = AsyncError(
+        const PortfolioCapitalNotAvailable(),
+        StackTrace.current,
+      );
+      throw const PortfolioCapitalNotAvailable();
+    }
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(
+      () => ref
+          .read(portfolioRepositoryProvider)
+          .cancelOrder(mode: mode, category: category, cancelId: cancelId),
+    );
+    // Reconcile from the server: never assume the cancellation landed.
+    ref.invalidate(portfolioOpenOrdersProvider);
+    ref.invalidate(portfolioHistoryControllerProvider);
+    ref.invalidate(portfolioSyncStatusControllerProvider);
+  }
+}
+
+final portfolioOrderActionControllerProvider =
+    AsyncNotifierProvider<PortfolioOrderActionController, void>(
+      PortfolioOrderActionController.new,
+    );

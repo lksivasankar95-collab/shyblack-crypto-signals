@@ -17,15 +17,16 @@ class FakePortfolioRepository implements PortfolioRepository {
     Map<String, PortfolioClosedPositions>? closedPositions,
     Map<String, PortfolioHistory>? transactions,
     Map<String, PortfolioHistory>? fundingFees,
-  })  : accounts = accounts ?? <String, PortfolioAccount>{},
-        positions = positions ?? <String, PortfolioPositions>{},
-        holdings = holdings ?? <String, PortfolioHoldings>{},
-        history = history ?? <String, PortfolioHistory>{},
-        syncStatus = syncStatus ?? <String, PortfolioSyncStatus>{},
-        openOrders = openOrders ?? <String, PortfolioOrders>{},
-        closedPositions = closedPositions ?? <String, PortfolioClosedPositions>{},
-        transactions = transactions ?? <String, PortfolioHistory>{},
-        fundingFees = fundingFees ?? <String, PortfolioHistory>{};
+  }) : accounts = accounts ?? <String, PortfolioAccount>{},
+       positions = positions ?? <String, PortfolioPositions>{},
+       holdings = holdings ?? <String, PortfolioHoldings>{},
+       history = history ?? <String, PortfolioHistory>{},
+       syncStatus = syncStatus ?? <String, PortfolioSyncStatus>{},
+       openOrders = openOrders ?? <String, PortfolioOrders>{},
+       closedPositions =
+           closedPositions ?? <String, PortfolioClosedPositions>{},
+       transactions = transactions ?? <String, PortfolioHistory>{},
+       fundingFees = fundingFees ?? <String, PortfolioHistory>{};
 
   /// Keyed by "MODE:CATEGORY".
   final Map<String, PortfolioAccount> accounts;
@@ -117,14 +118,14 @@ class FakePortfolioRepository implements PortfolioRepository {
         PortfolioHoldings(
           accountMode: mode,
           accountCategory: category,
-          availability: mode == PortfolioMode.live &&
-                  category == PortfolioCategory.spot
+          availability:
+              mode == PortfolioMode.live && category == PortfolioCategory.spot
               ? PortfolioAvailability.available
               : PortfolioAvailability.unsupported,
           holdings: const [],
           statusMessage: mode == PortfolioMode.paper
               ? 'A simulated account holds capital, not exchange assets, so it has no '
-                  'per-asset wallet holdings.'
+                    'per-asset wallet holdings.'
               : null,
         );
   }
@@ -143,7 +144,9 @@ class FakePortfolioRepository implements PortfolioRepository {
     String? status,
     String? positionSide,
   }) async {
-    historyCalls.add('${key(mode, category)}:${type.apiValue}:${symbol ?? '-'}');
+    historyCalls.add(
+      '${key(mode, category)}:${type.apiValue}:${symbol ?? '-'}',
+    );
     if (historyFailWith != null) throw historyFailWith!;
     if (failWith != null) throw failWith!;
     return history[key(mode, category)] ??
@@ -196,13 +199,13 @@ class FakePortfolioRepository implements PortfolioRepository {
         PortfolioClosedPositions(
           accountMode: mode,
           accountCategory: category,
-          availability: mode == PortfolioMode.live &&
-                  category == PortfolioCategory.spot
+          availability:
+              mode == PortfolioMode.live && category == PortfolioCategory.spot
               ? PortfolioAvailability.unsupported
               : PortfolioAvailability.available,
           positions: const [],
-          statusMessage: mode == PortfolioMode.live &&
-                  category == PortfolioCategory.spot
+          statusMessage:
+              mode == PortfolioMode.live && category == PortfolioCategory.spot
               ? 'Spot holds wallet assets rather than leveraged positions.'
               : null,
         );
@@ -226,15 +229,15 @@ class FakePortfolioRepository implements PortfolioRepository {
         PortfolioHistory(
           accountMode: mode,
           accountCategory: category,
-          availability: mode == PortfolioMode.live &&
-                  category == PortfolioCategory.spot
+          availability:
+              mode == PortfolioMode.live && category == PortfolioCategory.spot
               ? PortfolioAvailability.unsupported
               : PortfolioAvailability.available,
           entries: const [],
-          statusMessage: mode == PortfolioMode.live &&
-                  category == PortfolioCategory.spot
+          statusMessage:
+              mode == PortfolioMode.live && category == PortfolioCategory.spot
               ? 'Not available: Binance Spot publishes no account income or transaction '
-                  'endpoint.'
+                    'endpoint.'
               : null,
         );
   }
@@ -273,5 +276,99 @@ class FakePortfolioRepository implements PortfolioRepository {
           availability: PortfolioAvailability.available,
           stale: false,
         );
+  }
+
+  // ── Paper capital + position actions ─────────────────────────────
+
+  /// Seeded capital ledger returned by [getPaperCapitalHistory].
+  List<PaperCapitalEvent> capitalHistoryRows = const [];
+
+  /// Recorded so a test can prove a simulated-funds action never fires outside
+  /// PAPER, and that the exact amount/reason reached the repository.
+  final List<String> capitalCalls = [];
+  final List<String> positionRiskCalls = [];
+  final List<String> positionCloseCalls = [];
+
+  /// When set, every paper mutation throws this, standing in for the server
+  /// rejecting the request (e.g. withdrawing more than free cash).
+  Object? paperFailWith;
+
+  @override
+  Future<PaperCapitalEvent> addPaperCapital({
+    required double amount,
+    String? reason,
+  }) async {
+    capitalCalls.add('ADD:$amount:${reason ?? ''}');
+    if (paperFailWith != null) throw paperFailWith!;
+    return PaperCapitalEvent(
+      id: 'evt-${capitalCalls.length}',
+      type: PaperCapitalEventType.add,
+      amount: amount,
+      previousBalance: 0,
+      newBalance: amount,
+      reason: reason,
+    );
+  }
+
+  @override
+  Future<PaperCapitalEvent> reducePaperCapital({
+    required double amount,
+    String? reason,
+  }) async {
+    capitalCalls.add('REDUCE:$amount:${reason ?? ''}');
+    if (paperFailWith != null) throw paperFailWith!;
+    return PaperCapitalEvent(
+      id: 'evt-${capitalCalls.length}',
+      type: PaperCapitalEventType.reduce,
+      amount: -amount,
+      previousBalance: amount,
+      newBalance: 0,
+      reason: reason,
+    );
+  }
+
+  @override
+  Future<List<PaperCapitalEvent>> getPaperCapitalHistory({
+    int limit = 50,
+  }) async {
+    capitalCalls.add('HISTORY');
+    if (paperFailWith != null) throw paperFailWith!;
+    return capitalHistoryRows;
+  }
+
+  @override
+  Future<void> resetPaperAccount() async {
+    capitalCalls.add('RESET');
+    if (paperFailWith != null) throw paperFailWith!;
+  }
+
+  @override
+  Future<void> updatePaperPositionRisk(
+    String positionId, {
+    double? stopLoss,
+    double? takeProfit,
+  }) async {
+    positionRiskCalls.add('$positionId:$stopLoss:$takeProfit');
+    if (paperFailWith != null) throw paperFailWith!;
+  }
+
+  @override
+  Future<void> closePaperPosition(String positionId) async {
+    positionCloseCalls.add(positionId);
+    if (paperFailWith != null) throw paperFailWith!;
+  }
+
+  /// Recorded as "MODE:CATEGORY:id" so a test can prove a cancellation was routed
+  /// to the correct scope and addressed the correct record.
+  final List<String> cancelOrderCalls = [];
+
+  @override
+  Future<void> cancelOrder({
+    required PortfolioMode mode,
+    required PortfolioCategory category,
+    required String cancelId,
+  }) async {
+    cancelOrderCalls.add('${mode.apiValue}:${category.apiValue}:$cancelId');
+    if (paperFailWith != null) throw paperFailWith!;
   }
 }

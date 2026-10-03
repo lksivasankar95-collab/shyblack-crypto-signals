@@ -71,8 +71,10 @@ void main() {
     double? equity,
     double? availableBalance,
   }) {
-    repository.accounts[FakePortfolioRepository.key(mode, PortfolioCategory.spot)] =
-        account(
+    repository.accounts[FakePortfolioRepository.key(
+      mode,
+      PortfolioCategory.spot,
+    )] = account(
       mode: mode,
       category: PortfolioCategory.spot,
       availability: availability,
@@ -88,6 +90,31 @@ void main() {
   /// lazy-list behaviour. It drags [ListView] explicitly rather than `Scrollable`,
   /// because the first `Scrollable` in the tree is one of the horizontal filter rows,
   /// which scroll on the wrong axis.
+  /// Selects a market section tab and settles.
+  ///
+  /// Exactly one section is mounted at a time, so a test that asserts on a
+  /// section must open it first. This is navigation, not a weakening of the
+  /// assertion: the same figures are still required once the tab is active.
+  Future<void> openSection(WidgetTester tester, String section) async {
+    final target = find.byKey(Key('section-tab-$section'));
+    // The strip scrolls horizontally and builds lazily, so on a narrow phone a
+    // later tab is neither measurable nor tappable until it is scrolled into
+    // reach. Drag until the tab exists and sits inside the strip.
+    final strip = find.byKey(const Key('portfolio-section-strip'));
+    for (var step = 0; step < 8; step++) {
+      if (target.evaluate().isNotEmpty) {
+        final bounds = tester.getRect(strip);
+        final wanted = tester.getRect(target);
+        if (wanted.center.dx >= bounds.left && wanted.center.dx <= bounds.right)
+          break;
+      }
+      await tester.drag(strip, const Offset(-120, 0));
+      await tester.pumpAndSettle();
+    }
+    await tester.tap(target, warnIfMissed: false);
+    await tester.pumpAndSettle();
+  }
+
   Future<void> scrollTo(WidgetTester tester, Finder target) async {
     for (var step = 0; step < 16; step++) {
       if (target.evaluate().isNotEmpty) {
@@ -122,8 +149,9 @@ void main() {
 
   // ------------------------------------------------ A. Settings drives the mode
 
-  testWidgets('Settings PAPER makes the Portfolio read the PAPER scope',
-      (tester) async {
+  testWidgets('Settings PAPER makes the Portfolio read the PAPER scope', (
+    tester,
+  ) async {
     seedSpot(mode: PortfolioMode.paper, equity: 111.11);
     seedSpot(mode: PortfolioMode.live, equity: 999999);
 
@@ -138,8 +166,9 @@ void main() {
     expect(find.text('999999.00'), findsNothing);
   });
 
-  testWidgets('Settings LIVE makes the Portfolio read the LIVE scope',
-      (tester) async {
+  testWidgets('Settings LIVE makes the Portfolio read the LIVE scope', (
+    tester,
+  ) async {
     seedSpot(mode: PortfolioMode.paper, equity: 111.11);
     seedSpot(mode: PortfolioMode.live, equity: 999999);
 
@@ -153,8 +182,9 @@ void main() {
     expect(find.text('111.11'), findsNothing);
   });
 
-  testWidgets('changing the account mode in Settings re-reads the Portfolio',
-      (tester) async {
+  testWidgets('changing the account mode in Settings re-reads the Portfolio', (
+    tester,
+  ) async {
     seedSpot(mode: PortfolioMode.paper, equity: 111.11);
     seedSpot(mode: PortfolioMode.live, equity: 999999);
 
@@ -166,7 +196,8 @@ void main() {
     final container = ProviderScope.containerOf(
       tester.element(find.byType(PortfolioScreen)),
     );
-    await container.read(settingsControllerProvider.notifier)
+    await container
+        .read(settingsControllerProvider.notifier)
         .setTradingAccount(TradingAccount.live);
     await tester.pumpAndSettle();
 
@@ -176,29 +207,31 @@ void main() {
     expect(find.text('LIVE ACCOUNT'), findsOneWidget);
   });
 
-  testWidgets('an unresolved account mode renders nothing rather than a paper fallback',
-      (tester) async {
-    seedSpot(mode: PortfolioMode.paper, equity: 111.11);
-    settings = FakeSettingsRepository(account: TradingAccount.live)
-      ..failLoad = Exception('settings unavailable');
+  testWidgets(
+    'an unresolved account mode renders nothing rather than a paper fallback',
+    (tester) async {
+      seedSpot(mode: PortfolioMode.paper, equity: 111.11);
+      settings = FakeSettingsRepository(account: TradingAccount.live)
+        ..failLoad = Exception('settings unavailable');
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          portfolioRepositoryProvider.overrideWithValue(repository),
-          settingsRepositoryProvider.overrideWith((ref) => settings),
-        ],
-        child: const MaterialApp(home: PortfolioScreen()),
-      ),
-    );
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            portfolioRepositoryProvider.overrideWithValue(repository),
+            settingsRepositoryProvider.overrideWith((ref) => settings),
+          ],
+          child: const MaterialApp(home: PortfolioScreen()),
+        ),
+      );
+      await tester.pumpAndSettle();
 
-    expect(find.text('Account mode unavailable'), findsOneWidget);
-    // The critical assertion: no account was requested at all, so a live-selected user
-    // can never be shown a simulated balance.
-    expect(repository.accountCalls, isEmpty);
-    expect(find.text('111.11'), findsNothing);
-  });
+      expect(find.text('Account mode unavailable'), findsOneWidget);
+      // The critical assertion: no account was requested at all, so a live-selected user
+      // can never be shown a simulated balance.
+      expect(repository.accountCalls, isEmpty);
+      expect(find.text('111.11'), findsNothing);
+    },
+  );
 
   // ------------------------------- B. no PAPER/LIVE selector inside Portfolio
 
@@ -216,26 +249,46 @@ void main() {
       find.byType(PortfolioAccountBadge),
     );
     expect(badge.mode, PortfolioMode.paper);
-    expect(find.descendant(
-      of: find.byType(PortfolioAccountBadge),
-      matching: find.byType(GestureDetector),
-    ), findsNothing);
-    expect(find.descendant(
-      of: find.byType(PortfolioAccountBadge),
-      matching: find.byType(InkWell),
-    ), findsNothing);
+    expect(
+      find.descendant(
+        of: find.byType(PortfolioAccountBadge),
+        matching: find.byType(GestureDetector),
+      ),
+      findsNothing,
+    );
+    expect(
+      find.descendant(
+        of: find.byType(PortfolioAccountBadge),
+        matching: find.byType(InkWell),
+      ),
+      findsNothing,
+    );
   });
 
-  testWidgets('only SPOT, FUTURES and OPTIONS are offered as tabs', (tester) async {
+  testWidgets('only SPOT, FUTURES and OPTIONS are offered as tabs', (
+    tester,
+  ) async {
     await pumpScreen(tester);
 
-    expect(PortfolioCategory.portfolioTabs,
-        [PortfolioCategory.spot, PortfolioCategory.futures, PortfolioCategory.options]);
+    expect(PortfolioCategory.portfolioTabs, [
+      PortfolioCategory.spot,
+      PortfolioCategory.futures,
+      PortfolioCategory.options,
+    ]);
     // MAIN is the backend aggregate scope, not an account a user owns.
     expect(find.byKey(const ValueKey('portfolio-category-MAIN')), findsNothing);
-    expect(find.byKey(const ValueKey('portfolio-category-SPOT')), findsOneWidget);
-    expect(find.byKey(const ValueKey('portfolio-category-FUTURES')), findsOneWidget);
-    expect(find.byKey(const ValueKey('portfolio-category-OPTIONS')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('portfolio-category-SPOT')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('portfolio-category-FUTURES')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('portfolio-category-OPTIONS')),
+      findsOneWidget,
+    );
   });
 
   // ---------------------------------------------- C. category isolation
@@ -280,42 +333,50 @@ void main() {
     expect(find.text('ETHUSDT'), findsNothing);
   });
 
-  testWidgets('spot shows wallet assets and never a leveraged positions section',
-      (tester) async {
-    seedSpot(mode: PortfolioMode.live, equity: 500);
-    repository.holdings[FakePortfolioRepository.key(
-      PortfolioMode.live,
-      PortfolioCategory.spot,
-    )] = PortfolioHoldings(
-      accountMode: PortfolioMode.live,
-      accountCategory: PortfolioCategory.spot,
-      availability: PortfolioAvailability.available,
-      source: 'EXCHANGE',
-      holdings: const [
-        PortfolioHolding(asset: 'BTC', free: 0.5, locked: 0.1, total: 0.6),
-      ],
-    );
+  testWidgets(
+    'spot shows wallet assets and never a leveraged positions section',
+    (tester) async {
+      seedSpot(mode: PortfolioMode.live, equity: 500);
+      repository.holdings[FakePortfolioRepository.key(
+        PortfolioMode.live,
+        PortfolioCategory.spot,
+      )] = PortfolioHoldings(
+        accountMode: PortfolioMode.live,
+        accountCategory: PortfolioCategory.spot,
+        availability: PortfolioAvailability.available,
+        source: 'EXCHANGE',
+        holdings: const [
+          PortfolioHolding(asset: 'BTC', free: 0.5, locked: 0.1, total: 0.6),
+        ],
+      );
 
-    await pumpScreen(tester, account: TradingAccount.live);
+      await pumpScreen(tester, account: TradingAccount.live);
 
-    expect(find.text('WALLET / ASSETS'), findsOneWidget);
-    expect(find.text('BTC'), findsOneWidget);
-    // Spot has no open-position concept, so no position heading may be shown.
-    expect(find.text('OPEN POSITIONS'), findsNothing);
-    expect(find.text('CLOSED POSITIONS'), findsNothing);
-  });
+      expect(find.text('WALLET / ASSETS'), findsOneWidget);
+      expect(find.text('BTC'), findsOneWidget);
+      // Spot has no open-position concept, so no position heading may be shown.
+      expect(find.text('OPEN POSITIONS'), findsNothing);
+      expect(find.text('CLOSED POSITIONS'), findsNothing);
+    },
+  );
 
-  testWidgets('futures shows open and closed positions sections', (tester) async {
+  testWidgets('futures shows open and closed positions sections', (
+    tester,
+  ) async {
     await pumpScreen(tester);
     await tester.tap(find.byKey(const ValueKey('portfolio-category-FUTURES')));
     await tester.pumpAndSettle();
 
+    // The market sections are one-at-a-time tabs, so each is visited in turn
+    // rather than asserted simultaneously.
+    await openSection(tester, 'positions');
     expect(find.text('OPEN POSITIONS'), findsOneWidget);
     expect(find.text('CLOSED POSITIONS'), findsOneWidget);
+
+    await openSection(tester, 'openOrders');
     expect(find.text('OPEN ORDERS'), findsOneWidget);
 
-    // The remaining sections sit below the fold and are only built once scrolled into
-    // view, which is correct lazy-list behaviour.
+    await openSection(tester, 'tradeHistory');
     for (final heading in ['HISTORY', 'TRANSACTION HISTORY', 'FUNDING FEES']) {
       await scrollTo(tester, find.text(heading));
       expect(
@@ -326,16 +387,18 @@ void main() {
     }
   });
 
-  testWidgets('spot has no funding-fee section, because spot pays no funding',
-      (tester) async {
+  testWidgets('spot has no funding-fee section, because spot pays no funding', (
+    tester,
+  ) async {
     await pumpScreen(tester);
     expect(find.text('FUNDING FEES'), findsNothing);
   });
 
   // ------------------------------------------------------ D. Options
 
-  testWidgets('Options shows an explicit unsupported state with no figures',
-      (tester) async {
+  testWidgets('Options shows an explicit unsupported state with no figures', (
+    tester,
+  ) async {
     await pumpScreen(tester);
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('portfolio-category-OPTIONS')));
@@ -351,8 +414,9 @@ void main() {
 
   // --------------------------------------- E. live connection unavailable
 
-  testWidgets('an unavailable live account says so and never shows paper data',
-      (tester) async {
+  testWidgets('an unavailable live account says so and never shows paper data', (
+    tester,
+  ) async {
     seedSpot(
       mode: PortfolioMode.live,
       availability: PortfolioAvailability.notConnected,
@@ -399,8 +463,9 @@ void main() {
 
   // ------------------------------------------------- G. errors and auth
 
-  testWidgets('a transport failure shows an error state with retry',
-      (tester) async {
+  testWidgets('a transport failure shows an error state with retry', (
+    tester,
+  ) async {
     repository.failWith = Exception('network down');
     await pumpScreen(tester);
 

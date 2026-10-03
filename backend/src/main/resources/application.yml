@@ -75,6 +75,26 @@ app:
     # default to Tier-1/2/3 built-ins when omitted.
     enabled: ${NFM_ENABLED:true}
     event-max-age-minutes: ${NFM_EVENT_MAX_AGE_MINUTES:180}
+  portfolio:
+    # LIVE Portfolio read synchronization. Governs READING exchange account
+    # state (balances + positions) only — it never places, cancels or modifies
+    # an order, and is independent of the auto-execute trading flags.
+    #
+    # OFF by default so that deploying this build can never by itself open an
+    # exchange socket; a deployment must opt in explicitly. Without it, LIVE
+    # SPOT/FUTURES read as NOT_CONNECTED because no snapshot is ever fetched,
+    # and the user-data WebSocket never opens.
+    sync:
+      enabled: ${PORTFOLIO_SYNC_ENABLED:false}
+      # SPOT and FUTURES only. MAIN is an aggregate read model and OPTIONS is a
+      # reserved capability; neither can hold a stream regardless of this list.
+      scopes: ${PORTFOLIO_SYNC_SCOPES:SPOT,FUTURES}
+      # Set true to drive only the REST baseline (accurate snapshots, no
+      # persistent socket).
+      baseline-only-start-scopes: ${PORTFOLIO_SYNC_BASELINE_ONLY:false}
+      # Re-read scopes the stream has flagged STALE (e.g. after a deposit).
+      stale-reconcile-enabled: ${PORTFOLIO_SYNC_STALE_RECONCILE:true}
+      stale-reconcile-interval-ms: ${PORTFOLIO_SYNC_STALE_INTERVAL_MS:60000}
   research:
     # Research-only overrides. Disabled by default so production backtest
     # limits (app.backtesting) are unchanged.

@@ -157,16 +157,22 @@ final watchlistRemoteDataSourceProvider = Provider<WatchlistRemoteDataSource>(
   (ref) => WatchlistRemoteDataSource(ref.watch(apiClientProvider)),
 );
 
-final notificationRemoteDataSourceProvider = Provider<NotificationRemoteDataSource>(
-  (ref) => NotificationRemoteDataSource(ref.watch(apiClientProvider)),
-);
+final notificationRemoteDataSourceProvider =
+    Provider<NotificationRemoteDataSource>(
+      (ref) => NotificationRemoteDataSource(ref.watch(apiClientProvider)),
+    );
 
 final userRepositoryProvider = Provider<UserRepository>(
   (ref) => UserRepositoryImpl(ref.watch(userRemoteDataSourceProvider)),
 );
 
 final portfolioRepositoryProvider = Provider<PortfolioRepository>(
-  (ref) => PortfolioRepositoryImpl(ref.watch(portfolioRemoteDataSourceProvider)),
+  (ref) => PortfolioRepositoryImpl(
+    ref.watch(portfolioRemoteDataSourceProvider),
+    // The existing cancellation paths, injected rather than reimplemented.
+    live: ref.watch(liveTradingRepositoryProvider),
+    futures: ref.watch(futuresTradingRepositoryProvider),
+  ),
 );
 
 final signalRepositoryProvider = Provider<SignalRepository>(
@@ -178,11 +184,14 @@ final marketRepositoryProvider = Provider<MarketRepository>(
 );
 
 final watchlistRepositoryProvider = Provider<WatchlistRepository>(
-  (ref) => WatchlistRepositoryImpl(ref.watch(watchlistRemoteDataSourceProvider)),
+  (ref) =>
+      WatchlistRepositoryImpl(ref.watch(watchlistRemoteDataSourceProvider)),
 );
 
 final notificationRepositoryProvider = Provider<NotificationRepository>(
-  (ref) => NotificationRepositoryImpl(ref.watch(notificationRemoteDataSourceProvider)),
+  (ref) => NotificationRepositoryImpl(
+    ref.watch(notificationRemoteDataSourceProvider),
+  ),
 );
 
 final getCurrentUserProvider = Provider<GetCurrentUser>(
@@ -255,58 +264,80 @@ final pendingSignalProvider = StateProvider<String?>((ref) => null);
 /// consumes it to open the exact News Detail screen.
 final pendingNewsProvider = StateProvider<String?>((ref) => null);
 
-final paperTradingRemoteDataSourceProvider = Provider<PaperTradingRemoteDataSource>(
-  (ref) => PaperTradingRemoteDataSource(ref.watch(apiClientProvider)),
-);
+final paperTradingRemoteDataSourceProvider =
+    Provider<PaperTradingRemoteDataSource>(
+      (ref) => PaperTradingRemoteDataSource(ref.watch(apiClientProvider)),
+    );
 
 final paperTradingRepositoryProvider = Provider<PaperTradingRepository>(
-  (ref) => PaperTradingRepositoryImpl(ref.watch(paperTradingRemoteDataSourceProvider)),
+  (ref) => PaperTradingRepositoryImpl(
+    ref.watch(paperTradingRemoteDataSourceProvider),
+  ),
 );
 
-final liveTradingRemoteDataSourceProvider = Provider<LiveTradingRemoteDataSource>(
-  (ref) => LiveTradingRemoteDataSource(ref.watch(apiClientProvider)),
-);
+final liveTradingRemoteDataSourceProvider =
+    Provider<LiveTradingRemoteDataSource>(
+      (ref) => LiveTradingRemoteDataSource(ref.watch(apiClientProvider)),
+    );
 
 final liveTradingRepositoryProvider = Provider<LiveTradingRepository>(
-  (ref) => LiveTradingRepositoryImpl(ref.watch(liveTradingRemoteDataSourceProvider)),
+  (ref) =>
+      LiveTradingRepositoryImpl(ref.watch(liveTradingRemoteDataSourceProvider)),
 );
 
-final futuresTradingRemoteDataSourceProvider = Provider<FuturesTradingRemoteDataSource>(
-  (ref) => FuturesTradingRemoteDataSource(ref.watch(apiClientProvider)),
-);
+final futuresTradingRemoteDataSourceProvider =
+    Provider<FuturesTradingRemoteDataSource>(
+      (ref) => FuturesTradingRemoteDataSource(ref.watch(apiClientProvider)),
+    );
 
 final futuresTradingRepositoryProvider = Provider<FuturesTradingRepository>(
-  (ref) => FuturesTradingRepositoryImpl(ref.watch(futuresTradingRemoteDataSourceProvider)),
+  (ref) => FuturesTradingRepositoryImpl(
+    ref.watch(futuresTradingRemoteDataSourceProvider),
+  ),
 );
 
-final backtestingRemoteDataSourceProvider = Provider<BacktestingRemoteDataSource>(
-  (ref) => BacktestingRemoteDataSource(ref.watch(apiClientProvider)),
-);
+final backtestingRemoteDataSourceProvider =
+    Provider<BacktestingRemoteDataSource>(
+      (ref) => BacktestingRemoteDataSource(ref.watch(apiClientProvider)),
+    );
 
 final backtestingRepositoryProvider = Provider<BacktestingRepository>(
-  (ref) => BacktestingRepositoryImpl(ref.watch(backtestingRemoteDataSourceProvider)),
+  (ref) =>
+      BacktestingRepositoryImpl(ref.watch(backtestingRemoteDataSourceProvider)),
 );
 
-final listExchangesProvider = Provider<Future<List<Map<String, dynamic>>> Function()>(
-  (ref) => () => ref.read(settingsRepositoryProvider).listExchanges(),
-);
+final listExchangesProvider =
+    Provider<Future<List<Map<String, dynamic>>> Function()>(
+      (ref) =>
+          () => ref.read(settingsRepositoryProvider).listExchanges(),
+    );
 
-final getNotificationPrefsProvider = Provider<Future<Map<String, dynamic>> Function()>(
-  (ref) => () => ref.read(settingsRepositoryProvider).getNotificationPrefs(),
-);
+final getNotificationPrefsProvider =
+    Provider<Future<Map<String, dynamic>> Function()>(
+      (ref) =>
+          () => ref.read(settingsRepositoryProvider).getNotificationPrefs(),
+    );
 
-final updateNotificationPrefsProvider = Provider<Future<Map<String, dynamic>> Function(Map<String, dynamic>)>(
-  (ref) => (body) => ref.read(settingsRepositoryProvider).updateNotificationPrefs(body),
-);
+final updateNotificationPrefsProvider =
+    Provider<Future<Map<String, dynamic>> Function(Map<String, dynamic>)>(
+      (ref) =>
+          (body) => ref
+              .read(settingsRepositoryProvider)
+              .updateNotificationPrefs(body),
+    );
 
-final listDeviceTokensProvider = Provider<Future<List<Map<String, dynamic>>> Function()>(
-  (ref) => () => ref.read(settingsRepositoryProvider).listDeviceTokens(),
-);
+final listDeviceTokensProvider =
+    Provider<Future<List<Map<String, dynamic>>> Function()>(
+      (ref) =>
+          () => ref.read(settingsRepositoryProvider).listDeviceTokens(),
+    );
 
 final strategyRemoteDataSourceProvider = Provider<StrategyRemoteDataSource>(
   (ref) => StrategyRemoteDataSource(ref.watch(apiClientProvider)),
 );
 
 final strategyRepositoryProvider = Provider<TradingStrategyRepository>(
-  (ref) => TradingStrategyRepositoryImpl(ref.watch(strategyRemoteDataSourceProvider)),
+  (ref) => TradingStrategyRepositoryImpl(
+    ref.watch(strategyRemoteDataSourceProvider),
+  ),
 );

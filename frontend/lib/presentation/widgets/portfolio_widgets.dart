@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../domain/entities/portfolio_account.dart';
+import '../../presentation/providers/portfolio_controller.dart';
 
 /// Renders a financial value without ever inventing one.
 ///
@@ -50,7 +51,9 @@ class PortfolioValue extends StatelessWidget {
     return Text(
       text,
       style: TextStyle(
-        color: emphasise ? (signed && value! < 0 ? AppColors.loss : AppColors.accent) : color,
+        color: emphasise
+            ? (signed && value! < 0 ? AppColors.loss : AppColors.accent)
+            : color,
         fontSize: emphasise ? 20 : 13,
         fontWeight: emphasise ? FontWeight.w800 : FontWeight.w600,
       ),
@@ -199,13 +202,14 @@ class PortfolioStatePanel extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               message!,
-              style: const TextStyle(color: AppColors.muted, fontSize: 12, height: 1.4),
+              style: const TextStyle(
+                color: AppColors.muted,
+                fontSize: 12,
+                height: 1.4,
+              ),
             ),
           ],
-          if (action != null) ...[
-            const SizedBox(height: 12),
-            action!,
-          ],
+          if (action != null) ...[const SizedBox(height: 12), action!],
         ],
       ),
     );
@@ -243,7 +247,10 @@ class PortfolioCategoryTabs extends StatelessWidget {
               key: ValueKey('portfolio-category-${category.apiValue}'),
               onTap: () => onChanged(category),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: active ? AppColors.accent : AppColors.card,
                   borderRadius: BorderRadius.circular(8),
@@ -281,14 +288,23 @@ class PortfolioAccountBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: (live ? AppColors.loss : AppColors.muted).withValues(alpha: 0.14),
+        color: (live ? AppColors.loss : AppColors.muted).withValues(
+          alpha: 0.14,
+        ),
         borderRadius: BorderRadius.circular(6),
         border: Border.all(
-          color: (live ? AppColors.loss : AppColors.muted).withValues(alpha: 0.5),
+          color: (live ? AppColors.loss : AppColors.muted).withValues(
+            alpha: 0.5,
+          ),
         ),
       ),
       child: Text(
         live ? 'LIVE ACCOUNT' : 'PAPER ACCOUNT',
+        // Shrink rather than overflow: this badge shares a row with the title
+        // and, on a paper account, the capital-management control, so on a narrow
+        // phone the available width is genuinely tight.
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: TextStyle(
           color: live ? AppColors.loss : AppColors.muted,
           fontSize: 9,
@@ -374,6 +390,71 @@ class PortfolioOrderStatusChip extends StatelessWidget {
           fontWeight: FontWeight.w800,
           letterSpacing: 0.4,
         ),
+      ),
+    );
+  }
+}
+
+/// Horizontally scrollable section strip shown below the market-account tabs.
+///
+/// Only one section is rendered at a time, so this strip is the sole navigation
+/// between a wallet/position book, the resting-order book and the trade history.
+/// Built for a phone: it scrolls rather than shrinking labels to fit, and a label
+/// never wraps onto a second line.
+class PortfolioSectionTabs extends StatelessWidget {
+  const PortfolioSectionTabs({
+    super.key,
+    required this.sections,
+    required this.selected,
+    required this.onChanged,
+  });
+
+  final List<PortfolioSection> sections;
+  final PortfolioSection selected;
+  final ValueChanged<PortfolioSection> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    if (sections.isEmpty) return const SizedBox.shrink();
+    return SizedBox(
+      key: const Key('portfolio-section-strip'),
+      height: 34,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        itemCount: sections.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final section = sections[index];
+          final active = section == selected;
+          return GestureDetector(
+            key: Key('section-tab-${section.name}'),
+            onTap: () => onChanged(section),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: active
+                    ? AppColors.accent.withValues(alpha: 0.16)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: active ? AppColors.accent : const Color(0xFF2A2A2A),
+                ),
+              ),
+              child: Text(
+                section.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: active ? AppColors.accent : AppColors.muted,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }

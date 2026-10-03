@@ -27,7 +27,9 @@ class PortfolioAccountModel {
     return PortfolioAccount(
       accountMode: parseMode(json['accountMode']),
       accountCategory: parseCategory(json['accountCategory']),
-      availability: PortfolioAvailability.parse(json['availability'] as String?),
+      availability: PortfolioAvailability.parse(
+        json['availability'] as String?,
+      ),
       exchange: json['exchange'] as String?,
       connectionStatus: json['connectionStatus'] as String?,
       quoteCurrency: json['quoteCurrency'] as String?,
@@ -57,7 +59,9 @@ class PortfolioAccountModel {
     return PortfolioPositions(
       accountMode: parseMode(json['accountMode']),
       accountCategory: parseCategory(json['accountCategory']),
-      availability: PortfolioAvailability.parse(json['availability'] as String?),
+      availability: PortfolioAvailability.parse(
+        json['availability'] as String?,
+      ),
       positions: positions,
       statusMessage: json['statusMessage'] as String?,
     );
@@ -65,6 +69,7 @@ class PortfolioAccountModel {
 
   static PortfolioPosition positionFromJson(Map<String, dynamic> json) {
     return PortfolioPosition(
+      positionId: json['positionId'] as String?,
       accountMode: parseMode(json['accountMode']),
       accountCategory: _optionalCategory(json['accountCategory']),
       symbol: json['symbol'] as String? ?? '',
@@ -105,7 +110,9 @@ class PortfolioAccountModel {
     return PortfolioHoldings(
       accountMode: parseMode(json['accountMode']),
       accountCategory: parseCategory(json['accountCategory']),
-      availability: PortfolioAvailability.parse(json['availability'] as String?),
+      availability: PortfolioAvailability.parse(
+        json['availability'] as String?,
+      ),
       source: json['source'] as String?,
       holdings: holdings,
       statusMessage: json['statusMessage'] as String?,
@@ -125,7 +132,9 @@ class PortfolioAccountModel {
     return PortfolioHistory(
       accountMode: parseMode(json['accountMode']),
       accountCategory: parseCategory(json['accountCategory']),
-      availability: PortfolioAvailability.parse(json['availability'] as String?),
+      availability: PortfolioAvailability.parse(
+        json['availability'] as String?,
+      ),
       source: json['source'] as String?,
       entryType: json['entryType'] as String?,
       windowFrom: _date(json['windowFrom']),
@@ -173,7 +182,9 @@ class PortfolioAccountModel {
     return PortfolioOrders(
       accountMode: parseMode(json['accountMode']),
       accountCategory: parseCategory(json['accountCategory']),
-      availability: PortfolioAvailability.parse(json['availability'] as String?),
+      availability: PortfolioAvailability.parse(
+        json['availability'] as String?,
+      ),
       source: json['source'] as String?,
       orders: orders,
       statusMessage: json['statusMessage'] as String?,
@@ -182,6 +193,7 @@ class PortfolioAccountModel {
 
   static PortfolioOrder orderFromJson(Map<String, dynamic> json) {
     return PortfolioOrder(
+      cancelId: json['cancelId'] as String?,
       accountMode: parseMode(json['accountMode']),
       accountCategory: parseCategory(json['accountCategory']),
       symbol: json['symbol'] as String? ?? '',
@@ -221,7 +233,9 @@ class PortfolioAccountModel {
     return PortfolioClosedPositions(
       accountMode: parseMode(json['accountMode']),
       accountCategory: parseCategory(json['accountCategory']),
-      availability: PortfolioAvailability.parse(json['availability'] as String?),
+      availability: PortfolioAvailability.parse(
+        json['availability'] as String?,
+      ),
       source: json['source'] as String?,
       partial: json['partial'] == true,
       positions: positions,
@@ -307,7 +321,9 @@ class PortfolioAccountModel {
     return PortfolioSyncStatus(
       accountMode: parseMode(json['accountMode']),
       accountCategory: parseCategory(json['accountCategory']),
-      availability: PortfolioAvailability.parse(json['availability'] as String?),
+      availability: PortfolioAvailability.parse(
+        json['availability'] as String?,
+      ),
       connectionStatus: json['connectionStatus'] as String?,
       lastRestSync: _date(json['lastRestSync']),
       lastEvent: _date(json['lastEvent']),

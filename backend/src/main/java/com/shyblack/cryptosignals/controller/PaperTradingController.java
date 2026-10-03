@@ -1,9 +1,12 @@
 package com.shyblack.cryptosignals.controller;
 
 import com.shyblack.cryptosignals.dto.paper.PaperAccountResponse;
+import com.shyblack.cryptosignals.dto.paper.PaperCapitalAdjustmentRequest;
+import com.shyblack.cryptosignals.dto.paper.PaperCapitalEventResponse;
 import com.shyblack.cryptosignals.dto.paper.PaperCapitalUpdateRequest;
 import com.shyblack.cryptosignals.dto.paper.PaperPerformanceResponse;
 import com.shyblack.cryptosignals.dto.paper.PaperPositionResponse;
+import com.shyblack.cryptosignals.dto.paper.PaperPositionRiskRequest;
 import com.shyblack.cryptosignals.entity.Portfolio;
 import com.shyblack.cryptosignals.entity.Position;
 import com.shyblack.cryptosignals.entity.Signal;
@@ -19,6 +22,7 @@ import com.shyblack.cryptosignals.repository.UserRepository;
 import com.shyblack.cryptosignals.security.UserPrincipal;
 import com.shyblack.cryptosignals.service.paper.PaperTradingAccountService;
 import com.shyblack.cryptosignals.service.paper.PaperTradingExecutionService;
+import com.shyblack.cryptosignals.service.paper.PaperPositionRiskService;
 import com.shyblack.cryptosignals.service.paper.PaperTradingQueryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -44,6 +48,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -59,6 +64,7 @@ public class PaperTradingController {
 
 	private final PaperTradingAccountService accountService;
 	private final PaperTradingQueryService queryService;
+	private final PaperPositionRiskService riskService;
 	private final PaperTradingExecutionService executionService;
 	private final UserRepository userRepository;
 	private final SignalRepository signalRepository;
@@ -79,6 +85,38 @@ public class PaperTradingController {
 		Portfolio portfolio = accountService.getOrCreate(user);
 		accountService.updateInitialCapital(portfolio, request.initialCapital());
 		return toAccountDto(queryService.loadAccount(user));
+	}
+
+	@Operation(summary = "Add simulated capital to the paper account")
+	@PostMapping("/account/capital/add")
+	public PaperAccountResponse addCapital(@Valid @RequestBody PaperCapitalAdjustmentRequest request) {
+		User user = currentUser();
+		Portfolio portfolio = accountService.getOrCreate(user);
+		accountService.addCapital(portfolio, request.amount(), request.reason());
+		return toAccountDto(queryService.loadAccount(user));
+	}
+
+	@Operation(summary = "Withdraw simulated capital from the paper account")
+	@PostMapping("/account/capital/reduce")
+	public PaperAccountResponse reduceCapital(@Valid @RequestBody PaperCapitalAdjustmentRequest request) {
+		User user = currentUser();
+		Portfolio portfolio = accountService.getOrCreate(user);
+		accountService.reduceCapital(portfolio, request.amount(), request.reason());
+		return toAccountDto(queryService.loadAccount(user));
+	}
+
+	@Operation(summary = "Audited capital movement history for the paper account (newest first)")
+	@GetMapping("/account/capital/history")
+	public List<PaperCapitalEventResponse> capitalHistory(
+			@RequestParam(defaultValue = "50") int limit) {
+		User user = currentUser();
+		Portfolio portfolio = accountService.getOrCreate(user);
+		return accountService.capitalHistory(portfolio, limit).stream()
+				.map(e -> new PaperCapitalEventResponse(
+						e.getId(), e.getEventType(), e.getAmount(),
+						e.getPreviousBalance(), e.getNewBalance(), e.getReason(),
+						e.getCreatedAt()))
+				.toList();
 	}
 
 	@Operation(summary = "List open paper positions")
@@ -144,10 +182,20 @@ public class PaperTradingController {
 				portfolio.getTotalFees(), returnPct);
 	}
 
+	@Operation(summary = "Move the stop-loss / take-profit of an open paper position. "
+			+ "Omitted levels are left unchanged; values on the wrong side of the entry "
+			+ "price are rejected.")
+	@PatchMapping("/positions/{id}/risk")
+	public PaperPositionResponse updatePositionRisk(@PathVariable UUID id,
+			@Valid @RequestBody PaperPositionRiskRequest request) {
+		Position updated = riskService.updateRisk(
+				currentUser(), id, request.stopLoss(), request.takeProfit());
+		return toPositionDtos(List.of(updated)).get(0);
+	}
+
 	@Operation(summary = "Manually close a paper position at the current market price")
 	@PostMapping("/positions/{id}/close")
-	public PaperPositionResponse closePosition(@PathVariable UUID id) {
-		Position owned = fetchOwned(id);
+	public PaperPositionResponse closePosition(@PathVariable UUID id) {		Position owned = fetchOwned(id);
 		if (owned.getStatus() != PositionStatus.OPEN) {
 			throw new BadRequestException("Position is not open");
 		}

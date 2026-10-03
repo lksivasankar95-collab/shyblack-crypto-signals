@@ -23,6 +23,9 @@ import com.shyblack.cryptosignals.entity.enums.PositionStatus;
 import com.shyblack.cryptosignals.entity.enums.TradingMode;
 import com.shyblack.cryptosignals.repository.PortfolioAccountConnectionRepository;
 import com.shyblack.cryptosignals.repository.PortfolioExchangeBalanceRepository;
+import com.shyblack.cryptosignals.entity.FuturesPosition;
+import com.shyblack.cryptosignals.entity.enums.FuturesPositionStatus;
+import com.shyblack.cryptosignals.repository.FuturesPositionRepository;
 import com.shyblack.cryptosignals.repository.PortfolioExchangePositionRepository;
 import com.shyblack.cryptosignals.repository.PositionRepository;
 import com.shyblack.cryptosignals.repository.SignalRepository;
@@ -36,6 +39,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -116,6 +120,7 @@ public class PortfolioAccountReadService {
 	private final PaperTradingPnLService paperPnL;
 	private final LiveTradingQueryService liveQueryService;
 	private final FuturesQueryService futuresQueryService;
+	private final FuturesPositionRepository futuresPositionRepository;
 
 	/**
 	 * Normalized view of a single account scope.
@@ -210,6 +215,10 @@ public class PortfolioAccountReadService {
 					? null
 					: toCategory(modeBySignal.get(position.getSignalId()));
 			views.add(new PortfolioPositionView(
+					// The paper Position's own key: this is what the paper close and
+					// reposition actions address, so the card can target one position
+					// rather than a list index.
+					position.getId() == null ? null : position.getId().toString(),
 					AccountMode.PAPER,
 					positionCategory,
 					position.getSymbol(),
@@ -232,9 +241,16 @@ public class PortfolioAccountReadService {
 	}
 
 	private List<PortfolioPositionView> liveFuturesPositions(User user) {
+		// Resolve the actionable futures-position key per symbol/side up front, so a
+		// row is only given an identifier the close/reposition endpoints can accept.
+		Map<String, String> actionable = actionableFuturesPositionIds(user);
 		return exchangePositionRepository.findByUserAndExchangeOrderBySymbolAsc(user, ExchangeName.BINANCE)
 				.stream()
 				.map(p -> new PortfolioPositionView(
+						// The snapshot's own key is NOT the live position key, so it is
+						// never published. Only a locally tracked open position yields an
+						// identifier; otherwise null, because there is nothing to address.
+						actionable.get(futuresPositionKey(p.getSymbol(), p.getPositionSide())),
 						AccountMode.LIVE,
 						AccountCategory.FUTURES,
 						p.getSymbol(),
@@ -258,6 +274,33 @@ public class PortfolioAccountReadService {
 								? PositionStatus.CLOSED
 								: PositionStatus.OPEN))
 				.toList();
+	}
+
+	/**
+	 * Maps "SYMBOL|SIDE" to the id of the caller's own open futures position.
+	 *
+	 * <p>The read model reports the exchange's position snapshot while the close and
+	 * reposition endpoints address a locally tracked {@code FuturesPosition}. Those are
+	 * different records, so the snapshot key is never published; when we do not track an
+	 * open position for that symbol/side there is nothing addressable and the row stays
+	 * id-less rather than carrying an identifier that would fail if used.</p>
+	 */
+	private Map<String, String> actionableFuturesPositionIds(User user) {
+		Map<String, String> byKey = new LinkedHashMap<>();
+		for (FuturesPosition position :
+				futuresPositionRepository.findByAccount_UserOrderByCreatedAtDesc(user)) {
+			if (position.getId() == null) continue;
+			if (position.getStatus() != FuturesPositionStatus.OPEN) continue;
+			String key = futuresPositionKey(position.getSymbol(), position.getPositionSide());
+			// Keep the first (newest, given the ordering) so hedge-mode LONG and SHORT
+			// on one symbol never collide onto a single entry.
+			byKey.putIfAbsent(key, position.getId().toString());
+		}
+		return byKey;
+	}
+
+	private static String futuresPositionKey(String symbol, com.shyblack.cryptosignals.entity.enums.PositionSide side) {
+		return symbol + "|" + (side == null ? "" : side.name());
 	}
 
 	/** Per-position unrealized P&amp;L, or null when the mark price is unknown. */

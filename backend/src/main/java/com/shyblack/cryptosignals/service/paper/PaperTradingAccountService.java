@@ -1,14 +1,19 @@
 package com.shyblack.cryptosignals.service.paper;
 
 import com.shyblack.cryptosignals.config.PaperTradingProperties;
+import com.shyblack.cryptosignals.entity.PaperCapitalEvent;
 import com.shyblack.cryptosignals.entity.Portfolio;
 import com.shyblack.cryptosignals.entity.User;
 import com.shyblack.cryptosignals.entity.enums.AccountType;
+import com.shyblack.cryptosignals.entity.enums.PaperCapitalEventType;
 import com.shyblack.cryptosignals.exception.BadRequestException;
+import com.shyblack.cryptosignals.repository.PaperCapitalEventRepository;
 import com.shyblack.cryptosignals.repository.PortfolioRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,6 +39,7 @@ public class PaperTradingAccountService {
 
 	private final PortfolioRepository portfolioRepository;
 	private final PaperTradingProperties props;
+	private final PaperCapitalEventRepository capitalEventRepository;
 
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
 	public Portfolio getOrCreate(User user) {
@@ -48,6 +54,7 @@ public class PaperTradingAccountService {
 		// in by the caller is stale and would fail with StaleObjectStateException.
 		Portfolio portfolio = portfolioRepository.findByIdForUpdate(portfolioRef.getId())
 				.orElseThrow(() -> new BadRequestException("Paper account not found"));
+		BigDecimal previousBalance = totalBalance(portfolio);
 		BigDecimal initial = props.initialBalance();
 		portfolio.setInitialBalance(initial);
 		portfolio.setTotalBalance(initial);
@@ -58,7 +65,111 @@ public class PaperTradingAccountService {
 		portfolio.setTotalTrades(0);
 		portfolio.setWinningTrades(0);
 		portfolio.setLosingTrades(0);
-		return portfolioRepository.save(portfolio);
+		Portfolio saved = portfolioRepository.save(portfolio);
+		record(saved, PaperCapitalEventType.RESET,
+				initial.subtract(previousBalance), previousBalance, initial,
+				"Paper account reset");
+		return saved;
+	}
+
+	// ── Capital adjustments (paper only) ─────────────────────────────
+
+	/**
+	 * Adds capital to the paper account and audits the movement.
+	 *
+	 * <p>Only free cash moves; {@code initialBalance} stays the seed value so the
+	 * ledger — not a mutated constant — explains the balance. Open positions are
+	 * untouched and no LIVE portfolio is reachable from here.</p>
+	 */
+	@Transactional(propagation = Propagation.REQUIRES_NEW)
+	public Portfolio addCapital(Portfolio portfolioRef, BigDecimal amount, String reason) {
+		BigDecimal delta = requirePositive(amount);
+		Portfolio locked = lockPaper(portfolioRef);
+		BigDecimal previous = totalBalance(locked);
+		locked.setAvailableBalance(scaled(safe(locked.getAvailableBalance()).add(delta)));
+		locked.setTotalBalance(totalBalance(locked));
+		Portfolio saved = portfolioRepository.save(locked);
+		record(saved, PaperCapitalEventType.ADD, delta, previous, totalBalance(saved), reason);
+		return saved;
+	}
+
+	/**
+	 * Withdraws capital from the paper account and audits the movement.
+	 *
+	 * <p>Bounded by available cash, not by equity: capital committed to an open
+	 * position is not withdrawable and unrealised P&amp;L has not been realised.
+	 * A withdrawal beyond free cash is rejected rather than allowed to strand an
+	 * open position with no backing.</p>
+	 */
+	@Transactional(propagation = Propagation.REQUIRES_NEW)
+	public Portfolio reduceCapital(Portfolio portfolioRef, BigDecimal amount, String reason) {
+		BigDecimal delta = requirePositive(amount);
+		Portfolio locked = lockPaper(portfolioRef);
+		BigDecimal available = safe(locked.getAvailableBalance());
+		if (available.compareTo(delta) < 0) {
+			throw new BadRequestException("Cannot reduce capital by " + delta
+					+ ": only " + available + " is available"
+					+ (safe(locked.getInvested()).signum() > 0
+							? " (capital is committed to open positions)" : ""));
+		}
+		BigDecimal previous = totalBalance(locked);
+		locked.setAvailableBalance(scaled(available.subtract(delta)));
+		locked.setTotalBalance(totalBalance(locked));
+		Portfolio saved = portfolioRepository.save(locked);
+		record(saved, PaperCapitalEventType.REDUCE, delta.negate(), previous,
+				totalBalance(saved), reason);
+		return saved;
+	}
+
+	/** Newest-first capital ledger for the caller's paper account. */
+	@Transactional(readOnly = true)
+	public List<PaperCapitalEvent> capitalHistory(Portfolio portfolio, int limit) {
+		int bounded = limit <= 0 ? 50 : Math.min(limit, 200);
+		return capitalEventRepository.findByPortfolioOrderByCreatedAtDesc(
+				portfolio, PageRequest.of(0, bounded));
+	}
+
+	// ── Helpers ──────────────────────────────────────────────────────
+
+	private Portfolio lockPaper(Portfolio portfolioRef) {
+		if (portfolioRef == null) throw new BadRequestException("Paper account not found");
+		Portfolio locked = portfolioRepository.findByIdForUpdate(portfolioRef.getId())
+				.orElseThrow(() -> new BadRequestException("Paper account not found"));
+		if (locked.getAccountType() != AccountType.PAPER) {
+			// Defence in depth: capital management must never reach a live account.
+			throw new BadRequestException(
+					"Capital management is only available on paper accounts");
+		}
+		return locked;
+	}
+
+	private void record(Portfolio portfolio, PaperCapitalEventType type, BigDecimal amount,
+			BigDecimal previous, BigDecimal next, String reason) {
+		PaperCapitalEvent event = new PaperCapitalEvent();
+		event.setPortfolio(portfolio);
+		event.setEventType(type);
+		event.setAmount(scaled(amount));
+		event.setPreviousBalance(scaled(previous));
+		event.setNewBalance(scaled(next));
+		event.setReason(reason == null || reason.isBlank() ? null : reason.trim());
+		capitalEventRepository.save(event);
+	}
+
+	private static BigDecimal requirePositive(BigDecimal amount) {
+		if (amount == null) throw new BadRequestException("amount is required");
+		if (amount.signum() <= 0) {
+			throw new BadRequestException("amount must be greater than zero");
+		}
+		return scaled(amount);
+	}
+
+	/** Paper invariant: total capital currently held = free cash + capital at work. */
+	private static BigDecimal totalBalance(Portfolio portfolio) {
+		return scaled(safe(portfolio.getAvailableBalance()).add(safe(portfolio.getInvested())));
+	}
+
+	private static BigDecimal scaled(BigDecimal value) {
+		return value.setScale(8, RoundingMode.HALF_UP);
 	}
 
 	/**
@@ -100,7 +211,10 @@ public class PaperTradingAccountService {
 		p.setInvested(BigDecimal.ZERO);
 		p.setRealizedPnl(BigDecimal.ZERO);
 		p.setTotalFees(BigDecimal.ZERO);
-		return portfolioRepository.save(p);
+		Portfolio saved = portfolioRepository.save(p);
+		record(saved, PaperCapitalEventType.INITIAL, initial, BigDecimal.ZERO, initial,
+				"Paper account created");
+		return saved;
 	}
 
 	private static BigDecimal safe(BigDecimal value) {

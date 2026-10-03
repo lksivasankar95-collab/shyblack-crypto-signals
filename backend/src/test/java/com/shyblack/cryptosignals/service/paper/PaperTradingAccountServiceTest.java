@@ -26,6 +26,8 @@ import org.junit.jupiter.api.Test;
 class PaperTradingAccountServiceTest {
 
 	private final PortfolioRepository repository = mock(PortfolioRepository.class);
+	private final com.shyblack.cryptosignals.repository.PaperCapitalEventRepository capitalEvents =
+			mock(com.shyblack.cryptosignals.repository.PaperCapitalEventRepository.class);
 
 	private PaperTradingAccountService service;
 	private User user;
@@ -34,10 +36,12 @@ class PaperTradingAccountServiceTest {
 	void setUp() {
 		// nulls -> record compact constructor applies the documented defaults.
 		PaperTradingProperties props = new PaperTradingProperties(null, null, null, 0, null, null);
-		service = new PaperTradingAccountService(repository, props);
+		service = new PaperTradingAccountService(repository, props, capitalEvents);
 		user = new User();
 		user.setId(UUID.randomUUID());
 		when(repository.save(any(Portfolio.class))).thenAnswer(inv -> inv.getArgument(0));
+		when(capitalEvents.save(any(com.shyblack.cryptosignals.entity.PaperCapitalEvent.class)))
+				.thenAnswer(inv -> inv.getArgument(0));
 	}
 
 	private Portfolio portfolioWith(int totalTrades, BigDecimal invested, BigDecimal realizedPnl) {

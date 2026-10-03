@@ -24,10 +24,18 @@ import com.shyblack.cryptosignals.exchange.futures.FuturesIncomeSnapshot;
 import com.shyblack.cryptosignals.exchange.futures.FuturesOrderSnapshot;
 import com.shyblack.cryptosignals.exchange.futures.FuturesTradeSnapshot;
 import com.shyblack.cryptosignals.repository.ExchangeCredentialRepository;
+import com.shyblack.cryptosignals.entity.LiveOrder;
+import com.shyblack.cryptosignals.entity.enums.LiveOrderStatus;
+import com.shyblack.cryptosignals.entity.enums.FuturesOrderStatus;
+import com.shyblack.cryptosignals.entity.FuturesOrder;
+import com.shyblack.cryptosignals.repository.LiveOrderRepository;
+import com.shyblack.cryptosignals.repository.FuturesOrderRepository;
 import com.shyblack.cryptosignals.repository.PortfolioExchangeBalanceRepository;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.List;
 import java.util.Objects;
 import lombok.RequiredArgsConstructor;
@@ -98,6 +106,8 @@ public class PortfolioHistoryService {
 	private final ExchangeTradingAdapter spotAdapter;
 	private final FuturesExchangeAdapter futuresAdapter;
 	private final LiveUserStreamEventProcessor eventProcessor;
+	private final LiveOrderRepository liveOrderRepository;
+	private final FuturesOrderRepository futuresOrderRepository;
 
 	// ---------------------------------------------------------------- holdings
 
@@ -272,6 +282,22 @@ public class PortfolioHistoryService {
 	@Transactional(readOnly = true)
 	public PortfolioOpenOrdersResponse openOrders(
 			User user, AccountMode mode, AccountCategory category, String symbol) {
+		return openOrders(user, mode, category, symbol, null, null);
+	}
+
+	/**
+	 * Open orders, optionally narrowed by side and/or status.
+	 *
+	 * <p>{@code side} matches the reported BUY/SELL. {@code status} matches
+	 * {@link PortfolioOrderStatus}; an unrecognised value narrows to nothing
+	 * rather than silently widening the result set, so a typo cannot quietly
+	 * return every order. Filtering happens on the mapped view because the
+	 * exchange adapters take no such query parameter.</p>
+	 */
+	@Transactional(readOnly = true)
+	public PortfolioOpenOrdersResponse openOrders(
+			User user, AccountMode mode, AccountCategory category,
+			String symbol, String side, String status) {
 
 		Objects.requireNonNull(user, "user is required");
 		Objects.requireNonNull(mode, "accountMode is required");
@@ -303,16 +329,26 @@ public class PortfolioHistoryService {
 		try {
 			List<PortfolioOrderView> orders = new ArrayList<>();
 			if (category == AccountCategory.SPOT) {
+				// The exchange is the source of truth for *which* orders rest, but only a
+				// locally persisted record can be cancelled through the existing
+				// execution services. The two are matched by client order id, scoped to
+				// this caller, so an order we never placed stays uncancellable here
+				// rather than being handed an identifier that would fail.
+				Map<String, String> cancellable = cancellableSpotOrderIds(user);
 				for (ExchangeOrderSnapshot order : spotAdapter.getOpenOrders(credential, symbol)) {
-					orders.add(toOrderView(mode, category, order));
+					orders.add(toOrderView(mode, category, order,
+							cancellable.get(order.clientOrderId())));
 				}
 			} else {
+				Map<String, String> cancellable = cancellableFuturesOrderIds(user);
 				for (FuturesOrderSnapshot order : futuresAdapter.getOpenOrders(credential, symbol)) {
-					orders.add(toFuturesOrderView(mode, category, order));
+					orders.add(toFuturesOrderView(mode, category, order,
+							cancellable.get(order.clientOrderId())));
 				}
 			}
 			return new PortfolioOpenOrdersResponse(
-					mode, category, AccountAvailability.AVAILABLE, SOURCE_EXCHANGE, orders, null);
+					mode, category, AccountAvailability.AVAILABLE, SOURCE_EXCHANGE,
+					filterOpenOrders(orders, side, status), null);
 		} catch (ExchangeAdapterException ex) {
 			log.warn("[PortfolioHistory] open-orders read failed for user={} reason={}",
 					user.getId(), ex.getMessage());
@@ -325,6 +361,36 @@ public class PortfolioHistoryService {
 			AccountMode mode, AccountCategory category,
 			AccountAvailability availability, String source, String message) {
 		return new PortfolioOpenOrdersResponse(mode, category, availability, source, List.of(), message);
+	}
+
+	/**
+	 * Applies the optional side/status narrowing. Both are case-insensitive; a
+	 * blank value means "no filter". An unrecognised status matches nothing —
+	 * widening to everything would be the more dangerous failure.
+	 */
+	private static List<PortfolioOrderView> filterOpenOrders(
+			List<PortfolioOrderView> orders, String side, String status) {
+		String wantedSide = blankToNull(side);
+		String wantedStatus = blankToNull(status);
+		if (wantedSide == null && wantedStatus == null) return orders;
+
+		List<PortfolioOrderView> kept = new ArrayList<>();
+		for (PortfolioOrderView order : orders) {
+			if (wantedSide != null && !wantedSide.equalsIgnoreCase(
+					order.side() == null ? null : order.side())) {
+				continue;
+			}
+			if (wantedStatus != null) {
+				String actual = order.status() == null ? null : order.status().name();
+				if (!wantedStatus.equalsIgnoreCase(actual)) continue;
+			}
+			kept.add(order);
+		}
+		return kept;
+	}
+
+	private static String blankToNull(String value) {
+		return value == null || value.isBlank() ? null : value.trim();
 	}
 
 	private PortfolioHistoryResponse spotHistory(
@@ -520,8 +586,10 @@ public class PortfolioHistoryService {
 	 * {@code averageFillPrice} stays null instead of being computed from cumulative quote.
 	 */
 	private static PortfolioOrderView toOrderView(
-			AccountMode mode, AccountCategory category, ExchangeOrderSnapshot order) {
+			AccountMode mode, AccountCategory category, ExchangeOrderSnapshot order,
+			String cancelId) {
 		return new PortfolioOrderView(
+				cancelId,
 				mode,
 				category,
 				order.symbol(),
@@ -547,8 +615,10 @@ public class PortfolioHistoryService {
 
 	/** Maps a futures order onto the account view, including its own average fill price. */
 	private static PortfolioOrderView toFuturesOrderView(
-			AccountMode mode, AccountCategory category, FuturesOrderSnapshot order) {
+			AccountMode mode, AccountCategory category, FuturesOrderSnapshot order,
+			String cancelId) {
 		return new PortfolioOrderView(
+				cancelId,
 				mode,
 				category,
 				order.symbol(),
@@ -576,6 +646,59 @@ public class PortfolioHistoryService {
 			return null;
 		}
 		return original.subtract(executed);
+	}
+
+	/**
+	 * Maps clientOrderId to the local {@code LiveOrder} key for orders this
+	 * application placed and the exchange still reports as resting.
+	 *
+	 * <p>Scoped to the caller's own orders and to non-terminal local states, so a
+	 * stale UI cannot address another account's order, and an already
+	 * filled/cancelled local record does not advertise a cancel that would be
+	 * rejected. An order placed outside this application simply has no entry and
+	 * therefore no cancel identifier.</p>
+	 */
+	private Map<String, String> cancellableSpotOrderIds(User user) {
+		Map<String, String> byClientId = new HashMap<>();
+		for (LiveOrder order : liveOrderRepository.findByAccount_UserOrderByCreatedAtDesc(user)) {
+			if (order.getId() == null || order.getClientOrderId() == null) continue;
+			if (order.getStatus() == null || !spotCancellable(order.getStatus())) continue;
+			byClientId.putIfAbsent(order.getClientOrderId(), order.getId().toString());
+		}
+		return byClientId;
+	}
+
+	/**
+	 * A local order state that could still be cancelled.
+	 *
+	 * <p>{@code CANCEL_REQUESTED} is deliberately excluded: a cancel is already in
+	 * flight, so advertising another would offer a double submit. Terminal states
+	 * are excluded because there is nothing left to cancel.
+	 */
+	private static boolean spotCancellable(LiveOrderStatus status) {
+		return switch (status) {
+			case CREATED, SUBMITTING, SUBMITTED, ACKNOWLEDGED, PARTIALLY_FILLED -> true;
+			default -> false;
+		};
+	}
+
+	/** Futures equivalent of {@link #spotCancellable(LiveOrderStatus)}. */
+	private static boolean futuresCancellable(FuturesOrderStatus status) {
+		return switch (status) {
+			case CREATED, SUBMITTING, SUBMITTED, ACKNOWLEDGED, PARTIALLY_FILLED -> true;
+			default -> false;
+		};
+	}
+
+	/** Futures equivalent of {@link #cancellableSpotOrderIds(User)}. */
+	private Map<String, String> cancellableFuturesOrderIds(User user) {
+		Map<String, String> byClientId = new HashMap<>();
+		for (FuturesOrder order : futuresOrderRepository.findByAccount_UserOrderByCreatedAtDesc(user)) {
+			if (order.getId() == null || order.getClientOrderId() == null) continue;
+			if (order.getStatus() == null || !futuresCancellable(order.getStatus())) continue;
+			byClientId.putIfAbsent(order.getClientOrderId(), order.getId().toString());
+		}
+		return byClientId;
 	}
 
 	/**

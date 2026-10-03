@@ -90,7 +90,8 @@ enum PortfolioOrderStatus {
 
   /// True while the order is still live on the exchange book.
   bool get isOpen =>
-      this == PortfolioOrderStatus.open || this == PortfolioOrderStatus.partiallyFilled;
+      this == PortfolioOrderStatus.open ||
+      this == PortfolioOrderStatus.partiallyFilled;
 
   /// Maps a backend status name. Anything absent or unrecognised is [unknown].
   static PortfolioOrderStatus parse(Object? raw) {
@@ -220,10 +221,7 @@ class PortfolioAccount {
 
 /// Overview of one [PortfolioMode] across all four categories.
 class PortfolioOverview {
-  const PortfolioOverview({
-    required this.accountMode,
-    required this.accounts,
-  });
+  const PortfolioOverview({required this.accountMode, required this.accounts});
 
   final PortfolioMode accountMode;
   final List<PortfolioAccount> accounts;
@@ -240,6 +238,7 @@ class PortfolioOverview {
 /// One position inside a single account scope.
 class PortfolioPosition {
   const PortfolioPosition({
+    this.positionId,
     required this.accountMode,
     this.accountCategory,
     required this.symbol,
@@ -260,6 +259,19 @@ class PortfolioPosition {
   });
 
   final PortfolioMode accountMode;
+
+  /// Stable key of the underlying position record, or null when the scope has no
+  /// addressable record.
+  ///
+  /// Its meaning is scope-dependent: for PAPER it is the paper `Position` key
+  /// that the close and reposition actions accept; for LIVE FUTURES it is the
+  /// tracked live position key. LIVE SPOT holdings are asset balances rather
+  /// than positions, so they carry null — there is nothing to close or protect,
+  /// and a synthesised identifier would only produce one that fails if used.
+  ///
+  /// Never a list index: an index shifts as positions open and close, so an
+  /// action built from one could land on the wrong position.
+  final String? positionId;
 
   /// Null only for a simulated position with no originating signal, which
   /// cannot be attributed to a market category.
@@ -300,7 +312,8 @@ class PortfolioPositions {
 
   /// True when the list is empty because the scope is unsupported or
   /// unavailable, rather than because the account genuinely holds nothing.
-  bool get isEmptyBecauseUnsupported => positions.isEmpty && !availability.isAvailable;
+  bool get isEmptyBecauseUnsupported =>
+      positions.isEmpty && !availability.isAvailable;
 }
 
 /// One asset held in an exchange wallet.
@@ -352,7 +365,8 @@ class PortfolioHoldings {
 
   /// True when there are no holdings because the scope has no such capability,
   /// rather than because the wallet is genuinely empty.
-  bool get isEmptyBecauseUnsupported => holdings.isEmpty && !availability.isAvailable;
+  bool get isEmptyBecauseUnsupported =>
+      holdings.isEmpty && !availability.isAvailable;
 }
 
 /// What kind of history record is being shown.
@@ -469,7 +483,8 @@ class PortfolioHistory {
   /// shown is not the whole period.
   bool get isPartial => !complete;
 
-  bool get isEmptyBecauseUnsupported => entries.isEmpty && !availability.isAvailable;
+  bool get isEmptyBecauseUnsupported =>
+      entries.isEmpty && !availability.isAvailable;
 }
 
 /// Synchronization and reconciliation status for one account scope.
@@ -514,6 +529,7 @@ class PortfolioSyncStatus {
 /// reported one; nothing here defaults a missing value to zero.
 class PortfolioOrder {
   const PortfolioOrder({
+    this.cancelId,
     required this.accountMode,
     required this.accountCategory,
     required this.symbol,
@@ -537,6 +553,22 @@ class PortfolioOrder {
   final PortfolioMode accountMode;
   final PortfolioCategory accountCategory;
   final String symbol;
+
+  /// Key of the caller's own persisted order record, or null when the order
+  /// cannot be cancelled from here.
+  ///
+  /// The exchange's own [orderId] is what a detail view displays, but it is not
+  /// what the cancel endpoint accepts: the existing cancel services address a
+  /// local order and then resolve the exchange order by client order id. This is
+  /// null when no such local record exists (an order placed outside this app) or
+  /// when the exchange state is already terminal, so a cancel button can never be
+  /// shown for an order the backend would reject.
+  ///
+  /// Null for PAPER, which works no order book at all.
+  final String? cancelId;
+
+  /// True only when a cancel would actually be accepted.
+  bool get isCancellable => cancelId != null && status.isOpen;
 
   /// BUY or SELL as reported.
   final String? side;
@@ -592,7 +624,8 @@ class PortfolioOrders {
   final List<PortfolioOrder> orders;
   final String? statusMessage;
 
-  bool get isEmptyBecauseUnsupported => orders.isEmpty && !availability.isAvailable;
+  bool get isEmptyBecauseUnsupported =>
+      orders.isEmpty && !availability.isAvailable;
 }
 
 /// One position that has been closed.

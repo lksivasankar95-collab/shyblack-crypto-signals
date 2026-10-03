@@ -5,6 +5,9 @@ import '../../../core/theme/app_colors.dart';
 import '../../../domain/entities/portfolio_account.dart';
 import '../../providers/portfolio_controller.dart';
 import '../../providers/settings_controller.dart';
+import '../../widgets/portfolio_capital_sheet.dart';
+import '../../widgets/portfolio_position_sheets.dart';
+import '../../widgets/portfolio_order_sheets.dart';
 import '../../widgets/portfolio_widgets.dart';
 
 /// Binance-style, read-only Portfolio.
@@ -77,7 +80,35 @@ class _Header extends ConsumerWidget {
                 ),
               ),
               const Spacer(),
-              if (mode != null) PortfolioAccountBadge(mode: mode),
+              // Flexible so the badge ellipsises rather than overflowing when
+              // the row is tight on a narrow phone. The mode is never dropped:
+              // an ellipsised badge still names the account.
+              if (mode != null)
+                Flexible(child: PortfolioAccountBadge(mode: mode)),
+              // Capital management is a simulated-funds concern, so the control
+              // exists only while Settings has resolved the account as PAPER. It
+              // is absent — not merely disabled — in LIVE mode, so there is no
+              // live screen from which a simulated balance could be changed.
+              if (mode == PortfolioMode.paper)
+                IconButton(
+                  key: const Key('paper-capital-management'),
+                  onPressed: () => PortfolioCapitalSheet.show(context),
+                  icon: const Icon(
+                    Icons.tune,
+                    color: AppColors.accent,
+                    size: 20,
+                  ),
+                  tooltip: 'Paper account capital',
+                  // A tighter footprint than the Material default; 40px stays
+                  // above the 32px minimum touch target while leaving room for
+                  // the badge on a small screen.
+                  visualDensity: VisualDensity.compact,
+                  constraints: const BoxConstraints(
+                    minWidth: 40,
+                    minHeight: 40,
+                  ),
+                  padding: EdgeInsets.zero,
+                ),
             ],
           ),
           const SizedBox(height: 12),
@@ -227,6 +258,8 @@ class _PortfolioBody extends ConsumerWidget {
     final account = data.account;
     final isOptions = scope.category == PortfolioCategory.options;
     final isSpot = scope.category == PortfolioCategory.spot;
+    final sections = PortfolioSection.forCategory(scope.category);
+    final section = ref.watch(portfolioSectionProvider);
 
     return RefreshIndicator(
       onRefresh: () async {
@@ -239,54 +272,85 @@ class _PortfolioBody extends ConsumerWidget {
         ref.invalidate(portfolioFundingControllerProvider);
         ref.invalidate(portfolioSyncStatusControllerProvider);
       },
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(14, 14, 14, 32),
+      child: Column(
         children: [
-          if (isOptions)
-            const _OptionsUnsupported()
-          else if (account.availability == PortfolioAvailability.notConnected)
-            _LiveConnectionUnavailable(account: account)
-          else ...[
-            _Summary(account: account, scope: scope),
-            const SizedBox(height: 12),
-            if (account.availability.isUnsupported)
-              _UnsupportedScope(account: account)
-            else if (account.availability == PortfolioAvailability.unavailable)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: PortfolioStatePanel(
-                  title: 'Summary unavailable',
-                  message: account.statusMessage ??
-                      'No summary figure can be shown for this account without inventing one.',
-                  icon: Icons.info_outline,
-                ),
-              ),
-            const SizedBox(height: 14),
+          // Exactly one section is mounted at a time. Stacking a wallet, an order
+          // book and a trade history into one scrolling list is unreadable on a
+          // phone and buries whichever section the user opened the screen for.
+          if (sections.isNotEmpty)
+            PortfolioSectionTabs(
+              sections: sections,
+              selected: section,
+              onChanged: (next) =>
+                  ref.read(portfolioSectionProvider.notifier).select(next),
+            ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(14, 6, 14, 32),
+              children: [
+                if (isOptions)
+                  const _OptionsUnsupported()
+                else if (account.availability ==
+                    PortfolioAvailability.notConnected)
+                  _LiveConnectionUnavailable(account: account)
+                else ...[
+                  _Summary(account: account, scope: scope),
+                  const SizedBox(height: 14),
+                  if (account.availability.isUnsupported)
+                    _UnsupportedScope(account: account)
+                  else if (account.availability ==
+                      PortfolioAvailability.unavailable)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: PortfolioStatePanel(
+                        title: 'Summary unavailable',
+                        message:
+                            account.statusMessage ??
+                            'No summary figure can be shown for this account without '
+                                'inventing one.',
+                        icon: Icons.info_outline,
+                      ),
+                    ),
 
-            // Spot is an exchange wallet, not a leveraged position book. Holdings are
-            // therefore shown as assets and no "positions" section is presented for it.
-            if (isSpot) ...[
-              const _HoldingsSection(),
-              const SizedBox(height: 18),
-            ] else ...[
-              const _PositionsSection(),
-              const SizedBox(height: 18),
-              const _ClosedPositionsSection(),
-              const SizedBox(height: 18),
-            ],
-
-            const _OpenOrdersSection(),
-            const SizedBox(height: 18),
-            const _HistorySection(),
-            const SizedBox(height: 18),
-            const _TransactionHistorySection(),
-            if (!isSpot) ...[
-              const SizedBox(height: 18),
-              const _FundingSection(),
-            ],
-            const SizedBox(height: 18),
-            const _SyncStatusSection(),
-          ],
+                  // Spot is an exchange wallet, not a leveraged position book, so
+                  // its first section is holdings; futures shows open positions.
+                  // A PAPER holding is a paper Position — the backend reports no
+                  // wallet assets for a simulated account — so the holdings
+                  // section shows those positions, which is also what makes
+                  // close / stop-target reachable for a paper spot holding.
+                  ...switch (section) {
+                    PortfolioSection.holdings =>
+                      scope.mode == PortfolioMode.paper
+                          ? const [
+                              PortfolioSectionHeader(label: 'CURRENT HOLDINGS'),
+                              SizedBox(height: 10),
+                              _PositionsSection(embeddedHeader: true),
+                            ]
+                          : const [_HoldingsSection()],
+                    PortfolioSection.positions => const [
+                      _PositionsSection(),
+                      SizedBox(height: 18),
+                      _ClosedPositionsSection(),
+                    ],
+                    PortfolioSection.openOrders => const [_OpenOrdersSection()],
+                    PortfolioSection.tradeHistory => [
+                      const _HistorySection(),
+                      const SizedBox(height: 18),
+                      const _TransactionHistorySection(),
+                      // Funding is a futures-only income type; spot publishes none.
+                      if (!isSpot) ...[
+                        const SizedBox(height: 18),
+                        const _FundingSection(),
+                      ],
+                    ],
+                  },
+                  const SizedBox(height: 18),
+                  const _SyncStatusSection(),
+                ],
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -307,7 +371,8 @@ class _LiveConnectionUnavailable extends StatelessWidget {
   Widget build(BuildContext context) {
     return PortfolioStatePanel(
       title: 'LIVE ACCOUNT',
-      message: account.statusMessage ??
+      message:
+          account.statusMessage ??
           'Connection unavailable. No Binance account data can be read for this scope, and no '
               'simulated data is shown in its place.',
       icon: Icons.cloud_off,
@@ -325,7 +390,8 @@ class _UnsupportedScope extends StatelessWidget {
   Widget build(BuildContext context) {
     return PortfolioStatePanel(
       title: 'Not supported',
-      message: account.statusMessage ??
+      message:
+          account.statusMessage ??
           'This account has no such capability, so no data can be shown.',
       icon: Icons.info_outline,
     );
@@ -422,7 +488,10 @@ class _Summary extends StatelessWidget {
               ),
               PortfolioKpi(
                 label: 'Available',
-                value: PortfolioValue(value: account.availableBalance, suffix: quote),
+                value: PortfolioValue(
+                  value: account.availableBalance,
+                  suffix: quote,
+                ),
               ),
               if (futures)
                 PortfolioKpi(
@@ -466,7 +535,11 @@ class _Summary extends StatelessWidget {
             const SizedBox(height: 10),
             Text(
               account.statusMessage!,
-              style: const TextStyle(color: AppColors.muted, fontSize: 11, height: 1.4),
+              style: const TextStyle(
+                color: AppColors.muted,
+                fontSize: 11,
+                height: 1.4,
+              ),
             ),
           ],
         ],
@@ -542,7 +615,8 @@ class _HoldingsSection extends ConsumerWidget {
             if (data.isEmptyBecauseUnsupported) {
               return PortfolioStatePanel(
                 title: 'No wallet assets',
-                message: data.statusMessage ??
+                message:
+                    data.statusMessage ??
                     'This account does not expose per-asset wallet balances.',
                 icon: Icons.info_outline,
               );
@@ -557,10 +631,12 @@ class _HoldingsSection extends ConsumerWidget {
             }
             return Column(
               children: data.holdings
-                  .map((h) => Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: _HoldingRow(holding: h),
-                      ))
+                  .map(
+                    (h) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: _HoldingRow(holding: h),
+                    ),
+                  )
                   .toList(),
             );
           },
@@ -619,7 +695,11 @@ class _HoldingRow extends StatelessWidget {
 
 /// Open futures positions, sourced from the exchange's own position state.
 class _PositionsSection extends ConsumerWidget {
-  const _PositionsSection();
+  const _PositionsSection({this.embeddedHeader = false});
+
+  /// True when a caller has already rendered a header for this section, so the
+  /// section does not repeat it.
+  final bool embeddedHeader;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -639,7 +719,8 @@ class _PositionsSection extends ConsumerWidget {
         title: positions.availability.isUnsupported
             ? 'No position concept'
             : 'Positions unavailable',
-        message: positions.statusMessage ??
+        message:
+            positions.statusMessage ??
             'This scope does not expose positions, so none are shown.',
         icon: Icons.info_outline,
       );
@@ -648,13 +729,15 @@ class _PositionsSection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        PortfolioSectionHeader(
-          label: 'OPEN POSITIONS',
-          trailing: account.openPositionCount == null
-              ? null
-              : '${account.openPositionCount} open',
-        ),
-        const SizedBox(height: 10),
+        if (!embeddedHeader) ...[
+          PortfolioSectionHeader(
+            label: 'OPEN POSITIONS',
+            trailing: account.openPositionCount == null
+                ? null
+                : '${account.openPositionCount} open',
+          ),
+          const SizedBox(height: 10),
+        ],
         if (positions.positions.isEmpty)
           const PortfolioCard(
             child: Text(
@@ -684,115 +767,144 @@ class _PositionCard extends StatelessWidget {
     final quote = _quoteFor(position);
     final isLong = position.side == 'LONG';
 
-    return PortfolioCard(
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(
-                position.symbol,
-                style: const TextStyle(
-                  color: AppColors.onCard,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(width: 8),
-              if (position.side != null)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: isLong
-                        ? AppColors.accent.withValues(alpha: 0.16)
-                        : AppColors.loss.withValues(alpha: 0.16),
-                    borderRadius: BorderRadius.circular(5),
+    // The whole card opens the detail sheet: on a phone a full-width tap target
+    // beats a small chevron, and the detail carries the close / stop-target
+    // actions keyed on this row's own position id.
+    return GestureDetector(
+      key: Key('position-card-${position.positionId ?? position.symbol}'),
+      onTap: () => PortfolioPositionSheets.showDetail(context, position),
+      child: PortfolioCard(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(
+                  position.symbol,
+                  style: const TextStyle(
+                    color: AppColors.onCard,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
                   ),
-                  child: Text(
-                    position.side!,
-                    style: TextStyle(
-                      color: isLong ? AppColors.accent : AppColors.loss,
-                      fontSize: 9,
-                      fontWeight: FontWeight.w800,
+                ),
+                const SizedBox(width: 8),
+                if (position.side != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isLong
+                          ? AppColors.accent.withValues(alpha: 0.16)
+                          : AppColors.loss.withValues(alpha: 0.16),
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    child: Text(
+                      position.side!,
+                      style: TextStyle(
+                        color: isLong ? AppColors.accent : AppColors.loss,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
-                ),
-              if (position.leverage != null) ...[
-                const SizedBox(width: 6),
-                Text(
-                  '${position.leverage}x',
-                  style: const TextStyle(
-                    color: AppColors.muted,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
+                if (position.leverage != null) ...[
+                  const SizedBox(width: 6),
+                  Text(
+                    '${position.leverage}x',
+                    style: const TextStyle(
+                      color: AppColors.muted,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                ),
+                ],
+                const Spacer(),
+                if (position.status != null)
+                  Text(
+                    position.status!,
+                    style: const TextStyle(color: AppColors.muted, fontSize: 9),
+                  ),
               ],
-              const Spacer(),
-              if (position.status != null)
-                Text(
-                  position.status!,
-                  style: const TextStyle(color: AppColors.muted, fontSize: 9),
-                ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 16,
-            runSpacing: 10,
-            children: [
-              PortfolioKpi(
-                label: 'Quantity',
-                value: PortfolioValue(value: position.quantity),
-              ),
-              PortfolioKpi(
-                label: 'Entry',
-                value: PortfolioValue(value: position.entryPrice, suffix: quote),
-              ),
-              PortfolioKpi(
-                label: 'Mark',
-                value: PortfolioValue(value: position.currentPrice, suffix: quote),
-              ),
-              PortfolioKpi(
-                label: 'Unrealized',
-                value: PortfolioValue(
-                  value: position.unrealizedPnl,
-                  suffix: quote,
-                  signed: true,
-                ),
-              ),
-              if (position.liquidationPrice != null)
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 16,
+              runSpacing: 10,
+              children: [
                 PortfolioKpi(
-                  label: 'Liq.',
+                  label: 'Quantity',
+                  value: PortfolioValue(value: position.quantity),
+                ),
+                PortfolioKpi(
+                  label: 'Entry',
                   value: PortfolioValue(
-                    value: position.liquidationPrice,
+                    value: position.entryPrice,
                     suffix: quote,
                   ),
                 ),
-              // SL and the TP ladder are only rendered when the source actually supplies
-              // them. Nothing is derived or defaulted here.
-              PortfolioKpi(
-                label: 'SL',
-                value: PortfolioValue(value: position.stopLoss, suffix: quote),
-              ),
-              PortfolioKpi(
-                label: 'TP1',
-                value: PortfolioValue(value: position.takeProfit1, suffix: quote),
-              ),
-              if (position.takeProfit2 != null || position.takeProfit3 != null) ...[
                 PortfolioKpi(
-                  label: 'TP2',
-                  value: PortfolioValue(value: position.takeProfit2, suffix: quote),
+                  label: 'Mark',
+                  value: PortfolioValue(
+                    value: position.currentPrice,
+                    suffix: quote,
+                  ),
                 ),
                 PortfolioKpi(
-                  label: 'TP3',
-                  value: PortfolioValue(value: position.takeProfit3, suffix: quote),
+                  label: 'Unrealized',
+                  value: PortfolioValue(
+                    value: position.unrealizedPnl,
+                    suffix: quote,
+                    signed: true,
+                  ),
                 ),
+                if (position.liquidationPrice != null)
+                  PortfolioKpi(
+                    label: 'Liq.',
+                    value: PortfolioValue(
+                      value: position.liquidationPrice,
+                      suffix: quote,
+                    ),
+                  ),
+                // SL and the TP ladder are only rendered when the source actually supplies
+                // them. Nothing is derived or defaulted here.
+                PortfolioKpi(
+                  label: 'SL',
+                  value: PortfolioValue(
+                    value: position.stopLoss,
+                    suffix: quote,
+                  ),
+                ),
+                PortfolioKpi(
+                  label: 'TP1',
+                  value: PortfolioValue(
+                    value: position.takeProfit1,
+                    suffix: quote,
+                  ),
+                ),
+                if (position.takeProfit2 != null ||
+                    position.takeProfit3 != null) ...[
+                  PortfolioKpi(
+                    label: 'TP2',
+                    value: PortfolioValue(
+                      value: position.takeProfit2,
+                      suffix: quote,
+                    ),
+                  ),
+                  PortfolioKpi(
+                    label: 'TP3',
+                    value: PortfolioValue(
+                      value: position.takeProfit3,
+                      suffix: quote,
+                    ),
+                  ),
+                ],
               ],
-            ],
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -840,7 +952,8 @@ class _OpenOrdersSection extends ConsumerWidget {
             }
             return const PortfolioStatePanel(
               title: 'Open orders unavailable',
-              message: 'The exchange open-order state could not be read. This is a transport or '
+              message:
+                  'The exchange open-order state could not be read. This is a transport or '
                   'server problem, not an account with no open orders.',
               icon: Icons.cloud_off,
               isError: true,
@@ -857,7 +970,8 @@ class _OpenOrdersSection extends ConsumerWidget {
                 title: data.availability.isUnsupported
                     ? 'No open-order book'
                     : 'Open orders unavailable',
-                message: data.statusMessage ??
+                message:
+                    data.statusMessage ??
                     'This scope does not expose resting orders.',
                 icon: Icons.info_outline,
               );
@@ -872,10 +986,12 @@ class _OpenOrdersSection extends ConsumerWidget {
             }
             return Column(
               children: data.orders
-                  .map((o) => Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: _OrderCard(order: o),
-                      ))
+                  .map(
+                    (o) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: _OrderCard(order: o),
+                    ),
+                  )
                   .toList(),
             );
           },
@@ -892,112 +1008,123 @@ class _OrderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PortfolioCard(
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(
-                order.symbol,
-                style: const TextStyle(
-                  color: AppColors.onCard,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(width: 8),
-              if (order.side != null)
+    // Full-width tap target on a phone; the detail sheet carries View Details and
+    // — only when the backend says it would be accepted — Cancel Order.
+    return GestureDetector(
+      key: Key(
+        'order-card-${order.clientOrderId ?? order.orderId ?? order.symbol}',
+      ),
+      onTap: () => PortfolioOrderSheets.showOrderDetail(context, order),
+      child: PortfolioCard(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
                 Text(
-                  order.side!,
+                  order.symbol,
                   style: const TextStyle(
-                    color: AppColors.muted,
-                    fontSize: 9,
+                    color: AppColors.onCard,
+                    fontSize: 13,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-              const Spacer(),
-              PortfolioOrderStatusChip(status: order.status),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            order.orderType,
-            style: const TextStyle(color: AppColors.muted, fontSize: 10),
-          ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 16,
-            runSpacing: 10,
-            children: [
-              PortfolioKpi(
-                label: 'Quantity',
-                value: PortfolioValue(value: order.originalQuantity),
-              ),
-              PortfolioKpi(
-                label: 'Price',
-                value: PortfolioValue(value: order.price),
-              ),
-              if (order.stopPrice != null)
-                PortfolioKpi(
-                  label: 'Stop',
-                  value: PortfolioValue(value: order.stopPrice),
-                ),
-              PortfolioKpi(
-                label: 'Filled',
-                value: PortfolioValue(value: order.executedQuantity),
-              ),
-              PortfolioKpi(
-                label: 'Remaining',
-                value: PortfolioValue(value: order.remainingQuantity),
-              ),
-              if (order.averageFillPrice != null)
-                PortfolioKpi(
-                  label: 'Avg Fill',
-                  value: PortfolioValue(value: order.averageFillPrice),
-                ),
-              if (order.reduceOnly != null)
-                PortfolioKpi(
-                  label: 'Reduce Only',
-                  value: Text(
-                    order.reduceOnly! ? 'Yes' : 'No',
+                const SizedBox(width: 8),
+                if (order.side != null)
+                  Text(
+                    order.side!,
                     style: const TextStyle(
-                      color: AppColors.onCard,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
+                      color: AppColors.muted,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
+                const Spacer(),
+                PortfolioOrderStatusChip(status: order.status),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              order.orderType,
+              style: const TextStyle(color: AppColors.muted, fontSize: 10),
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 16,
+              runSpacing: 10,
+              children: [
+                PortfolioKpi(
+                  label: 'Quantity',
+                  value: PortfolioValue(value: order.originalQuantity),
                 ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              if (order.orderId != null)
-                Text(
-                  'order ${order.orderId}',
-                  style: const TextStyle(color: AppColors.muted, fontSize: 9),
+                PortfolioKpi(
+                  label: 'Price',
+                  value: PortfolioValue(value: order.price),
                 ),
-              if (order.clientOrderId != null) ...[
-                const SizedBox(width: 8),
-                Flexible(
-                  child: Text(
-                    'client ${order.clientOrderId}',
-                    overflow: TextOverflow.ellipsis,
+                if (order.stopPrice != null)
+                  PortfolioKpi(
+                    label: 'Stop',
+                    value: PortfolioValue(value: order.stopPrice),
+                  ),
+                PortfolioKpi(
+                  label: 'Filled',
+                  value: PortfolioValue(value: order.executedQuantity),
+                ),
+                PortfolioKpi(
+                  label: 'Remaining',
+                  value: PortfolioValue(value: order.remainingQuantity),
+                ),
+                if (order.averageFillPrice != null)
+                  PortfolioKpi(
+                    label: 'Avg Fill',
+                    value: PortfolioValue(value: order.averageFillPrice),
+                  ),
+                if (order.reduceOnly != null)
+                  PortfolioKpi(
+                    label: 'Reduce Only',
+                    value: Text(
+                      order.reduceOnly! ? 'Yes' : 'No',
+                      style: const TextStyle(
+                        color: AppColors.onCard,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                if (order.orderId != null)
+                  Text(
+                    'order ${order.orderId}',
                     style: const TextStyle(color: AppColors.muted, fontSize: 9),
                   ),
-                ),
+                if (order.clientOrderId != null) ...[
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      'client ${order.clientOrderId}',
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.muted,
+                        fontSize: 9,
+                      ),
+                    ),
+                  ),
+                ],
+                const Spacer(),
+                if (order.createdAt != null)
+                  Text(
+                    _stamp(order.createdAt!),
+                    style: const TextStyle(color: AppColors.muted, fontSize: 9),
+                  ),
               ],
-              const Spacer(),
-              if (order.createdAt != null)
-                Text(
-                  _stamp(order.createdAt!),
-                  style: const TextStyle(color: AppColors.muted, fontSize: 9),
-                ),
-            ],
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1059,7 +1186,8 @@ class _ClosedPositionsSection extends ConsumerWidget {
                 title: data.availability.isUnsupported
                     ? 'No closed positions'
                     : 'Closed positions unavailable',
-                message: data.statusMessage ??
+                message:
+                    data.statusMessage ??
                     'This scope does not expose closed positions.',
                 icon: Icons.info_outline,
               );
@@ -1072,7 +1200,8 @@ class _ClosedPositionsSection extends ConsumerWidget {
                     padding: const EdgeInsets.only(bottom: 8),
                     child: PortfolioStatePanel(
                       title: 'Partial reconstruction',
-                      message: data.statusMessage ??
+                      message:
+                          data.statusMessage ??
                           'Some round trips were only partly inside the requested window, so their '
                               'entry price, duration or fees are unavailable rather than estimated.',
                       icon: Icons.warning_amber_rounded,
@@ -1128,7 +1257,10 @@ class _ClosedPositionCard extends StatelessWidget {
               const SizedBox(width: 8),
               if (position.side != null)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: (isLong ? AppColors.accent : AppColors.loss)
                         .withValues(alpha: 0.16),
@@ -1170,7 +1302,10 @@ class _ClosedPositionCard extends StatelessWidget {
               ),
               PortfolioKpi(
                 label: 'Realized P&L',
-                value: PortfolioValue(value: position.realizedPnl, signed: true),
+                value: PortfolioValue(
+                  value: position.realizedPnl,
+                  signed: true,
+                ),
               ),
               PortfolioKpi(
                 label: 'Fees',
@@ -1248,10 +1383,7 @@ class _HistorySection extends ConsumerWidget {
 
     // Income lives on the dedicated transaction section, so it is not offered as a
     // history type here; offering it would duplicate that view.
-    const types = [
-      PortfolioHistoryType.order,
-      PortfolioHistoryType.trade,
-    ];
+    const types = [PortfolioHistoryType.order, PortfolioHistoryType.trade];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1266,8 +1398,9 @@ class _HistorySection extends ConsumerWidget {
         _HistoryTypeTabs(
           selected: query.type,
           types: types,
-          onChanged: (type) =>
-              ref.read(portfolioHistorySelectionProvider.notifier).selectType(type),
+          onChanged: (type) => ref
+              .read(portfolioHistorySelectionProvider.notifier)
+              .selectType(type),
         ),
         const SizedBox(height: 8),
         // Spot order and fill history is per symbol on the exchange, so the symbol is
@@ -1297,7 +1430,8 @@ class _HistorySection extends ConsumerWidget {
             }
             return const PortfolioStatePanel(
               title: 'History unavailable',
-              message: 'The exchange history could not be read. This is a transport or server '
+              message:
+                  'The exchange history could not be read. This is a transport or server '
                   'problem, not an account with no activity.',
               icon: Icons.cloud_off,
               isError: true,
@@ -1312,7 +1446,8 @@ class _HistorySection extends ConsumerWidget {
             if (data.isEmptyBecauseUnsupported) {
               return PortfolioStatePanel(
                 title: 'No history available',
-                message: data.statusMessage ??
+                message:
+                    data.statusMessage ??
                     'This scope does not expose exchange history.',
                 icon: Icons.info_outline,
               );
@@ -1325,7 +1460,8 @@ class _HistorySection extends ConsumerWidget {
                     padding: const EdgeInsets.only(bottom: 8),
                     child: PortfolioStatePanel(
                       title: 'Partial window',
-                      message: data.statusMessage ??
+                      message:
+                          data.statusMessage ??
                           'The record cap was reached, so this is not the whole period.',
                       icon: Icons.warning_amber_rounded,
                       isError: true,
@@ -1336,7 +1472,10 @@ class _HistorySection extends ConsumerWidget {
                     padding: const EdgeInsets.only(bottom: 8),
                     child: Text(
                       '${_stamp(data.windowFrom!)} to ${_stamp(data.windowTo!)}',
-                      style: const TextStyle(color: AppColors.muted, fontSize: 10),
+                      style: const TextStyle(
+                        color: AppColors.muted,
+                        fontSize: 10,
+                      ),
                     ),
                   ),
                 if (data.entries.isEmpty)
@@ -1546,8 +1685,9 @@ class _SymbolField extends StatefulWidget {
 }
 
 class _SymbolFieldState extends State<_SymbolField> {
-  late final TextEditingController _controller =
-      TextEditingController(text: widget.initial ?? '');
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.initial ?? '',
+  );
 
   @override
   void dispose() {
@@ -1596,118 +1736,129 @@ class _HistoryCard extends StatelessWidget {
         ? PortfolioOrderStatus.parse(entry.status)
         : null;
 
-    return PortfolioCard(
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(
-                entry.symbol ?? entry.entryType,
-                style: const TextStyle(
-                  color: AppColors.onCard,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(width: 8),
-              if (entry.side != null)
+    return GestureDetector(
+      key: Key('trade-card-${entry.tradeId ?? entry.orderId ?? entry.symbol}'),
+      // Full-width tap target; the detail sheet shows only fields the source
+      // actually reported.
+      onTap: () => PortfolioOrderSheets.showTradeDetail(context, entry),
+      child: PortfolioCard(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
                 Text(
-                  entry.side!,
+                  entry.symbol ?? entry.entryType,
                   style: const TextStyle(
-                    color: AppColors.muted,
-                    fontSize: 9,
+                    color: AppColors.onCard,
+                    fontSize: 13,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-              if (entry.positionSide != null) ...[
-                const SizedBox(width: 6),
-                Text(
-                  entry.positionSide!,
-                  style: const TextStyle(
-                    color: AppColors.muted,
-                    fontSize: 9,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-              if (entry.orderType != null) ...[
-                const SizedBox(width: 6),
-                Text(
-                  entry.orderType!,
-                  style: const TextStyle(color: AppColors.muted, fontSize: 9),
-                ),
-              ],
-              const Spacer(),
-              if (status != null)
-                PortfolioOrderStatusChip(status: status)
-              else if (entry.status != null)
-                Text(
-                  entry.status!,
-                  style: const TextStyle(color: AppColors.muted, fontSize: 9),
-                ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 16,
-            runSpacing: 10,
-            children: [
-              PortfolioKpi(
-                label: 'Price',
-                value: PortfolioValue(value: entry.price),
-              ),
-              PortfolioKpi(
-                label: 'Quantity',
-                value: PortfolioValue(value: entry.quantity),
-              ),
-              if (entry.quoteQuantity != null)
-                PortfolioKpi(
-                  label: 'Quote Qty',
-                  value: PortfolioValue(value: entry.quoteQuantity),
-                ),
-              // Only rendered when the source actually reported a commission; an absent
-              // commission stays unavailable and is never shown as zero.
-              if (entry.fee != null)
-                PortfolioKpi(
-                  label: 'Fee${entry.feeAsset != null ? ' (${entry.feeAsset})' : ''}',
-                  value: PortfolioValue(value: entry.fee),
-                ),
-              if (entry.realizedPnl != null)
-                PortfolioKpi(
-                  label: entry.entryType == 'INCOME' ||
-                          entry.entryType == 'FUNDING_FEE'
-                      ? 'Amount'
-                      : 'Realized P&L',
-                  value: PortfolioValue(value: entry.realizedPnl, signed: true),
-                ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              if (entry.orderId != null)
-                Text(
-                  'order ${entry.orderId}',
-                  style: const TextStyle(color: AppColors.muted, fontSize: 9),
-                ),
-              if (entry.tradeId != null) ...[
                 const SizedBox(width: 8),
-                Text(
-                  'trade ${entry.tradeId}',
-                  style: const TextStyle(color: AppColors.muted, fontSize: 9),
-                ),
+                if (entry.side != null)
+                  Text(
+                    entry.side!,
+                    style: const TextStyle(
+                      color: AppColors.muted,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                if (entry.positionSide != null) ...[
+                  const SizedBox(width: 6),
+                  Text(
+                    entry.positionSide!,
+                    style: const TextStyle(
+                      color: AppColors.muted,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+                if (entry.orderType != null) ...[
+                  const SizedBox(width: 6),
+                  Text(
+                    entry.orderType!,
+                    style: const TextStyle(color: AppColors.muted, fontSize: 9),
+                  ),
+                ],
+                const Spacer(),
+                if (status != null)
+                  PortfolioOrderStatusChip(status: status)
+                else if (entry.status != null)
+                  Text(
+                    entry.status!,
+                    style: const TextStyle(color: AppColors.muted, fontSize: 9),
+                  ),
               ],
-              const Spacer(),
-              if (entry.occurredAt != null)
-                Text(
-                  _stamp(entry.occurredAt!),
-                  style: const TextStyle(color: AppColors.muted, fontSize: 9),
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 16,
+              runSpacing: 10,
+              children: [
+                PortfolioKpi(
+                  label: 'Price',
+                  value: PortfolioValue(value: entry.price),
                 ),
-            ],
-          ),
-        ],
+                PortfolioKpi(
+                  label: 'Quantity',
+                  value: PortfolioValue(value: entry.quantity),
+                ),
+                if (entry.quoteQuantity != null)
+                  PortfolioKpi(
+                    label: 'Quote Qty',
+                    value: PortfolioValue(value: entry.quoteQuantity),
+                  ),
+                // Only rendered when the source actually reported a commission; an absent
+                // commission stays unavailable and is never shown as zero.
+                if (entry.fee != null)
+                  PortfolioKpi(
+                    label:
+                        'Fee${entry.feeAsset != null ? ' (${entry.feeAsset})' : ''}',
+                    value: PortfolioValue(value: entry.fee),
+                  ),
+                if (entry.realizedPnl != null)
+                  PortfolioKpi(
+                    label:
+                        entry.entryType == 'INCOME' ||
+                            entry.entryType == 'FUNDING_FEE'
+                        ? 'Amount'
+                        : 'Realized P&L',
+                    value: PortfolioValue(
+                      value: entry.realizedPnl,
+                      signed: true,
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                if (entry.orderId != null)
+                  Text(
+                    'order ${entry.orderId}',
+                    style: const TextStyle(color: AppColors.muted, fontSize: 9),
+                  ),
+                if (entry.tradeId != null) ...[
+                  const SizedBox(width: 8),
+                  Text(
+                    'trade ${entry.tradeId}',
+                    style: const TextStyle(color: AppColors.muted, fontSize: 9),
+                  ),
+                ],
+                const Spacer(),
+                if (entry.occurredAt != null)
+                  Text(
+                    _stamp(entry.occurredAt!),
+                    style: const TextStyle(color: AppColors.muted, fontSize: 9),
+                  ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1766,7 +1917,8 @@ class _TransactionHistorySection extends ConsumerWidget {
                 title: data.availability.isUnsupported
                     ? 'Not available'
                     : 'Transactions unavailable',
-                message: data.statusMessage ??
+                message:
+                    data.statusMessage ??
                     'This account publishes no transaction records.',
                 icon: Icons.info_outline,
               );
@@ -1781,10 +1933,12 @@ class _TransactionHistorySection extends ConsumerWidget {
             }
             return Column(
               children: data.entries
-                  .map((e) => Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: _HistoryCard(entry: e),
-                      ))
+                  .map(
+                    (e) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: _HistoryCard(entry: e),
+                    ),
+                  )
                   .toList(),
             );
           },
@@ -1845,7 +1999,8 @@ class _FundingSection extends ConsumerWidget {
                 title: data.availability.isUnsupported
                     ? 'No funding fees'
                     : 'Funding fees unavailable',
-                message: data.statusMessage ??
+                message:
+                    data.statusMessage ??
                     'This account publishes no funding-fee records.',
                 icon: Icons.info_outline,
               );
@@ -1860,10 +2015,12 @@ class _FundingSection extends ConsumerWidget {
             }
             return Column(
               children: data.entries
-                  .map((e) => Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: _HistoryCard(entry: e),
-                      ))
+                  .map(
+                    (e) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: _HistoryCard(entry: e),
+                    ),
+                  )
                   .toList(),
             );
           },
@@ -1900,7 +2057,8 @@ class _SyncStatusSection extends ConsumerWidget {
             }
             return const PortfolioStatePanel(
               title: 'Sync status unavailable',
-              message: 'The synchronization state of this scope could not be read.',
+              message:
+                  'The synchronization state of this scope could not be read.',
               icon: Icons.cloud_off,
               isError: true,
             );

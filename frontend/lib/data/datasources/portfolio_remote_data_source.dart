@@ -27,7 +27,10 @@ class PortfolioRemoteDataSource {
     return res.data ?? const {};
   }
 
-  Future<Map<String, dynamic>> getPositions(String mode, String category) async {
+  Future<Map<String, dynamic>> getPositions(
+    String mode,
+    String category,
+  ) async {
     final res = await _api.dio.get<Map<String, dynamic>>(
       ApiConstants.portfolioPositions(category),
       queryParameters: {'mode': mode},
@@ -163,7 +166,10 @@ class PortfolioRemoteDataSource {
   }
 
   /// Connection state, data freshness and the reason a scope is not current.
-  Future<Map<String, dynamic>> getSyncStatus(String mode, String category) async {
+  Future<Map<String, dynamic>> getSyncStatus(
+    String mode,
+    String category,
+  ) async {
     final res = await _api.dio.get<Map<String, dynamic>>(
       ApiConstants.portfolioSyncStatus(category),
       queryParameters: {'mode': mode},
@@ -186,5 +192,92 @@ class PortfolioRemoteDataSource {
     if (from != null) params['from'] = from.toUtc().toIso8601String();
     if (to != null) params['to'] = to.toUtc().toIso8601String();
     if (limit != null) params['limit'] = limit;
+  }
+
+  // ── Paper capital management (simulated funds only) ──────────────
+
+  Future<Map<String, dynamic>> getPaperAccount() async {
+    final res = await _api.dio.get<Map<String, dynamic>>(
+      ApiConstants.paperAccount,
+    );
+    return res.data ?? const {};
+  }
+
+  /// Adds simulated capital. The backend validates amount > 0 and records an
+  /// audited ADD event; historical trades are never rewritten.
+  Future<Map<String, dynamic>> addPaperCapital({
+    required double amount,
+    String? reason,
+  }) async {
+    final res = await _api.dio.post<Map<String, dynamic>>(
+      ApiConstants.paperAddCapital,
+      data: {
+        'amount': amount,
+        if (reason != null && reason.isNotEmpty) 'reason': reason,
+      },
+    );
+    return res.data ?? const {};
+  }
+
+  /// Withdraws simulated capital, bounded by free cash on the server side.
+  Future<Map<String, dynamic>> reducePaperCapital({
+    required double amount,
+    String? reason,
+  }) async {
+    final res = await _api.dio.post<Map<String, dynamic>>(
+      ApiConstants.paperReduceCapital,
+      data: {
+        'amount': amount,
+        if (reason != null && reason.isNotEmpty) 'reason': reason,
+      },
+    );
+    return res.data ?? const {};
+  }
+
+  /// The audited capital ledger, newest first.
+  Future<List<dynamic>> getPaperCapitalHistory({int limit = 50}) async {
+    final res = await _api.dio.get<List<dynamic>>(
+      ApiConstants.paperCapitalHistory,
+      queryParameters: {'limit': limit},
+    );
+    return res.data ?? const [];
+  }
+
+  /// Resets the simulated account to its starting balance.
+  ///
+  /// The server closes open positions and zeroes the counters; the capital
+  /// ledger is deliberately preserved so the balance stays explainable.
+  Future<Map<String, dynamic>> resetPaperAccount() async {
+    final res = await _api.dio.delete<Map<String, dynamic>>(
+      ApiConstants.paperAccount,
+    );
+    return res.data ?? const {};
+  }
+
+  // ── Paper position actions ───────────────────────────────────────
+
+  /// Repositions the stop-loss / take-profit of an open paper position.
+  ///
+  /// [stopLoss] and [takeProfit] are both nullable and mean "leave unchanged" —
+  /// there is no way to clear protection from the client. Side-aware validation
+  /// (a long's stop must sit below entry) is enforced server side.
+  Future<Map<String, dynamic>> updatePaperPositionRisk(
+    String positionId, {
+    double? stopLoss,
+    double? takeProfit,
+  }) async {
+    final res = await _api.dio.patch<Map<String, dynamic>>(
+      ApiConstants.paperPositionRisk(positionId),
+      data: {'stopLoss': ?stopLoss, 'takeProfit': ?takeProfit},
+    );
+    return res.data ?? const {};
+  }
+
+  /// Closes an open paper position at the current market price.
+  Future<Map<String, dynamic>> closePaperPosition(String positionId) async {
+    final res = await _api.dio.post<Map<String, dynamic>>(
+      ApiConstants.paperClose(positionId),
+    );
+    return res.data ?? const {};
   }
 }

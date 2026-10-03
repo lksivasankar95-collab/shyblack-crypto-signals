@@ -21,19 +21,14 @@ void main() {
   late FakePortfolioRepository repository;
 
   PortfolioHoldings liveSpotHoldings() => PortfolioHoldings(
-        accountMode: PortfolioMode.live,
-        accountCategory: PortfolioCategory.spot,
-        availability: PortfolioAvailability.available,
-        source: 'EXCHANGE',
-        holdings: const [
-          PortfolioHolding(
-            asset: 'BTC',
-            free: 0.1,
-            locked: 0.02,
-            total: 0.12,
-          ),
-        ],
-      );
+    accountMode: PortfolioMode.live,
+    accountCategory: PortfolioCategory.spot,
+    availability: PortfolioAvailability.available,
+    source: 'EXCHANGE',
+    holdings: const [
+      PortfolioHolding(asset: 'BTC', free: 0.1, locked: 0.02, total: 0.12),
+    ],
+  );
 
   PortfolioHistory ordersFor(PortfolioMode mode, PortfolioCategory category) =>
       PortfolioHistory(
@@ -79,8 +74,13 @@ void main() {
 
   /// Selects a market-account tab by its widget key rather than by label text, because
   /// the account badge and the order rows also contain those words.
-  Future<void> selectCategory(WidgetTester tester, PortfolioCategory category) async {
-    await tester.tap(find.byKey(ValueKey('portfolio-category-${category.apiValue}')));
+  Future<void> selectCategory(
+    WidgetTester tester,
+    PortfolioCategory category,
+  ) async {
+    await tester.tap(
+      find.byKey(ValueKey('portfolio-category-${category.apiValue}')),
+    );
     await tester.pumpAndSettle();
   }
 
@@ -91,16 +91,38 @@ void main() {
   /// It stops as soon as the target is found and gives up after a bounded number of
   /// steps, so a genuinely missing widget produces a clear assertion failure instead of
   /// a hang.
+  /// Selects a market section tab and settles.
+  ///
+  /// Exactly one section is mounted at a time, so a test that asserts on a
+  /// section must open it first. This is navigation, not a weakening of the
+  /// assertion: the same figures are still required once the tab is active.
+  Future<void> openSection(WidgetTester tester, String section) async {
+    final target = find.byKey(Key('section-tab-$section'));
+    // The strip scrolls horizontally and builds lazily, so on a narrow phone a
+    // later tab is neither measurable nor tappable until it is scrolled into
+    // reach. Drag until the tab exists and sits inside the strip.
+    final strip = find.byKey(const Key('portfolio-section-strip'));
+    for (var step = 0; step < 8; step++) {
+      if (target.evaluate().isNotEmpty) {
+        final bounds = tester.getRect(strip);
+        final wanted = tester.getRect(target);
+        if (wanted.center.dx >= bounds.left && wanted.center.dx <= bounds.right)
+          break;
+      }
+      await tester.drag(strip, const Offset(-120, 0));
+      await tester.pumpAndSettle();
+    }
+    await tester.tap(target, warnIfMissed: false);
+    await tester.pumpAndSettle();
+  }
+
   Future<void> scrollTo(WidgetTester tester, Finder target) async {
     for (var step = 0; step < 12; step++) {
       if (target.evaluate().isNotEmpty) {
         await tester.pumpAndSettle();
         return;
       }
-      await tester.drag(
-        find.byType(ListView).first,
-        const Offset(0, -180),
-      );
+      await tester.drag(find.byType(ListView).first, const Offset(0, -180));
       await tester.pumpAndSettle();
     }
   }
@@ -113,15 +135,21 @@ void main() {
       },
       history: {
         for (final category in PortfolioCategory.values) ...{
-          FakePortfolioRepository.key(PortfolioMode.live, category):
-              ordersFor(PortfolioMode.live, category),
-          FakePortfolioRepository.key(PortfolioMode.paper, category):
-              ordersFor(PortfolioMode.paper, category),
+          FakePortfolioRepository.key(PortfolioMode.live, category): ordersFor(
+            PortfolioMode.live,
+            category,
+          ),
+          FakePortfolioRepository.key(PortfolioMode.paper, category): ordersFor(
+            PortfolioMode.paper,
+            category,
+          ),
         },
       },
       syncStatus: {
-        FakePortfolioRepository.key(PortfolioMode.live, PortfolioCategory.spot):
-            PortfolioSyncStatus(
+        FakePortfolioRepository.key(
+          PortfolioMode.live,
+          PortfolioCategory.spot,
+        ): PortfolioSyncStatus(
           accountMode: PortfolioMode.live,
           accountCategory: PortfolioCategory.spot,
           availability: PortfolioAvailability.stale,
@@ -133,7 +161,9 @@ void main() {
     );
   });
 
-  testWidgets('wallet assets are shown as assets, not positions', (tester) async {
+  testWidgets('wallet assets are shown as assets, not positions', (
+    tester,
+  ) async {
     await pumpScreen(tester, account: TradingAccount.live);
 
     await scrollTo(tester, find.text('WALLET / ASSETS'));
@@ -148,15 +178,22 @@ void main() {
     expect(find.text('OPEN POSITIONS'), findsNothing);
   });
 
-  testWidgets('a paper account shows no wallet-assets capability', (tester) async {
+  testWidgets('a paper account shows no wallet-assets capability', (
+    tester,
+  ) async {
     await pumpScreen(tester);
 
-    await scrollTo(tester, find.text('WALLET / ASSETS'));
-
-    expect(find.text('WALLET / ASSETS'), findsOneWidget);
-    // A simulated account holds capital, not exchange assets, and that must be stated
-    // rather than shown as an empty wallet.
-    expect(find.text('No wallet assets'), findsOneWidget);
+    // A simulated account holds capital, not exchange assets. Its holdings are
+    // paper positions, so the wallet-assets section must not be presented at all
+    // — neither as data nor as an empty wallet.
+    expect(find.text('WALLET / ASSETS'), findsNothing);
+    expect(find.text('No wallet assets'), findsNothing);
+    expect(
+      find.text('CURRENT HOLDINGS'),
+      findsOneWidget,
+      reason:
+          'a paper holding is a paper position, listed under its own heading',
+    );
   });
 
   testWidgets('a stale scope is labelled stale', (tester) async {
@@ -168,33 +205,39 @@ void main() {
     expect(find.textContaining('must not be read as current'), findsOneWidget);
   });
 
-  testWidgets('a partial history window is admitted, not presented as complete',
-      (tester) async {
-    repository.history[FakePortfolioRepository.key(
-      PortfolioMode.live,
-      PortfolioCategory.spot,
-    )] = PortfolioHistory(
-      accountMode: PortfolioMode.live,
-      accountCategory: PortfolioCategory.spot,
-      availability: PortfolioAvailability.available,
-      source: 'EXCHANGE',
-      entryType: 'ORDER',
-      windowFrom: DateTime.utc(2026, 1, 1),
-      windowTo: DateTime.utc(2026, 1, 8),
-      complete: false,
-      statusMessage: 'Reached the record cap of 200; this window is partial.',
-      entries: const [],
-    );
+  testWidgets(
+    'a partial history window is admitted, not presented as complete',
+    (tester) async {
+      repository.history[FakePortfolioRepository.key(
+        PortfolioMode.live,
+        PortfolioCategory.spot,
+      )] = PortfolioHistory(
+        accountMode: PortfolioMode.live,
+        accountCategory: PortfolioCategory.spot,
+        availability: PortfolioAvailability.available,
+        source: 'EXCHANGE',
+        entryType: 'ORDER',
+        windowFrom: DateTime.utc(2026, 1, 1),
+        windowTo: DateTime.utc(2026, 1, 8),
+        complete: false,
+        statusMessage: 'Reached the record cap of 200; this window is partial.',
+        entries: const [],
+      );
 
+      await pumpScreen(tester, account: TradingAccount.live);
+      await openSection(tester, 'tradeHistory');
+      await scrollTo(tester, find.text('HISTORY'));
+
+      expect(find.text('Partial window'), findsOneWidget);
+      expect(find.textContaining('this window is partial'), findsOneWidget);
+    },
+  );
+
+  testWidgets('switching record type requests the matching type', (
+    tester,
+  ) async {
     await pumpScreen(tester, account: TradingAccount.live);
-    await scrollTo(tester, find.text('HISTORY'));
-
-    expect(find.text('Partial window'), findsOneWidget);
-    expect(find.textContaining('this window is partial'), findsOneWidget);
-  });
-
-  testWidgets('switching record type requests the matching type', (tester) async {
-    await pumpScreen(tester, account: TradingAccount.live);
+    await openSection(tester, 'tradeHistory');
 
     expect(repository.historyCalls, contains('LIVE:SPOT:ORDER:-'));
 
@@ -205,8 +248,11 @@ void main() {
     expect(repository.historyCalls, contains('LIVE:SPOT:TRADE:-'));
   });
 
-  testWidgets('a spot symbol is requested explicitly once entered', (tester) async {
+  testWidgets('a spot symbol is requested explicitly once entered', (
+    tester,
+  ) async {
     await pumpScreen(tester, account: TradingAccount.live);
+    await openSection(tester, 'tradeHistory');
     await scrollTo(tester, find.byType(TextField));
 
     await tester.enterText(find.byType(TextField).first, 'ethusdt');
@@ -220,8 +266,9 @@ void main() {
     );
   });
 
-  testWidgets('a HISTORY failure does not blank the account figures',
-      (tester) async {
+  testWidgets('a HISTORY failure does not blank the account figures', (
+    tester,
+  ) async {
     await pumpScreen(tester, account: TradingAccount.live);
 
     await scrollTo(tester, find.text('WALLET / ASSETS'));
@@ -244,15 +291,19 @@ void main() {
     expect(find.text('BTC'), findsOneWidget);
   });
 
-  testWidgets('a history response for another scope is never painted',
-      (tester) async {
+  testWidgets('a history response for another scope is never painted', (
+    tester,
+  ) async {
     // The payload served for the LIVE SPOT request declares FUTURES. The screen must
     // refuse to paint it, which is the guard against records appearing under the wrong
     // scope's heading.
     repository.history[FakePortfolioRepository.key(
       PortfolioMode.live,
       PortfolioCategory.spot,
-    )] = ordersFor(PortfolioMode.live, PortfolioCategory.futures);
+    )] = ordersFor(
+      PortfolioMode.live,
+      PortfolioCategory.futures,
+    );
 
     await pumpScreen(tester, account: TradingAccount.live);
     await scrollTo(tester, find.text('HISTORY'));
@@ -267,7 +318,13 @@ void main() {
     // A record may legitimately display BUY or SELL as its side, so the check is for
     // actual actionable affordances rather than for those words. A read-only screen
     // offers no action of any kind.
-    for (final label in ['CLOSE', 'CANCEL', 'PLACE ORDER', 'BUY NOW', 'SELL NOW']) {
+    for (final label in [
+      'CLOSE',
+      'CANCEL',
+      'PLACE ORDER',
+      'BUY NOW',
+      'SELL NOW',
+    ]) {
       expect(
         find.text(label),
         findsNothing,
@@ -281,8 +338,9 @@ void main() {
     );
   });
 
-  testWidgets('renders every section without overflow on a narrow screen',
-      (tester) async {
+  testWidgets('renders every section without overflow on a narrow screen', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(360, 640);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -290,10 +348,21 @@ void main() {
     await pumpScreen(tester, account: TradingAccount.live);
     // The futures tab is the densest layout, so it is the one worth checking.
     await selectCategory(tester, PortfolioCategory.futures);
-    await scrollTo(tester, find.text('HISTORY'));
 
+    // Every section is checked, not just whichever one happened to be open.
+    // This is a superset of the previous single-view check.
+    await openSection(tester, 'positions');
+    await scrollTo(tester, find.text('OPEN POSITIONS'));
     expect(tester.takeException(), isNull);
     expect(find.text('OPEN POSITIONS'), findsOneWidget);
+
+    await openSection(tester, 'openOrders');
+    expect(tester.takeException(), isNull);
+    expect(find.text('OPEN ORDERS'), findsOneWidget);
+
+    await openSection(tester, 'tradeHistory');
+    await scrollTo(tester, find.text('HISTORY'));
+    expect(tester.takeException(), isNull);
     expect(find.text('HISTORY'), findsOneWidget);
   });
 }
