@@ -212,8 +212,6 @@ public class PaperTradingController {
 				.map(Position::getSignalId).filter(Objects::nonNull).collect(Collectors.toSet());
 		Map<UUID, String> modeBySignal = new HashMap<>();
 		for (Signal s : signalRepository.findAllById(signalIds)) {
-			// Market type is persisted signal metadata (never inferred). A null
-			// mode is surfaced as null and rendered as "—", not fabricated.
 			modeBySignal.put(s.getId(), s.getTradingMode() != null ? s.getTradingMode().name() : null);
 		}
 		Set<UUID> strategyIds = positions.stream()
@@ -223,8 +221,24 @@ public class PaperTradingController {
 			nameById.put(s.getId(), s.getName());
 		}
 		return positions.stream()
-				.map(p -> toPositionDto(p, modeBySignal.get(p.getSignalId()), nameById.get(p.getStrategyId())))
+				.map(p -> toPositionDto(p, marketTypeOf(p, modeBySignal), nameById.get(p.getStrategyId())))
 				.toList();
+	}
+
+	/**
+	 * The market a position trades on.
+	 *
+	 * <p>The position's own {@code trading_mode} wins, because that is the market it was opened on
+	 * and the market its live price is resolved from — reporting the signal's market instead would
+	 * let the two disagree, and the client selects its price feed from this field. The signal is only
+	 * consulted for rows that predate the column, where it is the best available record. If neither is
+	 * present the value stays {@code null} and is rendered as unknown, never fabricated.
+	 */
+	private static String marketTypeOf(Position p, Map<UUID, String> modeBySignal) {
+		if (p.getTradingMode() != null) {
+			return p.getTradingMode().name();
+		}
+		return modeBySignal.get(p.getSignalId());
 	}
 
 	private PaperPositionResponse toPositionDto(Position p, String marketType, String strategyName) {

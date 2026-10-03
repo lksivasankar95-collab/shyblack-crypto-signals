@@ -18,18 +18,52 @@ enum ChartTimeframe {
   final String interval;
 }
 
+/// A symbol qualified by the market it belongs to.
+///
+/// Keying provider families on the bare symbol is what allowed a spot price to satisfy a
+/// futures request, or the reverse. The market is part of the key here so the two can
+/// never be served by one another's cache entry.
+class MarketRef {
+  const MarketRef({required this.symbol, this.market = TradingMode.spot});
+
+  final String symbol;
+  final TradingMode market;
+
+  @override
+  bool operator ==(Object other) =>
+      other is MarketRef && other.symbol == symbol && other.market == market;
+
+  @override
+  int get hashCode => Object.hash(symbol, market);
+
+  @override
+  String toString() => '${market.apiParam}:$symbol';
+}
+
 class KlineQuery {
-  const KlineQuery({required this.symbol, required this.interval});
+  const KlineQuery({
+    required this.symbol,
+    required this.interval,
+    this.market = TradingMode.spot,
+  });
 
   final String symbol;
   final String interval;
 
-  @override
-  bool operator ==(Object other) =>
-      other is KlineQuery && other.symbol == symbol && other.interval == interval;
+  /// Market whose candles to load. Spot and futures candles differ and are not interchangeable.
+  final TradingMode market;
+
+  MarketRef get ref => MarketRef(symbol: symbol, market: market);
 
   @override
-  int get hashCode => Object.hash(symbol, interval);
+  bool operator ==(Object other) =>
+      other is KlineQuery &&
+      other.symbol == symbol &&
+      other.interval == interval &&
+      other.market == market;
+
+  @override
+  int get hashCode => Object.hash(symbol, interval, market);
 }
 
 class LocalWatchlist extends Notifier<Set<String>> {
@@ -47,28 +81,32 @@ class LocalWatchlist extends Notifier<Set<String>> {
 
 final localWatchlistProvider = NotifierProvider<LocalWatchlist, Set<String>>(LocalWatchlist.new);
 
-final coinTickerRestProvider = FutureProvider.autoDispose.family<MarketTicker, String>((ref, symbol) async {
-  const mode = kAppMarketMode;
-  return ref.read(getMarketTickerProvider).call(symbol, mode);
+final coinTickerRestProvider =
+    FutureProvider.autoDispose.family<MarketTicker, MarketRef>((ref, target) async {
+  return ref.read(getMarketTickerProvider).call(target.symbol, target.market);
 });
 
-final coinTickerProvider = Provider.autoDispose.family<AsyncValue<MarketTicker>, String>((ref, symbol) {
+final coinTickerProvider =
+    Provider.autoDispose.family<AsyncValue<MarketTicker>, MarketRef>((ref, target) {
+  // Only a ticker from the requested market may satisfy this lookup. Without the mode check
+  // a spot cache entry would silently answer a futures request for the same symbol.
   final live = ref.watch(
-    marketsControllerProvider.select((async) => async.value?.bySymbol[symbol]),
+    marketsControllerProvider.select(
+      (async) => async.value?.tickerFor(target.symbol),
+    ),
   );
-  if (live != null) {
+  if (live != null && live.marketType == target.market) {
     return AsyncData(live);
   }
-  return ref.watch(coinTickerRestProvider(symbol));
+  return ref.watch(coinTickerRestProvider(target));
 });
 
 final coinKlinesProvider =
     FutureProvider.autoDispose.family<List<KlineCandle>, KlineQuery>((ref, query) async {
-  const mode = kAppMarketMode;
   return ref.read(getKlinesProvider).call(
         symbol: query.symbol,
         interval: query.interval,
-        mode: mode,
+        mode: query.market,
       );
 });
 

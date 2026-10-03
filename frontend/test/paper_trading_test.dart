@@ -17,10 +17,11 @@ import 'package:cryptosignals/domain/entities/paper_position.dart';
 import 'package:cryptosignals/domain/repositories/market_repository.dart';
 import 'package:cryptosignals/domain/repositories/paper_trading_repository.dart';
 import 'package:cryptosignals/presentation/providers/auth_session.dart';
+import 'package:cryptosignals/presentation/providers/market_prices_controller.dart';
 import 'package:cryptosignals/presentation/providers/markets_controller.dart';
 import 'package:cryptosignals/presentation/screens/paper_trading/paper_trading_screen.dart';
 
-MarketTicker _ticker(String symbol, double price) => MarketTicker(
+MarketTicker _ticker(String symbol, double price, [TradingMode market = TradingMode.spot]) => MarketTicker(
       symbol: symbol,
       name: symbol,
       price: price,
@@ -29,47 +30,59 @@ MarketTicker _ticker(String symbol, double price) => MarketTicker(
       volume24h: 0,
       high24h: price,
       low24h: price,
+      marketType: market,
+      exchangeSymbol: symbol,
+      baseAsset: symbol.length > 4 ? symbol.substring(0, symbol.length - 4) : symbol,
+      quoteAsset: 'USDT',
     );
 
-/// Fake markets state so there is exactly ONE shared market stream (no socket
-/// here) and the card reads its live price from it.
-class _FakeMarketsController extends MarketsController {
-  _FakeMarketsController(this._data);
-  MarketsViewData _data;
+/// Fake shared market book so there is exactly ONE stream per market (no socket
+/// here) and each card reads its live price from its own market.
+class _FakeMarketPricesController extends MarketPricesController {
+  _FakeMarketPricesController(this._book);
+  MarketPriceBook _book;
 
-  /// Test hook: push a new markets state exactly as a WebSocket tick would.
-  void emit(MarketsViewData data) {
-    _data = data;
-    state = AsyncData(data);
+  /// Test hook: push a new book exactly as WebSocket ticks would.
+  void emit(MarketPriceBook book) {
+    _book = book;
+    state = AsyncData(book);
   }
 
   @override
-  Future<MarketsViewData> build() async => _data;
+  Future<MarketPriceBook> build() async => _book;
 }
 
-MarketsViewData _markets(Map<String, double> prices, {bool connected = true}) {
-  final tickers = [for (final e in prices.entries) _ticker(e.key, e.value)];
-  return MarketsViewData(
-    mode: kAppMarketMode,
-    all: tickers,
-    symbols: [for (final t in tickers) t.symbol],
-    bySymbol: {for (final t in tickers) t.symbol: t},
-    gainers: const [],
-    losers: const [],
-    connected: connected,
+/// Builds a book holding `prices` on [market].
+MarketPriceBook _book(
+  Map<String, double> prices, {
+  TradingMode market = TradingMode.spot,
+  bool connected = true,
+}) {
+  final tickers = [
+    for (final e in prices.entries) _ticker(e.key, e.value, market)
+  ];
+  return MarketPriceBook(
+    byMarket: {
+      market: {for (final t in tickers) t.symbol: t},
+    },
+    connectedMarkets: connected ? {market} : const {},
   );
 }
 
 Widget _app(
   _FakePaperTradingRepository repo, {
   Map<String, double> live = const {'BTCUSDT': 40500},
+  TradingMode market = TradingMode.futures,
+  MarketPriceBook? book,
   bool connected = true,
 }) =>
     ProviderScope(
       overrides: [
         paperTradingRepositoryProvider.overrideWith((ref) => repo),
-        marketsControllerProvider.overrideWith(
-          () => _FakeMarketsController(_markets(live, connected: connected)),
+        marketPricesControllerProvider.overrideWith(
+          () => _FakeMarketPricesController(
+            book ?? _book(live, market: market, connected: connected),
+          ),
         ),
       ],
       child: MaterialApp(
@@ -84,9 +97,11 @@ Future<void> _load(
   WidgetTester tester,
   _FakePaperTradingRepository repo, {
   Map<String, double> live = const {'BTCUSDT': 40500},
+  TradingMode market = TradingMode.futures,
+  MarketPriceBook? book,
   bool connected = true,
 }) async {
-  await tester.pumpWidget(_app(repo, live: live, connected: connected));
+  await tester.pumpWidget(_app(repo, live: live, market: market, book: book, connected: connected));
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 50));
 }
@@ -139,11 +154,68 @@ void main() {
         _position(symbol: 'ETHUSDT', marketType: 'SPOT', price: 2200, qty: 1),
       ],
     );
-    await _load(tester, repo, live: const {'BTCUSDT': 40500, 'ETHUSDT': 2200});
+    // Both markets are live at once: a mixed portfolio needs each position priced on its own market.
+    final twoMarkets = _book(
+      const {'BTCUSDT': 40500},
+      market: TradingMode.futures,
+    ).withSnapshot(TradingMode.spot, [_ticker('ETHUSDT', 2200, TradingMode.spot)]);
+    await _load(tester, repo, book: twoMarkets);
     expect(find.text('FUTURES'), findsOneWidget);
     expect(find.text('SPOT'), findsOneWidget);
     expect(find.text('40500.0000'), findsOneWidget);
     expect(find.text('2200.0000'), findsOneWidget);
+  });
+
+  /// The same symbol open on both markets must show two different live prices.
+  testWidgets('same symbol on two markets is priced from each market separately',
+      (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(1200, 2000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final repo = _FakePaperTradingRepository(
+      openPositions: [
+        _position(symbol: 'BTCUSDT', marketType: 'SPOT', price: 100000),
+        _position(symbol: 'BTCUSDT', marketType: 'FUTURES', price: 100500),
+      ],
+    );
+
+    // Distinct synthetic prices so a cross-market read is detectable, not coincidental.
+    final twoMarkets = _book(
+      const {'BTCUSDT': 100000},
+      market: TradingMode.spot,
+    ).withSnapshot(TradingMode.futures, [_ticker('BTCUSDT', 100500, TradingMode.futures)]);
+
+    await _load(tester, repo, book: twoMarkets);
+
+    // Each card shows its own market's price, not one shared number.
+    expect(find.text('100000.0000'), findsOneWidget);
+    expect(find.text('100500.0000'), findsOneWidget);
+  });
+
+  /// A quote arriving for the wrong market must not be applied to a position.
+  testWidgets('a tick for the other market never moves this position',
+      (WidgetTester tester) async {
+    final repo = _FakePaperTradingRepository(); // FUTURES, entry 40000
+    await _load(tester, repo, live: const {'BTCUSDT': 40500});
+    expect(find.text('40500.0000'), findsOneWidget);
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(PaperTradingScreen)),
+    );
+    final prices = container.read(marketPricesControllerProvider.notifier)
+        as _FakeMarketPricesController;
+    // A large spot move on the same symbol must leave the futures position untouched.
+    final futuresStill = _book(
+      const {'BTCUSDT': 40500},
+      market: TradingMode.futures,
+    ).withSnapshot(TradingMode.spot, [_ticker('BTCUSDT', 1, TradingMode.spot)]);
+    prices.emit(futuresStill);
+    await tester.pump();
+
+    expect(find.text('40500.0000'), findsOneWidget);
+    expect(find.text('1.0000'), findsNothing);
   });
 
   testWidgets('current price and PnL update when a live tick arrives',
@@ -155,9 +227,9 @@ void main() {
     final container = ProviderScope.containerOf(
       tester.element(find.byType(PaperTradingScreen)),
     );
-    final markets = container.read(marketsControllerProvider.notifier)
-        as _FakeMarketsController;
-    markets.emit(_markets(const {'BTCUSDT': 40600}));
+    final prices = container.read(marketPricesControllerProvider.notifier)
+        as _FakeMarketPricesController;
+    prices.emit(_book(const {'BTCUSDT': 40600}, market: TradingMode.futures));
     await tester.pump();
 
     // Current price reflects the new tick; the old backend/live value is gone.
@@ -188,10 +260,10 @@ void main() {
     final container = ProviderScope.containerOf(
       tester.element(find.byType(PaperTradingScreen)),
     );
-    final markets = container.read(marketsControllerProvider.notifier)
-        as _FakeMarketsController;
+    final prices = container.read(marketPricesControllerProvider.notifier)
+        as _FakeMarketPricesController;
     // A live tick for the closed symbol must NOT overwrite the exit price.
-    markets.emit(_markets(const {'ETHUSDT': 9999}));
+    prices.emit(_book(const {'ETHUSDT': 9999}, market: TradingMode.futures));
     await tester.pump();
 
     expect(find.text('2100.0000'), findsOneWidget);

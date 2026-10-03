@@ -590,8 +590,17 @@ MarketTicker _ticker(
     volume24h: 1000,
     high24h: price + 10,
     low24h: price - 10,
+    marketType: TradingMode.spot,
+    exchangeSymbol: symbol,
+    displaySymbol: '$baseOf(symbol)/USDT',
+    baseAsset: baseOf(symbol),
+    quoteAsset: 'USDT',
   );
 }
+
+/// Test-only helper: the asset part of a symbol, so fixtures carry realistic metadata.
+String baseOf(String symbol) =>
+    symbol.length > 4 ? symbol.substring(0, symbol.length - 4) : symbol;
 
 class _FakeMarketRepository implements MarketRepository {
   @override

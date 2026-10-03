@@ -8,6 +8,7 @@ import com.shyblack.cryptosignals.exception.BadRequestException;
 import com.shyblack.cryptosignals.exception.ResourceNotFoundException;
 import com.shyblack.cryptosignals.market.BinanceRestClient;
 import com.shyblack.cryptosignals.market.MarketBook;
+import com.shyblack.cryptosignals.market.MarketInstrument;
 import com.shyblack.cryptosignals.market.MarketTicker;
 import java.util.List;
 import java.util.Locale;
@@ -31,7 +32,7 @@ public class MarketService {
 			optionsMarketService.list();
 			return MarketListResponse.optionsUnavailable();
 		}
-		return MarketListResponse.of(mode, book.tickers(mode).snapshot().stream().map(this::toDto).toList());
+		return MarketListResponse.of(mode, book.tickers(mode).snapshot().stream().map(t -> toDto(mode, t)).toList());
 	}
 
 	public MarketTickerResponse get(String symbol, String modeParam) {
@@ -40,7 +41,7 @@ public class MarketService {
 			throw new ResourceNotFoundException(BinanceOptionsMarketService.UNAVAILABLE_MESSAGE);
 		}
 		return book.tickers(mode).get(symbol)
-				.map(this::toDto)
+				.map(t -> toDto(mode, t))
 				.orElseThrow(() -> new ResourceNotFoundException("No live ticker for " + symbol + " (" + mode + ")"));
 	}
 
@@ -50,7 +51,7 @@ public class MarketService {
 			optionsMarketService.list();
 			return MarketListResponse.optionsUnavailable();
 		}
-		return MarketListResponse.of(mode, book.tickers(mode).gainers(LEADERBOARD_LIMIT).stream().map(this::toDto).toList());
+		return MarketListResponse.of(mode, book.tickers(mode).gainers(LEADERBOARD_LIMIT).stream().map(t -> toDto(mode, t)).toList());
 	}
 
 	public MarketListResponse losers(String modeParam) {
@@ -59,7 +60,7 @@ public class MarketService {
 			optionsMarketService.list();
 			return MarketListResponse.optionsUnavailable();
 		}
-		return MarketListResponse.of(mode, book.tickers(mode).losers(LEADERBOARD_LIMIT).stream().map(this::toDto).toList());
+		return MarketListResponse.of(mode, book.tickers(mode).losers(LEADERBOARD_LIMIT).stream().map(t -> toDto(mode, t)).toList());
 	}
 
 	public List<KlineResponse> klines(String symbol, String interval, int limit, String modeParam) {
@@ -83,10 +84,19 @@ public class MarketService {
 		}
 	}
 
-	private MarketTickerResponse toDto(MarketTicker ticker) {
+	private MarketTickerResponse toDto(TradingMode mode, MarketTicker ticker) {
+		MarketInstrument instrument = book.instrument(mode, ticker.symbol()).orElse(null);
+		String baseAsset = instrument == null ? null : instrument.baseAsset();
+		String quoteAsset = instrument == null ? null : instrument.quoteAsset();
 		return new MarketTickerResponse(
 				ticker.symbol(),
+				ticker.symbol(),
+				mode.name(),
+				instrument == null ? ticker.symbol() : instrument.displaySymbol(),
 				ticker.name(),
+				baseAsset,
+				quoteAsset,
+				instrument == null ? null : instrument.contractType(),
 				ticker.price(),
 				ticker.change24h(),
 				ticker.changePercent24h(),

@@ -7,7 +7,7 @@ import '../../../domain/entities/paper_account.dart';
 import '../../../domain/entities/paper_performance.dart';
 import '../../../domain/entities/paper_position.dart';
 import '../../providers/paper_trading_controller.dart';
-import '../../providers/markets_controller.dart';
+import '../../providers/market_prices_controller.dart';
 
 class PaperTradingScreen extends ConsumerWidget {
   const PaperTradingScreen({super.key});
@@ -563,15 +563,22 @@ class _PositionCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isOpen = position.status == PaperPositionStatus.open;
-    // Live price comes from the single shared markets WebSocket (no per-position
-    // socket, no polling); falls back to the backend price until the first tick.
+    // Live price comes from the shared market stream (no per-position socket, no polling).
+    //
+    // Resolved on the position's own market. The Markets browser shows one market at a time, so
+    // looking a position up there would price a futures position off whatever market the user
+    // happens to be viewing. The shared book keeps both markets live, which a mixed spot/futures
+    // portfolio needs. When no quote is available the backend's price is used: that value was
+    // resolved on this position's own market server-side.
     final livePrice = ref.watch(
-      marketsControllerProvider.select(
-        (async) => async.value?.bySymbol[position.symbol]?.price,
+      marketPricesControllerProvider.select(
+        (async) => async.value?.priceFor(position.effectiveTradingMode, position.symbol),
       ),
     );
     final liveConnected = ref.watch(
-      marketsControllerProvider.select((async) => async.value?.connected ?? false),
+      marketPricesControllerProvider.select(
+        (async) => async.value?.isConnected(position.effectiveTradingMode) ?? false,
+      ),
     );
     final current = livePrice ?? position.currentPrice;
     final entry = position.entryPrice;

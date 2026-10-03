@@ -86,6 +86,10 @@ public class PaperTradingExecutionService {
 		p.setPortfolio(portfolio);
 		p.setSignalId(signal.getId());
 		p.setSymbol(signal.getSymbol());
+		// The signal's market is the position's market. Copying it here is what makes the position
+		// resolvable later: without it, symbol-only lookups would have to guess which of the two
+		// markets sharing this symbol should price it.
+		p.setTradingMode(signal.getTradingMode());
 		p.setSide(signal.getSide());
 		p.setSize(s.quantity());
 		p.setNotional(notional);

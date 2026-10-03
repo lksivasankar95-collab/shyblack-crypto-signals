@@ -83,7 +83,7 @@ class SpotSignalSchedulerRoutingTest {
         strategy.setTradingMode(TradingMode.SPOT); // engineKey null
         when(strategyResolver.resolveActive(TradingMode.SPOT)).thenReturn(Optional.of(strategy));
         when(engine.detectMarketRegime()).thenReturn(MarketRegime.BULLISH);
-        when(marketBook.spotTickers()).thenReturn(new MarketTickerStore());
+        when(marketBook.spotTickers()).thenReturn(new MarketTickerStore(TradingMode.SPOT));
 
         scheduler.runSignalCycle();
 

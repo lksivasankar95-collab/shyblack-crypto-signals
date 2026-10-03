@@ -76,13 +76,23 @@ public class PaperTradingQueryService {
 				user, AccountType.PAPER);
 	}
 
-	/** Prices are augmented from the live MarketBook so responses always reflect the latest quote. */
+	/**
+	 * The live price of this position, resolved within the market the position trades on.
+	 *
+	 * <p>Deliberately <b>not</b> a symbol-only lookup. The previous implementation probed spot first
+	 * and fell back to futures, which is correct only while nothing can hold both markets under one
+	 * symbol — but that is exactly the situation: a spot position and a futures position can both
+	 * be open on {@code BTCUSDT} at the same time, and the probe would price both of them off the
+	 * spot quote. A spot-first fallback is not a neutral default, it is a silent rule that futures
+	 * positions get marked to spot.
+	 *
+	 * <p>When the market has no live quote yet, the price captured at open time is used, which is a
+	 * real recorded value rather than a substituted one.
+	 */
 	public BigDecimal currentPrice(Position position) {
-		return marketBook.spotTickers().get(position.getSymbol())
+		return marketBook.ticker(position.effectiveTradingMode(), position.getSymbol())
 				.map(t -> t.price())
-				.orElseGet(() -> marketBook.futuresTickers().get(position.getSymbol())
-						.map(t -> t.price())
-						.orElseGet(position::getCurrentPrice));
+				.orElseGet(position::getCurrentPrice);
 	}
 
 	public BigDecimal unrealized(Position position) {

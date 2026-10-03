@@ -12,6 +12,12 @@ class MarketTickerModel {
     required this.volume24h,
     required this.high24h,
     required this.low24h,
+    required this.marketType,
+    this.exchangeSymbol,
+    this.displaySymbol,
+    this.baseAsset,
+    this.quoteAsset,
+    this.contractType,
   });
 
   final String symbol;
@@ -22,8 +28,32 @@ class MarketTickerModel {
   final double volume24h;
   final double high24h;
   final double low24h;
+  final TradingMode marketType;
+  final String? exchangeSymbol;
+  final String? displaySymbol;
+  final String? baseAsset;
+  final String? quoteAsset;
+  final String? contractType;
 
-  factory MarketTickerModel.fromJson(Map<String, dynamic> json) {
+  /// Parses a `marketType` string from the API.
+  ///
+  /// Falls back to the mode the request was scoped to rather than guessing, so a payload
+  /// that omits the field still lands on the market it was fetched for.
+  static TradingMode _mode(dynamic value, TradingMode fallback) {
+    final raw = value?.toString().trim().toUpperCase();
+    if (raw == null || raw.isEmpty) {
+      return fallback;
+    }
+    return TradingMode.values.firstWhere(
+      (mode) => mode.apiParam == raw,
+      orElse: () => fallback,
+    );
+  }
+
+  factory MarketTickerModel.fromJson(
+    Map<String, dynamic> json, {
+    TradingMode fallbackMode = TradingMode.spot,
+  }) {
     return MarketTickerModel(
       symbol: json['symbol'] as String? ?? '',
       name: json['name'] as String? ?? '',
@@ -33,6 +63,12 @@ class MarketTickerModel {
       volume24h: _num(json['volume24h']),
       high24h: _num(json['high24h']),
       low24h: _num(json['low24h']),
+      marketType: _mode(json['marketType'], fallbackMode),
+      exchangeSymbol: json['exchangeSymbol'] as String?,
+      displaySymbol: json['displaySymbol'] as String?,
+      baseAsset: json['baseAsset'] as String?,
+      quoteAsset: json['quoteAsset'] as String?,
+      contractType: json['contractType'] as String?,
     );
   }
 
@@ -45,6 +81,12 @@ class MarketTickerModel {
         volume24h: volume24h,
         high24h: high24h,
         low24h: low24h,
+        marketType: marketType,
+        exchangeSymbol: exchangeSymbol,
+        displaySymbol: displaySymbol,
+        baseAsset: baseAsset,
+        quoteAsset: quoteAsset,
+        contractType: contractType,
       );
 
   static double _num(dynamic value) {
@@ -127,7 +169,10 @@ class MarketSnapshotModel {
         mode: fallbackMode.apiParam,
         tickers: data
             .whereType<Map>()
-            .map((item) => MarketTickerModel.fromJson(Map<String, dynamic>.from(item)))
+            .map((item) => MarketTickerModel.fromJson(
+                  Map<String, dynamic>.from(item),
+                  fallbackMode: fallbackMode,
+                ))
             .toList(),
       );
     }
@@ -139,7 +184,10 @@ class MarketSnapshotModel {
       tickers: rawTickers is List
           ? rawTickers
               .whereType<Map>()
-              .map((item) => MarketTickerModel.fromJson(Map<String, dynamic>.from(item)))
+              .map((item) => MarketTickerModel.fromJson(
+                    Map<String, dynamic>.from(item),
+                    fallbackMode: fallbackMode,
+                  ))
               .toList()
           : const [],
     );

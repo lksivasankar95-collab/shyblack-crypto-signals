@@ -6,6 +6,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.shyblack.cryptosignals.config.MarketProperties;
 import com.shyblack.cryptosignals.dto.market.KlineResponse;
+import com.shyblack.cryptosignals.entity.enums.TradingMode;
 import com.shyblack.cryptosignals.exception.MarketUpstreamException;
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -37,21 +38,29 @@ public class BinanceRestClient {
 		this.quoteAsset = properties.quoteAssetOrUsdt();
 	}
 
-	public Map<String, String> loadTradableUsdtSpotNames() {
+	/**
+	 * Tradable spot pairs, with the identity Binance reports for each.
+	 *
+	 * <p>Spot has no contract metadata, so {@code contractType} and {@code contractExpiry} stay
+	 * {@code null}. That is the point of carrying them as fields rather than omitting them: a spot
+	 * pair being rendered as an unqualified symbol is what distinguishes it from the perpetual that
+	 * shares the symbol.
+	 */
+	public List<MarketInstrument> loadTradableUsdtSpotInstruments() {
 		try {
 			String body = rest.get()
 					.uri("/api/v3/exchangeInfo")
 					.accept(MediaType.APPLICATION_JSON)
 					.retrieve()
 					.body(String.class);
-			Map<String, String> names = new LinkedHashMap<>();
+			List<MarketInstrument> instruments = new ArrayList<>();
 			if (body == null || body.isBlank()) {
-				return names;
+				return instruments;
 			}
 			JsonObject root = JsonParser.parseString(body).getAsJsonObject();
 			JsonArray symbols = root.getAsJsonArray("symbols");
 			if (symbols == null) {
-				return names;
+				return instruments;
 			}
 			for (JsonElement element : symbols) {
 				JsonObject item = element.getAsJsonObject();
@@ -64,15 +73,27 @@ public class BinanceRestClient {
 				if (item.has("isSpotTradingAllowed") && !item.get("isSpotTradingAllowed").getAsBoolean()) {
 					continue;
 				}
-				String symbol = item.get("symbol").getAsString();
-				String base = item.get("baseAsset").getAsString();
-				names.put(symbol, base);
+				instruments.add(new MarketInstrument(
+						TradingMode.SPOT,
+						item.get("symbol").getAsString(),
+						item.get("baseAsset").getAsString(),
+						item.get("quoteAsset").getAsString(),
+						null,
+						null));
 			}
-			log.info("Loaded {} Spot {} pairs from exchangeInfo", names.size(), quoteAsset);
-			return names;
+			log.info("Loaded {} Spot {} instruments from exchangeInfo", instruments.size(), quoteAsset);
+			return instruments;
 		} catch (RestClientException ex) {
 			throw new MarketUpstreamException("Unable to load Spot exchangeInfo from Binance", ex);
 		}
+	}
+
+	public Map<String, String> loadTradableUsdtSpotNames() {
+		Map<String, String> names = new LinkedHashMap<>();
+		for (MarketInstrument instrument : loadTradableUsdtSpotInstruments()) {
+			names.put(instrument.exchangeSymbol(), instrument.baseAsset());
+		}
+		return names;
 	}
 
 	public List<MarketTicker> loadSpot24hTickers(UsdtSymbolDirectory directory) {

@@ -200,7 +200,7 @@ class NfmFuturesSignalServiceTest {
 	}
 
 	private static MarketTickerStore futuresStore() {
-		MarketTickerStore store = new MarketTickerStore();
+		MarketTickerStore store = new MarketTickerStore(TradingMode.FUTURES);
 		BigDecimal price = BigDecimal.valueOf(100);
 		store.upsert(new MarketTicker("BTCUSDT", "Bitcoin", price, BigDecimal.ZERO, BigDecimal.ZERO,
 				BigDecimal.valueOf(10_000_000), price, price, Instant.now()));

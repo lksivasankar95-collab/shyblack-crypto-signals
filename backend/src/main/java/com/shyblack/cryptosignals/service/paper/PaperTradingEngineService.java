@@ -9,6 +9,7 @@ import com.shyblack.cryptosignals.entity.enums.AccountType;
 import com.shyblack.cryptosignals.entity.enums.CloseReason;
 import com.shyblack.cryptosignals.entity.enums.PositionSide;
 import com.shyblack.cryptosignals.entity.enums.PositionStatus;
+import com.shyblack.cryptosignals.entity.enums.TradingMode;
 import com.shyblack.cryptosignals.market.MarketBook;
 import com.shyblack.cryptosignals.market.MarketTicker;
 import com.shyblack.cryptosignals.repository.PositionRepository;
@@ -54,7 +55,7 @@ public class PaperTradingEngineService {
 	void wireMarketListeners() {
 		marketBook.spotTickers().addBatchListener(this::onTickBatch);
 		marketBook.futuresTickers().addBatchListener(this::onTickBatch);
-		log.info("[Paper] engine wired to spot + futures ticker streams");
+		log.info("[Paper] engine wired to spot + futures ticker streams (market-scoped)");
 	}
 
 	/**
@@ -94,29 +95,41 @@ public class PaperTradingEngineService {
 				user.getId(), signal.getId(), p.getId(), p.getSymbol(), p.getSize(), p.getEntryPrice()));
 	}
 
-	/** Called for every batch of Binance ticks. Runs outside a transaction so DB is only touched when we act. */
-	void onTickBatch(List<MarketTicker> ticks) {
-		if (ticks == null || ticks.isEmpty()) return;
+	/**
+	 * Evaluates one batch of ticks.
+	 *
+	 * <p>{@code mode} is the market the batch came from and is threaded through to position
+	 * selection. The previous signature dropped it and matched positions on symbol alone, so a
+	 * futures tick would pick up an open spot position on the same symbol and evaluate its stop-loss
+	 * against a price the position was never opened at.
+	 */
+	void onTickBatch(TradingMode mode, List<MarketTicker> ticks) {
+		if (mode == null || ticks == null || ticks.isEmpty()) return;
 		for (MarketTicker tick : ticks) {
 			try {
-				evaluateSymbol(tick.symbol(), tick.price());
+				evaluateSymbol(mode, tick.symbol(), tick.price());
 			} catch (Exception ex) {
-				log.warn("[Paper] evaluate failed symbol={} err={}", tick.symbol(), ex.getMessage());
+				log.warn("[Paper] evaluate failed mode={} symbol={} err={}", mode, tick.symbol(), ex.getMessage());
 			}
 		}
 	}
 
-	/** Returns open PAPER positions for the given symbol. Repository provides its own transaction. */
-	protected List<Position> openPositionsForSymbol(String symbol) {
+	/**
+	 * Open PAPER positions for {@code symbol} <em>on {@code mode}</em>.
+	 *
+	 * <p>Repository provides its own transaction.
+	 */
+	protected List<Position> openPositionsForSymbol(TradingMode mode, String symbol) {
 		return positionRepository.findByStatusAndPortfolio_AccountType(PositionStatus.OPEN, AccountType.PAPER)
 				.stream()
 				.filter(p -> symbol.equals(p.getSymbol()))
+				.filter(p -> p.effectiveTradingMode() == mode)
 				.toList();
 	}
 
-	private void evaluateSymbol(String symbol, BigDecimal lastPrice) {
+	private void evaluateSymbol(TradingMode mode, String symbol, BigDecimal lastPrice) {
 		if (symbol == null || lastPrice == null || lastPrice.signum() <= 0) return;
-		List<Position> open = openPositionsForSymbol(symbol);
+		List<Position> open = openPositionsForSymbol(mode, symbol);
 		for (Position p : open) {
 			// Legacy single-TP positions keep the original exact behavior.
 			if (p.getTakeProfit2() == null && p.getTakeProfit3() == null) {

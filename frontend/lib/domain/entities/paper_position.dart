@@ -1,3 +1,5 @@
+import 'app_settings.dart';
+
 enum PaperPositionSide { long, short }
 
 enum PaperPositionStatus { open, closed }
@@ -73,4 +75,26 @@ class PaperPosition {
 
   /// Strategy name (e.g. "EMA Trend Following"), resolved from the strategy.
   final String? strategyName;
+
+  /// The market this position trades on, or null when the backend could not report one.
+  ///
+  /// Never inferred from [symbol]: `BTCUSDT` is both a spot pair and a futures perpetual, and the
+  /// two are priced separately.
+  TradingMode? get tradingMode {
+    final raw = marketType?.trim().toUpperCase();
+    if (raw == null || raw.isEmpty) {
+      return null;
+    }
+    for (final mode in TradingMode.values) {
+      if (mode.apiParam == raw) {
+        return mode;
+      }
+    }
+    return null;
+  }
+
+  /// Resolved market, defaulting to spot for positions predating the field.
+  ///
+  /// Matches the backend's own legacy default so both sides agree on how an old row is read.
+  TradingMode get effectiveTradingMode => tradingMode ?? TradingMode.spot;
 }

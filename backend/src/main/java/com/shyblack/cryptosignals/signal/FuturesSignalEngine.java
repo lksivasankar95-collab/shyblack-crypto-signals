@@ -5,8 +5,8 @@ import com.shyblack.cryptosignals.entity.enums.EntryType;
 import com.shyblack.cryptosignals.entity.enums.MarketRegime;
 import com.shyblack.cryptosignals.entity.enums.PositionSide;
 import com.shyblack.cryptosignals.entity.enums.SignalGrade;
+import com.shyblack.cryptosignals.entity.enums.TradingMode;
 import com.shyblack.cryptosignals.market.BinanceFuturesRestClient;
-import com.shyblack.cryptosignals.market.BinanceRestClient;
 import com.shyblack.cryptosignals.market.MarketBook;
 import com.shyblack.cryptosignals.market.MarketTicker;
 import java.util.ArrayList;
@@ -29,14 +29,11 @@ public class FuturesSignalEngine {
     private static final Logger log = LoggerFactory.getLogger(FuturesSignalEngine.class);
 
     private final BinanceFuturesRestClient futuresRestClient;
-    private final BinanceRestClient spotRestClient; // for BTC regime detection
     private final MarketBook marketBook;
 
     public FuturesSignalEngine(BinanceFuturesRestClient futuresRestClient,
-                                BinanceRestClient spotRestClient,
                                 MarketBook marketBook) {
         this.futuresRestClient = futuresRestClient;
-        this.spotRestClient = spotRestClient;
         this.marketBook = marketBook;
     }
 
@@ -50,9 +47,20 @@ public class FuturesSignalEngine {
             boolean valid
     ) {}
 
+    /**
+     * Classifies the market regime from BTC 4h futures candles.
+     *
+     * <p>The candles come from the futures REST client, not the spot one. They previously came from
+     * spot, which fed spot prices into the futures decision path: the regime that decided whether
+     * futures positions were allowed to be LONG or SHORT was computed from a different market's
+     * price series. Spot and futures BTC can trend differently, and perpetual futures have basis
+     * and funding that spot does not, so this was not a benign substitution.
+     *
+     * <p>Only the data source changed. The classification rules themselves are untouched.
+     */
     public MarketRegime detectMarketRegime() {
         try {
-            List<KlineResponse> btc4h = spotRestClient.klines("BTCUSDT", "4h", SignalConstants.CANDLES_4H);
+            List<KlineResponse> btc4h = futuresRestClient.klines("BTCUSDT", "4h", SignalConstants.CANDLES_4H);
             if (btc4h.size() < 210) return MarketRegime.NEUTRAL;
             IndicatorEngine.Indicators ind = IndicatorEngine.compute(btc4h);
             double price = ind.lastClose();
@@ -68,7 +76,7 @@ public class FuturesSignalEngine {
     public List<FuturesSignalCandidate> analyze(String symbol, MarketRegime regime) {
         List<FuturesSignalCandidate> results = new ArrayList<>();
         try {
-            Optional<MarketTicker> tickerOpt = marketBook.futuresTickers().get(symbol);
+            Optional<MarketTicker> tickerOpt = marketBook.ticker(TradingMode.FUTURES, symbol);
             if (tickerOpt.isEmpty()) return results;
             MarketTicker ticker = tickerOpt.get();
             double volume24h    = ticker.volume24h().doubleValue();

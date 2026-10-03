@@ -6,11 +6,11 @@ import com.shyblack.cryptosignals.exception.MarketUpstreamException;
 import com.shyblack.cryptosignals.market.BinanceFuturesRestClient;
 import com.shyblack.cryptosignals.market.BinanceRestClient;
 import com.shyblack.cryptosignals.market.MarketBook;
+import com.shyblack.cryptosignals.market.MarketInstrument;
 import com.shyblack.cryptosignals.market.MarketTicker;
 import com.shyblack.cryptosignals.market.UsdtSymbolDirectory;
 import jakarta.annotation.PostConstruct;
 import java.util.List;
-import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -60,8 +60,8 @@ public class MarketCatalogService {
 
 	private void refreshSpot() {
 		try {
-			Map<String, String> names = spotRest.loadTradableUsdtSpotNames();
-			apply(TradingMode.SPOT, names, () -> spotRest.loadSpot24hTickers(book.spotSymbols()));
+			List<MarketInstrument> instruments = spotRest.loadTradableUsdtSpotInstruments();
+			apply(TradingMode.SPOT, instruments, () -> spotRest.loadSpot24hTickers(book.spotSymbols()));
 		} catch (MarketUpstreamException ex) {
 			log.warn("Spot catalog refresh failed (keeping previous snapshot): {}", ex.getMessage());
 		}
@@ -69,23 +69,23 @@ public class MarketCatalogService {
 
 	private void refreshFutures() {
 		try {
-			Map<String, String> names = futuresRest.loadTradableUsdtMFuturesNames();
-			apply(TradingMode.FUTURES, names, () -> futuresRest.loadFutures24hTickers(book.futuresSymbols()));
+			List<MarketInstrument> instruments = futuresRest.loadTradableUsdtMFuturesInstruments();
+			apply(TradingMode.FUTURES, instruments, () -> futuresRest.loadFutures24hTickers(book.futuresSymbols()));
 		} catch (MarketUpstreamException ex) {
 			log.warn("Futures catalog refresh failed (keeping previous snapshot): {}", ex.getMessage());
 		}
 	}
 
-	private void apply(TradingMode mode, Map<String, String> names, TickerLoader tickerLoader) {
+	private void apply(TradingMode mode, List<MarketInstrument> instruments, TickerLoader tickerLoader) {
 		UsdtSymbolDirectory directory = book.symbols(mode);
-		directory.replace(names);
+		directory.replaceInstruments(instruments);
 		book.tickers(mode).retainOnly(directory.snapshot());
 		List<MarketTicker> tickers = tickerLoader.load();
 		book.tickers(mode).upsertAll(tickers);
 		log.info("Refreshed {} {} universe: {} symbols, {} 24h tickers (refresh every {} ms)",
 				mode,
 				properties.quoteAssetOrUsdt(),
-				names.size(),
+				instruments.size(),
 				tickers.size(),
 				properties.exchangeInfoRefreshMs());
 	}

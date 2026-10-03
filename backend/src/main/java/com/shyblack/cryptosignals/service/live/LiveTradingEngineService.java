@@ -183,13 +183,22 @@ public class LiveTradingEngineService {
 		});
 	}
 
+	/**
+	 * The reference price used to size a live order.
+	 *
+	 * <p>Resolved on the signal's own market. This previously read {@code spotTickers} regardless of
+	 * the signal's market, so a futures signal was sized against the spot price for the same symbol —
+	 * a real quantity error, since a perpetual trades at a different price than its underlying pair.
+	 * Falling back to {@code signal.entryPrice} keeps the behaviour safe when the market has no live
+	 * quote, which is a value already recorded on the signal rather than a substituted one.
+	 */
 	private BigDecimal liveReferencePrice(Signal signal) {
 		if (signal.getTradingMode() == null) return null;
 		if (signal.getTradingMode().name().equals("OPTIONS")) return null;
 		if (adapter.exchange() == ExchangeName.BINANCE) {
 			// Prefer MarketBook (already streaming) so we never call an extra REST endpoint
 			// just to size a trade. Fall back to signal.entryPrice.
-			return marketBook.spotTickers().get(signal.getSymbol())
+			return marketBook.ticker(signal.getTradingMode(), signal.getSymbol())
 					.map(t -> t.price())
 					.orElseGet(signal::getEntryPrice);
 		}

@@ -35,6 +35,12 @@ class MarketsViewData {
   final bool connected;
   final bool reconnecting;
 
+  /// Look up a ticker within this view's market.
+  ///
+  /// The lookup is unambiguous only because the whole view is scoped to a single
+  /// [mode]; there is no cross-market fallback here, by design.
+  MarketTicker? tickerFor(String symbol) => bySymbol[symbol.toUpperCase()];
+
   MarketsViewData copyWith({
     TradingMode? mode,
     String? message,
@@ -132,6 +138,30 @@ class MarketsViewData {
   }
 }
 
+/// The market the Markets browser is currently showing.
+///
+/// This is a *view* selection, not a trading preference: it decides which market's
+/// universe, prices and candles are displayed, and nothing more. Strategy and signal
+/// generation remain application-driven and are not affected by it.
+///
+/// It replaces a compile-time constant that was pinned to spot, which is why the Futures
+/// universe was unreachable from the UI even though the API and domain layers supported it.
+class MarketsModeController extends Notifier<TradingMode> {
+  @override
+  TradingMode build() => kAppMarketMode;
+
+  void select(TradingMode mode) {
+    if (mode == state) {
+      return;
+    }
+    // Options has no ticker store or symbol directory on the backend.
+    state = mode == TradingMode.options ? TradingMode.spot : mode;
+  }
+}
+
+final marketsModeProvider =
+    NotifierProvider<MarketsModeController, TradingMode>(MarketsModeController.new);
+
 class MarketsController extends AsyncNotifier<MarketsViewData> {
   StreamSubscription<dynamic>? _subscription;
   MarketsSocketSession? _session;
@@ -143,8 +173,9 @@ class MarketsController extends AsyncNotifier<MarketsViewData> {
   @override
   Future<MarketsViewData> build() async {
     final generation = ++_generation;
-    // Trading mode is application-controlled, not a user preference.
-    const mode = kAppMarketMode;
+    // Watched, not read: switching market must tear down the old market's socket and load
+    // the new one. The generation guard below discards any in-flight work from the old market.
+    final mode = ref.watch(marketsModeProvider);
 
     ref.listen<AsyncValue<AuthStatus>>(authSessionProvider, (previous, next) {
       if (next.value == AuthStatus.unauthenticated) {
@@ -180,7 +211,7 @@ class MarketsController extends AsyncNotifier<MarketsViewData> {
   }
 
   Future<void> refresh({bool silent = false}) async {
-    const mode = kAppMarketMode;
+    final mode = ref.read(marketsModeProvider);
     try {
       final next = await _fetch(mode);
       final current = state.value;

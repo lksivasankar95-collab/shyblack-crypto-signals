@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../domain/entities/app_settings.dart';
 import '../../../domain/entities/market_ticker.dart';
 import '../../providers/markets_controller.dart';
 import '../../widgets/coin_letter_avatar.dart';
@@ -19,7 +20,7 @@ class _MarketsScreenState extends ConsumerState<MarketsScreen> with SingleTicker
   final _search = TextEditingController();
   String _query = '';
 
-  static const _tabLabels = ['Watchlist', 'All Markets', 'Top Gainers', 'Top Losers', 'New Listings'];
+  static const _tabLabels = ['Watchlist', 'Markets', 'Top Gainers', 'Top Losers', 'New Listings'];
 
   @override
   void initState() {
@@ -54,6 +55,7 @@ class _MarketsScreenState extends ConsumerState<MarketsScreen> with SingleTicker
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          const _MarketSelector(),
           TabBar(
             controller: _tabs,
             isScrollable: true,
@@ -99,6 +101,85 @@ class _MarketsScreenState extends ConsumerState<MarketsScreen> with SingleTicker
   }
 }
 
+class _MarketSelector extends ConsumerWidget {
+  const _MarketSelector();
+
+  /// Spot and Futures are separate universes, so they are separate views.
+  ///
+  /// There is deliberately no combined "All Markets" option. A single merged list would put the
+  /// spot pair and the futures perpetual that share a symbol side by side as if they were the
+  /// same instrument, and picking one would be picking which market you meant — which is the
+  /// decision this selector exists to make explicit.
+  static const _modes = [TradingMode.spot, TradingMode.futures];
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selected = ref.watch(marketsModeProvider);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 2),
+      child: Row(
+        children: [
+          for (final mode in _modes)
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: _MarketSelectorButton(
+                  mode: mode,
+                  selected: mode == selected,
+                  onTap: () => ref.read(marketsModeProvider.notifier).select(mode),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MarketSelectorButton extends StatelessWidget {
+  const _MarketSelectorButton({
+    required this.mode,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final TradingMode mode;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected ? AppColors.card : Colors.transparent,
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 9),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: selected ? AppColors.accent : Colors.transparent,
+              width: 1.2,
+            ),
+          ),
+          child: Text(
+            mode.label.toUpperCase(),
+            style: TextStyle(
+              color: selected ? AppColors.onBackground : AppColors.muted,
+              fontWeight: FontWeight.w800,
+              fontSize: 13,
+              letterSpacing: 0.4,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _MarketsBody extends StatelessWidget {
   const _MarketsBody({
     required this.data,
@@ -133,10 +214,10 @@ class _MarketsBody extends StatelessWidget {
     };
 
     final empty = switch (tabIndex) {
-      0 => const _EmptyState(
+0 => const _EmptyState(
           icon: Icons.star_border,
           title: 'No watchlist coins yet',
-          subtitle: 'Watchlist is coming next — All Markets still lists every USDT pair.',
+          subtitle: 'Watchlist is coming next — Markets still lists every instrument in the selected market.',
         ),
       1 => _EmptyState(
           icon: Icons.search_off,
@@ -170,7 +251,9 @@ class _MarketsBody extends StatelessWidget {
               itemBuilder: (context, index) {
                 final ticker = tickers[index];
                 return _LiveMarketTile(
-                  key: ValueKey(ticker.symbol),
+                  // Keyed by market as well as symbol: the same symbol on two markets is
+                  // two different instruments and must not share a widget subtree.
+                  key: ValueKey('${ticker.marketType.apiParam}:${ticker.symbol}'),
                   symbol: ticker.symbol,
                   fallback: ticker,
                 );
@@ -229,7 +312,14 @@ class _LiveMarketTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final ticker = ref.watch(
-          marketsControllerProvider.select((async) => async.value?.bySymbol[symbol]),
+          marketsControllerProvider.select(
+            (async) {
+              final live = async.value?.tickerFor(symbol);
+              // Guard on market as well as symbol so a live quote for the same symbol on a
+              // different market can never stand in for this tile's instrument.
+              return live != null && live.marketType == fallback.marketType ? live : null;
+            },
+          ),
         ) ??
         fallback;
     return _MarketTile(
@@ -277,7 +367,9 @@ class _MarketTile extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        ticker.name,
+                        // Server-derived label, so a perpetual reads as a perpetual rather
+                        // than as the spot pair that shares its symbol.
+                        ticker.isFutures ? ticker.displayLabel : ticker.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(color: AppColors.muted, fontSize: 12),

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../domain/entities/app_settings.dart';
 import '../../../domain/entities/coin_about.dart';
 import '../../../domain/entities/market_ticker.dart';
 import '../../providers/coin_detail_providers.dart';
@@ -11,15 +12,29 @@ import '../../widgets/coin_kline_chart.dart';
 import '../../widgets/coin_letter_avatar.dart';
 
 class CoinDetailScreen extends ConsumerStatefulWidget {
-  const CoinDetailScreen({super.key, required this.symbol, this.initialTicker});
+  const CoinDetailScreen({
+    super.key,
+    required this.symbol,
+    this.market = TradingMode.spot,
+    this.initialTicker,
+  });
 
+  /// Exchange symbol. Identifies an instrument only together with [market].
   final String symbol;
+
+  /// Which market this screen describes. Determines the price and candles that are loaded.
+  final TradingMode market;
+
   final MarketTicker? initialTicker;
 
   static void open(BuildContext context, MarketTicker ticker) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => CoinDetailScreen(symbol: ticker.symbol, initialTicker: ticker),
+        builder: (_) => CoinDetailScreen(
+          symbol: ticker.symbol,
+          market: ticker.marketType,
+          initialTicker: ticker,
+        ),
       ),
     );
   }
@@ -34,9 +49,13 @@ class _CoinDetailScreenState extends ConsumerState<CoinDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final tickerAsync = ref.watch(coinTickerProvider(widget.symbol));
+    final tickerAsync = ref.watch(coinTickerProvider(MarketRef(symbol: widget.symbol, market: widget.market)));
     final klinesAsync = ref.watch(
-      coinKlinesProvider(KlineQuery(symbol: widget.symbol, interval: _timeframe.interval)),
+      coinKlinesProvider(KlineQuery(
+        symbol: widget.symbol,
+        interval: _timeframe.interval,
+        market: widget.market,
+      )),
     );
     final watched = ref.watch(localWatchlistProvider).contains(widget.symbol);
     final ticker = tickerAsync.value ?? widget.initialTicker;
@@ -67,7 +86,7 @@ class _CoinDetailScreenState extends ConsumerState<CoinDetailScreen> {
                           style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
                         ),
                         Text(
-                          '${ticker.baseSymbol}/USDT',
+                          ticker.displayLabel,
                           style: const TextStyle(color: AppColors.muted, fontSize: 12),
                         ),
                       ],
@@ -101,10 +120,11 @@ class _CoinDetailScreenState extends ConsumerState<CoinDetailScreen> {
           : ticker == null
               ? _ErrorBody(
                   message: tickerAsync.error?.toString() ?? 'Could not load this market',
-                  onRetry: () {
-                    ref.invalidate(coinTickerRestProvider(widget.symbol));
-                    ref.invalidate(coinTickerProvider(widget.symbol));
-                  },
+onRetry: () {
+                     final target = MarketRef(symbol: widget.symbol, market: widget.market);
+                     ref.invalidate(coinTickerRestProvider(target));
+                     ref.invalidate(coinTickerProvider(target));
+                   },
                 )
               : Column(
                   children: [
@@ -145,7 +165,11 @@ class _CoinDetailScreenState extends ConsumerState<CoinDetailScreen> {
                                     message: error.toString(),
                                     onRetry: () => ref.invalidate(
                                       coinKlinesProvider(
-                                        KlineQuery(symbol: widget.symbol, interval: _timeframe.interval),
+                                        KlineQuery(
+                                          symbol: widget.symbol,
+                                          interval: _timeframe.interval,
+                                          market: widget.market,
+                                        ),
                                       ),
                                     ),
                                   ),

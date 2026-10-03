@@ -66,7 +66,7 @@ class FuturesSignalSchedulerRoutingTest {
 		strategy.setTradingMode(TradingMode.FUTURES); // engineKey null
 		when(strategyResolver.resolveActive(TradingMode.FUTURES)).thenReturn(Optional.of(strategy));
 		when(engine.detectMarketRegime()).thenReturn(MarketRegime.BULLISH);
-		when(marketBook.futuresTickers()).thenReturn(new MarketTickerStore());
+		when(marketBook.futuresTickers()).thenReturn(new MarketTickerStore(TradingMode.FUTURES));
 
 		scheduler.runSignalCycle();
 

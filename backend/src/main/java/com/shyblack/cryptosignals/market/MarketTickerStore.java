@@ -1,5 +1,6 @@
 package com.shyblack.cryptosignals.market;
 
+import com.shyblack.cryptosignals.entity.enums.TradingMode;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -8,12 +9,38 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.function.Consumer;
 
+/**
+ * Live quotes for a single market.
+ *
+ * <p>The store is bound to one {@link TradingMode} at construction. Tickers are keyed by exchange
+ * symbol, which is unambiguous <em>within</em> a store but would collide across the spot and
+ * futures stores for symbols like {@code BTCUSDT}. Fixing the market on the store is what makes a
+ * symbol-keyed cache safe: there are two stores, each fed only by its own market's feeds, and
+ * {@link MarketBook#tickers(TradingMode)} hands out the right one.
+ *
+ * <p>Batch listeners are invoked with the store's own market, so a consumer reacting to a price
+ * change learns which market moved without having to infer it.
+ */
 public class MarketTickerStore {
 
+	private final TradingMode mode;
 	private final ConcurrentHashMap<String, MarketTicker> tickers = new ConcurrentHashMap<>();
-	private final CopyOnWriteArrayList<Consumer<List<MarketTicker>>> batchListeners = new CopyOnWriteArrayList<>();
+	private final CopyOnWriteArrayList<MarketBatchListener> batchListeners = new CopyOnWriteArrayList<>();
+
+	public MarketTickerStore(TradingMode mode) {
+		if (mode == null) {
+			throw new IllegalArgumentException("A ticker store must know which market it holds");
+		}
+		if (mode == TradingMode.OPTIONS) {
+			throw new IllegalArgumentException("OPTIONS has no ticker store");
+		}
+		this.mode = mode;
+	}
+
+	public TradingMode mode() {
+		return mode;
+	}
 
 	public void upsert(MarketTicker ticker) {
 		upsertAll(List.of(ticker));
@@ -38,7 +65,7 @@ public class MarketTickerStore {
 		}
 		if (!changed.isEmpty()) {
 			List<MarketTicker> immutable = List.copyOf(changed);
-			batchListeners.forEach(listener -> listener.accept(immutable));
+			batchListeners.forEach(listener -> listener.onBatch(mode, immutable));
 		}
 		return changed;
 	}
@@ -75,7 +102,7 @@ public class MarketTickerStore {
 				.toList();
 	}
 
-	public void addBatchListener(Consumer<List<MarketTicker>> listener) {
+	public void addBatchListener(MarketBatchListener listener) {
 		batchListeners.add(listener);
 	}
 

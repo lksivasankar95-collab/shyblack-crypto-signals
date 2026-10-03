@@ -3,6 +3,7 @@ package com.shyblack.cryptosignals.entity;
 import com.shyblack.cryptosignals.entity.enums.CloseReason;
 import com.shyblack.cryptosignals.entity.enums.PositionSide;
 import com.shyblack.cryptosignals.entity.enums.PositionStatus;
+import com.shyblack.cryptosignals.entity.enums.TradingMode;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -56,6 +57,27 @@ public class Position extends BaseEntity {
 
 	@Column(nullable = false)
 	private String symbol;
+
+	/**
+	 * Which market this position trades on.
+	 *
+	 * <p>{@code symbol} alone cannot identify what is being held: {@code BTCUSDT} is a valid spot
+	 * pair and a valid futures perpetual, and the two carry different prices. Without this column a
+	 * position cannot be matched back to the feed that is supposed to move it, so a futures tick
+	 * would be allowed to evaluate a spot position against the wrong price.
+	 *
+	 * <p>Nullable because rows created before this column existed hold SQL NULL. New positions always
+	 * carry the mode of the signal that opened them; {@link #effectiveTradingMode()} is the
+	 * legacy-safe accessor.
+	 */
+	@Enumerated(EnumType.STRING)
+	@Column(name = "trading_mode")
+	private TradingMode tradingMode;
+
+	/** The market this position trades on, falling back to spot for pre-column legacy rows. */
+	public TradingMode effectiveTradingMode() {
+		return tradingMode == null ? TradingMode.SPOT : tradingMode;
+	}
 
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false)

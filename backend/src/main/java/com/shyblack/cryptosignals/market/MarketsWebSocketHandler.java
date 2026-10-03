@@ -45,8 +45,8 @@ public class MarketsWebSocketHandler extends TextWebSocketHandler {
 
 	public MarketsWebSocketHandler(MarketBook book) {
 		this.book = book;
-		this.book.spotTickers().addBatchListener(changed -> broadcast(TradingMode.SPOT, changed));
-		this.book.futuresTickers().addBatchListener(changed -> broadcast(TradingMode.FUTURES, changed));
+		this.book.spotTickers().addBatchListener(this::broadcast);
+		this.book.futuresTickers().addBatchListener(this::broadcast);
 	}
 
 	@Override
@@ -72,7 +72,7 @@ public class MarketsWebSocketHandler extends TextWebSocketHandler {
 			payload.addProperty("message", BinanceOptionsMarketService.UNAVAILABLE_MESSAGE);
 			payload.add("tickers", gson.toJsonTree(List.of()));
 		} else {
-			payload.add("tickers", gson.toJsonTree(book.tickers(mode).snapshot().stream().map(this::toDto).toList()));
+			payload.add("tickers", gson.toJsonTree(book.tickers(mode).snapshot().stream().map(t -> toDto(mode, t)).toList()));
 		}
 		send(session, gson.toJson(payload));
 	}
@@ -85,7 +85,7 @@ public class MarketsWebSocketHandler extends TextWebSocketHandler {
 		if (changed == null || changed.isEmpty() || sessions.isEmpty()) {
 			return;
 		}
-		List<MarketTickerResponse> dtos = changed.stream().map(this::toDto).toList();
+		List<MarketTickerResponse> dtos = changed.stream().map(t -> toDto(mode, t)).toList();
 		JsonObject payload = new JsonObject();
 		payload.addProperty("type", "tickers");
 		payload.addProperty("mode", mode.name());
@@ -145,10 +145,19 @@ public class MarketsWebSocketHandler extends TextWebSocketHandler {
 		}
 	}
 
-	private MarketTickerResponse toDto(MarketTicker ticker) {
+	private MarketTickerResponse toDto(TradingMode mode, MarketTicker ticker) {
+		MarketInstrument instrument = book.instrument(mode, ticker.symbol()).orElse(null);
+		String baseAsset = instrument == null ? null : instrument.baseAsset();
+		String quoteAsset = instrument == null ? null : instrument.quoteAsset();
 		return new MarketTickerResponse(
 				ticker.symbol(),
+				ticker.symbol(),
+				mode.name(),
+				instrument == null ? ticker.symbol() : instrument.displaySymbol(),
 				ticker.name(),
+				baseAsset,
+				quoteAsset,
+				instrument == null ? null : instrument.contractType(),
 				ticker.price(),
 				ticker.change24h(),
 				ticker.changePercent24h(),
